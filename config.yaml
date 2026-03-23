@@ -1,0 +1,65 @@
+# IClude 配置文件
+
+storage:
+  sqlite:
+    enabled: true
+    path: "./data/iclude.db"
+    search:
+      bm25_weights:
+        content: 10.0    # 正文权重
+        abstract: 5.0    # 摘要权重
+        summary: 3.0     # 概述权重
+    tokenizer:
+      provider: "simple"           # noop(不分词) | simple(内置Unicode分词) | jieba(结巴HTTP服务)
+      jieba_url: "http://localhost:8866"  # 仅 provider=jieba 时需要
+  qdrant:
+    enabled: false
+    url: "http://localhost:6333"
+    collection: "memories"
+    dimension: 384
+
+partitions:
+  enabled: false
+  catalog_path: "./data/partitions.db"  # 分区目录库
+
+llm:  # 多轮检索所需
+  default_provider: "openai"
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: ""  # 留空使用 OpenAI 默认，可改为兼容 API 地址 / Empty uses OpenAI default, can be set to compatible API URL
+    model: "gpt-4"
+  embedding:
+    provider: "openai"               # openai | ollama
+    model: "text-embedding-3-small"
+    # 推荐中文场景使用 BGE-M3 (通过 Ollama):
+    # provider: "ollama"
+    # model: "bge-m3"               # 多语言 SOTA, 1024 维
+
+server:
+  port: 8080
+  auth_enabled: false  # Phase 3 启用
+
+# Reflect 反思引擎配置 / Reflect engine configuration
+reflect:
+  max_rounds: 3
+  token_budget: 4096
+  round_timeout: 30s
+  auto_save: true
+
+# Extract 实体抽取配置 / Entity extraction configuration
+extract:
+  max_entities: 20
+  max_relations: 30
+  normalize_enabled: true
+  normalize_candidates: 20
+  timeout: 30s
+
+# Retrieval 检索配置 / Retrieval configuration
+retrieval:
+  graph_enabled: true
+  graph_depth: 1
+  graph_weight: 0.8
+  fts_weight: 1.0
+  qdrant_weight: 1.0
+  graph_fts_top: 5
+  graph_entity_limit: 10

@@ -1,0 +1,51 @@
+{
+  "name": "技术知识库",
+  "description": "Go/K8s/Docker 相关的技术记忆，含实体和关系图谱",
+  "memories": [
+    {"content": "Go语言的并发模型基于 goroutine 和 channel，支持轻量级线程", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "permanent", "strength": 0.95, "abstract": "Go并发模型", "summary": "goroutine + channel 轻量级并发"},
+    {"content": "Kubernetes 是容器编排平台，核心概念包括 Pod、Service、Deployment", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "permanent", "strength": 0.9, "abstract": "K8s核心概念", "summary": "Pod/Service/Deployment 容器编排"},
+    {"content": "Docker 容器技术基于 Linux namespace 和 cgroup 实现进程隔离", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "long_term", "strength": 0.85, "abstract": "Docker隔离原理", "summary": "namespace + cgroup 进程隔离"},
+    {"content": "微服务架构将单体应用拆分为多个独立部署的小服务，通过 API 通信", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "permanent", "strength": 0.9, "abstract": "微服务架构", "summary": "独立部署的小服务通过API通信"},
+    {"content": "gRPC 是 Google 开源的高性能 RPC 框架，使用 Protocol Buffers 序列化", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "standard", "strength": 0.8, "abstract": "gRPC框架", "summary": "高性能RPC + Protobuf序列化"},
+    {"content": "SQLite 是嵌入式关系数据库，支持 FTS5 全文搜索和 WAL 模式", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "permanent", "strength": 0.92, "abstract": "SQLite特性", "summary": "嵌入式数据库 FTS5 WAL"},
+    {"content": "Qdrant 是专为向量相似性搜索设计的数据库，支持过滤和负载", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "long_term", "strength": 0.75, "abstract": "Qdrant向量数据库", "summary": "向量相似性搜索引擎"},
+    {"content": "BM25 是经典的文本检索排名算法，考虑词频和文档长度归一化", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "standard", "strength": 0.7, "abstract": "BM25算法", "summary": "词频+文档长度归一化排名"},
+    {"content": "Reciprocal Rank Fusion 将多路检索结果融合，公式 score = Σ 1/(k+rank)", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "standard", "strength": 0.78, "abstract": "RRF融合算法", "summary": "多路检索结果排名融合"},
+    {"content": "Go 的 context 包用于控制 goroutine 生命周期，支持超时和取消", "scope": "tech", "kind": "skill", "team_id": "t1", "retention_tier": "long_term", "strength": 0.88, "abstract": "Go context用法", "summary": "goroutine 超时控制和取消传播"},
+    {"content": "Kubernetes 通过 etcd 存储集群状态，使用 watch 机制实现事件驱动", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "long_term", "strength": 0.82, "abstract": "K8s etcd", "summary": "etcd 存储集群状态 watch事件驱动"},
+    {"content": "Docker Compose 用于定义和运行多容器应用，使用 YAML 配置", "scope": "tech", "kind": "skill", "team_id": "t1", "retention_tier": "standard", "strength": 0.72, "abstract": "Docker Compose", "summary": "多容器YAML编排工具"},
+    {"content": "向量嵌入将文本映射到高维空间，语义相近的文本距离更近", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "permanent", "strength": 0.85, "abstract": "向量嵌入原理", "summary": "文本→高维向量 语义距离"},
+    {"content": "Go 测试使用 testing 包，支持表驱动测试和基准测试", "scope": "tech", "kind": "skill", "team_id": "t1", "retention_tier": "standard", "strength": 0.8, "abstract": "Go测试", "summary": "testing包 表驱动 benchmark"},
+    {"content": "Helm 是 Kubernetes 的包管理器，通过 Chart 模板管理应用部署", "scope": "tech", "kind": "fact", "team_id": "t1", "retention_tier": "standard", "strength": 0.68, "abstract": "Helm包管理", "summary": "K8s Chart模板包管理器"},
+    {"content": "最近在调研 RAG 系统架构，检索增强生成需要向量数据库配合 LLM", "scope": "tech", "kind": "note", "team_id": "t1", "retention_tier": "short_term", "strength": 0.6, "abstract": "RAG调研", "summary": "检索增强生成 向量库+LLM"}
+  ],
+  "entities": [
+    {"name": "Go", "entity_type": "tool", "scope": "tech", "description": "Go编程语言"},
+    {"name": "Kubernetes", "entity_type": "tool", "scope": "tech", "description": "容器编排平台"},
+    {"name": "Docker", "entity_type": "tool", "scope": "tech", "description": "容器技术"},
+    {"name": "SQLite", "entity_type": "tool", "scope": "tech", "description": "嵌入式数据库"},
+    {"name": "Qdrant", "entity_type": "tool", "scope": "tech", "description": "向量数据库"},
+    {"name": "gRPC", "entity_type": "tool", "scope": "tech", "description": "RPC框架"},
+    {"name": "Helm", "entity_type": "tool", "scope": "tech", "description": "K8s包管理器"},
+    {"name": "BM25", "entity_type": "concept", "scope": "tech", "description": "文本检索排名算法"},
+    {"name": "RRF", "entity_type": "concept", "scope": "tech", "description": "多路检索融合算法"}
+  ],
+  "relations": [
+    {"source": "Kubernetes", "target": "Docker", "relation_type": "uses"},
+    {"source": "Kubernetes", "target": "Helm", "relation_type": "uses"},
+    {"source": "Go", "target": "Kubernetes", "relation_type": "used_by"},
+    {"source": "Go", "target": "gRPC", "relation_type": "uses"},
+    {"source": "SQLite", "target": "BM25", "relation_type": "uses"},
+    {"source": "Qdrant", "target": "RRF", "relation_type": "related_to"}
+  ],
+  "test_cases": [
+    {"name": "精确查找-短查询", "query": "Go goroutine", "expected_intent": "keyword", "description": "2词短查询 → keyword"},
+    {"name": "精确查找-工具名", "query": "SQLite FTS5", "expected_intent": "keyword", "description": "技术术语 → keyword"},
+    {"name": "语义探索", "query": "如何设计高并发的微服务架构", "expected_intent": "semantic", "description": "探索性问题 → semantic"},
+    {"name": "语义-英文", "query": "how does container isolation work in Docker", "expected_intent": "semantic", "description": "how 开头 → semantic"},
+    {"name": "时间相关", "query": "最近在调研什么技术", "expected_intent": "temporal", "description": "最近 → temporal"},
+    {"name": "关联查询", "query": "和Kubernetes相关的技术栈", "expected_intent": "relational", "description": "相关 → relational"},
+    {"name": "通用查询", "query": "Go testing package table driven benchmark usage", "expected_intent": "general", "description": "6-15词中等长度 → general"},
+    {"name": "向量数据库", "query": "什么是向量嵌入", "expected_intent": "semantic", "description": "什么是 → semantic"}
+  ]
+}

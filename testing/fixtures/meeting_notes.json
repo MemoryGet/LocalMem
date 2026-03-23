@@ -1,0 +1,36 @@
+{
+  "name": "会议记录",
+  "description": "项目周会和技术评审的记忆数据",
+  "memories": [
+    {"content": "周一项目周会决定将 IClude 的检索模块重构为三通道架构", "scope": "work", "kind": "note", "team_id": "t1", "retention_tier": "standard", "strength": 0.8, "abstract": "检索重构决策", "summary": "三通道架构重构"},
+    {"content": "张三负责实现 Query Preprocessor 模块，预计本周完成", "scope": "work", "kind": "note", "team_id": "t1", "retention_tier": "short_term", "strength": 0.7, "abstract": "任务分配", "summary": "张三→Preprocessor 本周"},
+    {"content": "李四在技术评审中提出应该使用 BM25 加权而非简单词频匹配", "scope": "work", "kind": "fact", "team_id": "t1", "retention_tier": "long_term", "strength": 0.85, "abstract": "技术决策", "summary": "BM25加权替代词频匹配"},
+    {"content": "下周需要完成 Qdrant 向量存储的集成测试", "scope": "work", "kind": "note", "team_id": "t1", "retention_tier": "short_term", "strength": 0.6, "abstract": "待办事项", "summary": "Qdrant集成测试"},
+    {"content": "王五演示了新的测试仪表盘UI，团队反馈良好", "scope": "work", "kind": "note", "team_id": "t1", "retention_tier": "standard", "strength": 0.75, "abstract": "UI演示", "summary": "测试仪表盘UI演示反馈良好"},
+    {"content": "技术评审会议讨论了混合检索的 RRF 融合策略和权重配置", "scope": "work", "kind": "fact", "team_id": "t1", "retention_tier": "long_term", "strength": 0.88, "abstract": "RRF讨论", "summary": "混合检索RRF权重策略"},
+    {"content": "产品经理要求在月底前完成文档处理功能的第一版", "scope": "work", "kind": "note", "team_id": "t1", "retention_tier": "standard", "strength": 0.7, "abstract": "产品需求", "summary": "文档处理月底第一版"},
+    {"content": "最近的代码审查发现几个并发安全问题需要修复", "scope": "work", "kind": "note", "team_id": "t1", "retention_tier": "short_term", "strength": 0.65, "abstract": "代码审查", "summary": "并发安全问题"},
+    {"content": "团队决定使用 SimpleTokenizer 作为默认分词器，Jieba 作为可选方案", "scope": "work", "kind": "fact", "team_id": "t1", "retention_tier": "permanent", "strength": 0.9, "abstract": "分词器决策", "summary": "Simple默认 Jieba可选"},
+    {"content": "赵六上周完成了知识图谱实体抽取的 LLM 集成", "scope": "work", "kind": "note", "team_id": "t1", "retention_tier": "standard", "strength": 0.72, "abstract": "图谱进展", "summary": "LLM实体抽取完成"}
+  ],
+  "entities": [
+    {"name": "张三", "entity_type": "person", "scope": "work", "description": "开发工程师"},
+    {"name": "李四", "entity_type": "person", "scope": "work", "description": "技术负责人"},
+    {"name": "王五", "entity_type": "person", "scope": "work", "description": "前端工程师"},
+    {"name": "赵六", "entity_type": "person", "scope": "work", "description": "AI工程师"},
+    {"name": "IClude", "entity_type": "org", "scope": "work", "description": "记忆系统项目"}
+  ],
+  "relations": [
+    {"source": "张三", "target": "IClude", "relation_type": "belongs_to"},
+    {"source": "李四", "target": "IClude", "relation_type": "belongs_to"},
+    {"source": "王五", "target": "IClude", "relation_type": "belongs_to"},
+    {"source": "赵六", "target": "IClude", "relation_type": "belongs_to"}
+  ],
+  "test_cases": [
+    {"name": "人名查找", "query": "张三的任务", "expected_intent": "keyword", "description": "短查询 → keyword"},
+    {"name": "时间查询", "query": "最近的会议决策", "expected_intent": "temporal", "description": "最近 → temporal"},
+    {"name": "关联查询", "query": "和IClude相关的工作进展", "expected_intent": "relational", "description": "相关 → relational"},
+    {"name": "探索查询", "query": "为什么选择BM25而不是简单词频匹配", "expected_intent": "semantic", "description": "为什么 → semantic"},
+    {"name": "通用查询", "query": "技术评审 RRF 融合策略 权重 配置方案讨论", "expected_intent": "general", "description": "中等长度 → general"}
+  ]
+}
