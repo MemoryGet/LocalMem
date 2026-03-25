@@ -49,7 +49,7 @@ func setupReflectRouter(t *testing.T, llmProvider llm.Provider) (http.Handler, *
 	require.NoError(t, err)
 
 	mgr := memory.NewManager(s, nil, nil, nil, nil, nil)
-	ret := search.NewRetriever(s, nil, nil, nil, nil, config.RetrievalConfig{}, nil)
+	ret := search.NewRetriever(s, nil, nil, nil, nil, config.RetrievalConfig{}, nil, nil)
 
 	reflectCfg := config.ReflectConfig{
 		MaxRounds:    3,

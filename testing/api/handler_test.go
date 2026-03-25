@@ -38,7 +38,7 @@ func setupRouter(t *testing.T) (http.Handler, func()) {
 	require.NoError(t, err)
 
 	mgr := memory.NewManager(s, nil, nil, nil, nil, nil)
-	ret := search.NewRetriever(s, nil, nil, nil, nil, config.RetrievalConfig{}, nil)
+	ret := search.NewRetriever(s, nil, nil, nil, nil, config.RetrievalConfig{}, nil, nil)
 	router := api.SetupRouter(&api.RouterDeps{
 		MemManager: mgr,
 		Retriever:  ret,

@@ -15,13 +15,13 @@ func TestEstimateTokens_Chinese(t *testing.T) {
 }
 
 func TestEstimateTokens_English(t *testing.T) {
-	// "hello world" = 11 runes（偏保守估算）
-	assert.Equal(t, 11, search.EstimateTokens("hello world"))
+	// "hello world" = 2 words × 1.3 ≈ 3 tokens（混合估算比纯 rune 更准）
+	assert.Equal(t, 3, search.EstimateTokens("hello world"))
 }
 
 func TestEstimateTokens_Mixed(t *testing.T) {
-	// "Hello你好" = 7 runes
-	assert.Equal(t, 7, search.EstimateTokens("Hello你好"))
+	// "Hello你好" = 1 英文词(≈1 token) + 2 CJK(2 tokens) = 3 tokens
+	assert.Equal(t, 3, search.EstimateTokens("Hello你好"))
 }
 
 func TestEstimateTokens_Empty(t *testing.T) {
