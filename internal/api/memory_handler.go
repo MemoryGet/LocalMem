@@ -160,6 +160,12 @@ func (h *MemoryHandler) List(c *gin.Context) {
 
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 500 {
+		limit = 500
+	}
 
 	// 解析扩展过滤参数 / Parse extended filter parameters
 	scope := c.Query("scope")

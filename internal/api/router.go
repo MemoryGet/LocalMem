@@ -22,6 +22,7 @@ type RouterDeps struct {
 	ReflectEngine  *reflectpkg.ReflectEngine
 	Extractor      *memory.Extractor // 可为 nil / may be nil
 	AuthConfig     config.AuthConfig
+	ReflectConfig  config.ReflectConfig
 }
 
 // SetupRouter 初始化路由 / Initialize router with all handlers
@@ -122,7 +123,7 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 
 		// Reflect 反思推理 / Reflect reasoning
 		if deps.ReflectEngine != nil {
-			reflectHandler := NewReflectHandler(deps.ReflectEngine)
+			reflectHandler := NewReflectHandler(deps.ReflectEngine, deps.ReflectConfig)
 			v1.POST("/reflect", reflectHandler.Reflect)
 		}
 	}

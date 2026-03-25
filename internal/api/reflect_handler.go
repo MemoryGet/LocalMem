@@ -1,6 +1,7 @@
 package api
 
 import (
+	"iclude/internal/config"
 	"iclude/internal/model"
 	reflectpkg "iclude/internal/reflect"
 
@@ -9,12 +10,13 @@ import (
 
 // ReflectHandler 反思推理处理器 / Reflect reasoning handler
 type ReflectHandler struct {
-	engine *reflectpkg.ReflectEngine
+	engine     *reflectpkg.ReflectEngine
+	reflectCfg config.ReflectConfig
 }
 
 // NewReflectHandler 创建反思处理器 / Create reflect handler
-func NewReflectHandler(engine *reflectpkg.ReflectEngine) *ReflectHandler {
-	return &ReflectHandler{engine: engine}
+func NewReflectHandler(engine *reflectpkg.ReflectEngine, cfg config.ReflectConfig) *ReflectHandler {
+	return &ReflectHandler{engine: engine, reflectCfg: cfg}
 }
 
 // Reflect 处理反思推理请求 / Handle reflect reasoning request
@@ -33,6 +35,11 @@ func (h *ReflectHandler) Reflect(c *gin.Context) {
 
 	// 强制覆盖身份字段 / Force override identity from middleware
 	req.TeamID = identity.TeamID
+
+	// 服务端上限校验，防止客户端绕过配置 / Enforce server-side max_rounds limit
+	if req.MaxRounds <= 0 || req.MaxRounds > h.reflectCfg.MaxRounds {
+		req.MaxRounds = h.reflectCfg.MaxRounds
+	}
 
 	resp, err := h.engine.Reflect(c.Request.Context(), &req)
 	if err != nil {

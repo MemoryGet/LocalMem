@@ -54,7 +54,32 @@ func (h *SearchHandler) Retrieve(c *gin.Context) {
 		resp.Results, resp.TotalTokens, resp.Truncated = search.TrimByTokenBudget(results, req.MaxTokens)
 	}
 
+	// detail_level 字段裁剪 / Field trimming by detail level
+	applyDetailLevel(resp.Results, req.DetailLevel)
+
 	Success(c, resp)
+}
+
+// applyDetailLevel 按 detail_level 裁剪 Memory 字段 / Trim Memory fields by detail_level
+// abstract_only: 仅保留 abstract，清空 content/summary
+// summary: 保留 abstract+summary，清空 content
+// full (默认): 全字段返回
+func applyDetailLevel(results []*model.SearchResult, level string) {
+	if level == "" || level == "full" {
+		return
+	}
+	for _, r := range results {
+		if r.Memory == nil {
+			continue
+		}
+		switch level {
+		case "abstract_only":
+			r.Memory.Content = ""
+			r.Memory.Summary = ""
+		case "summary":
+			r.Memory.Content = ""
+		}
+	}
 }
 
 // Timeline 时间线查询 / Timeline query

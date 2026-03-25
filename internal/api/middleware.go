@@ -61,7 +61,8 @@ func IdentityMiddleware() gin.HandlerFunc {
 		}
 
 		ownerID := c.GetHeader("X-User-ID")
-		if ownerID == "" {
+		// 禁止客户端冒充系统身份 / Prevent clients from impersonating the system identity
+		if ownerID == "" || ownerID == "__system__" {
 			ownerID = "anonymous"
 		}
 

@@ -45,11 +45,15 @@ func (h *DocumentHandler) Get(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
+		return
+	}
+	// 授权检查：scope 不匹配则拒绝 / Authorization: reject if scope does not match owner
+	if doc.Scope != "" && doc.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
 		return
 	}
 	Success(c, doc)
@@ -61,9 +65,13 @@ func (h *DocumentHandler) List(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
-	scope := c.Query("scope")
+	// 强制以当前用户 OwnerID 作为 scope 过滤，防止跨用户数据泄露 / Force scope to caller's OwnerID to prevent cross-user data leakage
+	scope := identity.OwnerID
+	if identity.IsSystem() {
+		// 系统身份允许使用请求中指定的 scope / System identity may use the requested scope
+		scope = c.Query("scope")
+	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	docs, err := h.processor.ListDocuments(c.Request.Context(), scope, offset, limit)
@@ -80,7 +88,17 @@ func (h *DocumentHandler) Delete(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+
+	// 授权检查：先获取文档，验证 scope 归属 / Authorization: fetch doc first, verify scope ownership
+	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if doc.Scope != "" && doc.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 
 	if err := h.processor.DeleteDocument(c.Request.Context(), c.Param("id")); err != nil {
 		Error(c, err)
