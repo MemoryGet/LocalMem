@@ -21,9 +21,12 @@ go test -run TestLoadConfig_FileNotFound ./testing/...  # run a single test
 go test ./testing/report/ -v -count=1   # generate HTML test report → testing/report/report.html
 
 # 测试监控面板 (Test Dashboard UI)
-./test-dashboard.exe                                        # 启动后端 → http://localhost:3001
+./test-dashboard                                            # 启动后端 → http://localhost:3001
 cd tools/test-dashboard-ui && npm run dev                   # 启动前端 → http://localhost:5173
 # 前端依赖安装（首次）: cd tools/test-dashboard-ui && npm install
+
+# Jieba 分词服务（中文 FTS5，仅 provider=jieba 时需要）
+python tools/jieba_server.py                                # 启动 → http://localhost:8866
 ```
 
 ## Architecture
@@ -42,6 +45,8 @@ internal/search/               → Retriever (3-mode: SQLite/Qdrant/Hybrid) + RR
 internal/llm/                  → LLM Chat abstraction (OpenAI-compatible provider, covers DeepSeek/Ollama/etc.)
 internal/reflect/              → Reflect Engine (multi-round LLM reasoning over memories, 3-level fallback parsing)
 internal/document/             → Document processor (upload → chunk → embed → store)
+internal/heartbeat/            → Autonomous inspection engine: decay audit, orphan cleanup, contradiction detection
+internal/scheduler/            → In-process goroutine+ticker scheduler with overlap prevention and graceful shutdown
 internal/api/                  → Gin HTTP handlers, router, middleware, response helpers
 pkg/qdrant/client.go           → Reusable Qdrant HTTP client (stdlib only)
 pkg/tokenizer/                 → Pluggable FTS5 tokenizer (Simple CJK / Jieba HTTP / Noop)
@@ -58,6 +63,8 @@ pkg/testreport/                → Test report recorder + HTML generator (embed 
 ### Startup wiring order (main.go)
 
 Config → Logger → Embedder (if Qdrant) → Stores → LLM Provider → GraphManager → Extractor → Manager → Retriever → ContextManager → DocProcessor → ReflectEngine → Router. Order matters: Extractor needs LLM + GraphManager; ReflectEngine needs Retriever + Manager + LLM.
+
+> **Note:** `internal/heartbeat/` and `internal/scheduler/` are config-gated (`heartbeat.enabled`, `scheduler.enabled`, both default `false`) and are wired into `main.go`. The scheduler starts unconditionally; heartbeat registers itself only when `heartbeat.enabled: true`.
 
 ### Feature gating via nil checks
 
@@ -101,7 +108,7 @@ SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 31 columns.
 
 ### Key config sections
 
-`storage` (sqlite/qdrant), `server` (port, auth), `llm` (openai/ollama provider + embedding), `reflect` (max_rounds, token_budget, round_timeout, auto_save), `extract` (max_entities, max_relations, normalize_enabled, timeout), `retrieval` (graph_enabled, graph_depth, fts_weight, qdrant_weight, graph_weight).
+`storage` (sqlite/qdrant), `server` (port, auth), `llm` (openai/ollama provider + embedding), `reflect` (max_rounds, token_budget, round_timeout, auto_save), `extract` (max_entities, max_relations, normalize_enabled, timeout), `retrieval` (graph_enabled, graph_depth, fts_weight, qdrant_weight, graph_weight), `scheduler` (enabled, cleanup_interval, access_flush_interval, consolidation_interval), `heartbeat` (enabled, interval, contradiction_enabled, decay_audit_min_age_days).
 
 ### Memory model
 

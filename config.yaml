@@ -35,16 +35,20 @@ llm:  # 多轮检索所需
     # provider: "ollama"
     # model: "bge-m3"               # 多语言 SOTA, 1024 维
 
+auth:
+  enabled: true
+  api_keys: []
+
 server:
   port: 8080
-  auth_enabled: false  # Phase 3 启用
+  auth_enabled: true
 
 # Reflect 反思引擎配置 / Reflect engine configuration
 reflect:
   max_rounds: 3
   token_budget: 4096
   round_timeout: 30s
-  auto_save: true
+  auto_save: false
 
 # Extract 实体抽取配置 / Entity extraction configuration
 extract:
@@ -63,3 +67,42 @@ retrieval:
   qdrant_weight: 1.0
   graph_fts_top: 5
   graph_entity_limit: 10
+  access_alpha: 0.15     # 访问频率阻尼系数（0=不加权，越大越倾向高访问记忆）/ Access frequency damping (0=none)
+
+  # MMR 多样性重排（需要 Qdrant，SQLite-only 自动跳过）/ MMR diversity re-ranking (requires Qdrant)
+  mmr:
+    enabled: false       # 开启后 RRF 结果再经 MMR 多样性重排 / Enable MMR after RRF
+    lambda: 0.7          # 相关性 vs 多样性权衡：1.0=纯相关性，0.0=纯多样性 / Relevance(1.0) vs diversity(0.0)
+
+  # 查询预处理 / Query preprocessing
+  preprocess:
+    enabled: true        # 开启关键词提取、意图识别 / Enable keyword extraction and intent detection
+    use_llm: false       # 是否用 LLM 做语义改写（false=规则+词表）/ Use LLM for semantic rewrite
+    llm_timeout: 5s      # LLM 预处理超时 / LLM preprocessing timeout
+    stopword_files:
+      - "config/stopwords_en.txt"
+      - "config/stopwords_zh.txt"
+
+# Scheduler 后台调度器 / Background scheduler
+scheduler:
+  enabled: false                       # 生产环境建议开启 / Recommended enabled in production
+  cleanup_interval: 6h                 # 过期记忆清理间隔 / Expired memory cleanup interval
+  access_flush_interval: 5m            # 访问计数批量写入间隔 / Access count flush interval
+  consolidation_interval: 24h          # 记忆归纳间隔 / Memory consolidation interval
+
+# Consolidation 记忆归纳 / Memory consolidation
+consolidation:
+  enabled: false                       # 需要 Qdrant + LLM / Requires Qdrant + LLM
+  min_age_days: 30                     # 仅归纳 30 天以上的记忆 / Only consolidate memories older than 30 days
+  similarity_threshold: 0.85           # 相似度阈值，越高簇越紧密 / Similarity threshold for clustering
+  min_cluster_size: 3                  # 最小成簇数量 / Minimum cluster size
+  max_memories_per_run: 200            # 每次最多处理记忆数 / Max memories processed per run
+
+# Heartbeat 自主巡检引擎 / Autonomous inspection engine
+heartbeat:
+  enabled: false                       # 生产环境建议开启 / Recommended enabled in production
+  interval: 6h                         # 巡检间隔 / Inspection interval
+  contradiction_enabled: true          # 开启矛盾检测（需要 Qdrant + LLM）/ Enable contradiction detection
+  contradiction_max_comparisons: 50    # 每次最多对比记忆对数量 / Max pairs per run
+  decay_audit_min_age_days: 90         # 衰减审计：仅审计 90 天以上的记忆 / Min age for decay audit
+  decay_audit_threshold: 0.1           # 衰减审计：强度低于此值触发警告 / Strength threshold for audit warning

@@ -1,7 +1,7 @@
 # IClude 配置文件 / IClude Configuration File
 
 auth:
-  enabled: false
+  enabled: true
   api_keys: []
 
 storage:
@@ -41,14 +41,14 @@ llm:  # 多轮检索所需 / Required for multi-round retrieval
 
 server:
   port: 8080
-  auth_enabled: false
+  auth_enabled: true
 
 # Reflect 反思引擎配置 / Reflect engine configuration
 reflect:
   max_rounds: 3
   token_budget: 4096
   round_timeout: 30s
-  auto_save: true
+  auto_save: false
 
 # Extract 实体抽取配置 / Entity extraction configuration
 extract:
@@ -67,3 +67,42 @@ retrieval:
   qdrant_weight: 1.0
   graph_fts_top: 5
   graph_entity_limit: 10
+  access_alpha: 0.15     # 访问频率阻尼系数 / Access frequency damping coefficient
+
+  # MMR 多样性重排（需要 Qdrant）/ MMR diversity re-ranking (requires Qdrant)
+  mmr:
+    enabled: false
+    lambda: 0.7
+
+  # 查询预处理 / Query preprocessing
+  preprocess:
+    enabled: true
+    use_llm: false
+    llm_timeout: 5s
+    stopword_files:
+      - "config/stopwords_en.txt"
+      - "config/stopwords_zh.txt"
+
+# Scheduler 后台调度器 / Background scheduler
+scheduler:
+  enabled: true                        # 生产环境建议开启 / Recommended in production
+  cleanup_interval: 6h
+  access_flush_interval: 5m
+  consolidation_interval: 24h
+
+# Consolidation 记忆归纳 / Memory consolidation
+consolidation:
+  enabled: false                       # 需要 Qdrant + LLM / Requires Qdrant + LLM
+  min_age_days: 30
+  similarity_threshold: 0.85
+  min_cluster_size: 3
+  max_memories_per_run: 200
+
+# Heartbeat 自主巡检引擎 / Autonomous inspection engine
+heartbeat:
+  enabled: true                        # 生产环境建议开启 / Recommended in production
+  interval: 6h
+  contradiction_enabled: false         # 需要 Qdrant + LLM / Requires Qdrant + LLM
+  contradiction_max_comparisons: 50
+  decay_audit_min_age_days: 90
+  decay_audit_threshold: 0.1
