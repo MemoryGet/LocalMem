@@ -1,0 +1,9 @@
+# Worktrees
+.worktrees/
+
+# OS
+.DS_Store
+
+# Editor swap files
+*.swp
+*.swo
