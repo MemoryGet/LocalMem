@@ -106,3 +106,10 @@ heartbeat:
   contradiction_max_comparisons: 50    # 每次最多对比记忆对数量 / Max pairs per run
   decay_audit_min_age_days: 90         # 衰减审计：仅审计 90 天以上的记忆 / Min age for decay audit
   decay_audit_threshold: 0.1           # 衰减审计：强度低于此值触发警告 / Strength threshold for audit warning
+
+# MCP 服务器配置 / MCP server configuration
+mcp:
+  enabled: false                   # 手动开启 / Opt-in
+  port: 8081
+  default_team_id: "default"
+  default_owner_id: "mcp-user"

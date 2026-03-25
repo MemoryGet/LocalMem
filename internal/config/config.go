@@ -28,6 +28,7 @@ type Config struct {
 	Scheduler       SchedulerConfig       `mapstructure:"scheduler"`
 	Consolidation   ConsolidationConfig   `mapstructure:"consolidation"`
 	Heartbeat       HeartbeatConfig       `mapstructure:"heartbeat"`
+	MCP             MCPConfig             `mapstructure:"mcp"`
 }
 
 // StorageConfig 存储配置 / Storage configuration
@@ -194,6 +195,14 @@ type HeartbeatConfig struct {
 	DecayAuditThreshold  float64       `mapstructure:"decay_audit_threshold"`         // 衰减审计强度阈值 / Strength threshold for decay audit
 }
 
+// MCPConfig MCP 服务器配置 / MCP server configuration
+type MCPConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`
+	Port           int    `mapstructure:"port"`
+	DefaultTeamID  string `mapstructure:"default_team_id"`
+	DefaultOwnerID string `mapstructure:"default_owner_id"`
+}
+
 // SchedulerConfig 后台调度器配置 / Background scheduler configuration
 type SchedulerConfig struct {
 	Enabled               bool          `mapstructure:"enabled"`
@@ -301,6 +310,11 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.preprocess.use_llm", false)
 	viper.SetDefault("retrieval.preprocess.llm_timeout", "5s")
 	viper.SetDefault("retrieval.preprocess.stopword_files", []string{"config/stopwords_en.txt", "config/stopwords_zh.txt"})
+	// MCP 默认值 / MCP defaults
+	viper.SetDefault("mcp.enabled", false)
+	viper.SetDefault("mcp.port", 8081)
+	viper.SetDefault("mcp.default_team_id", "default")
+	viper.SetDefault("mcp.default_owner_id", "mcp-user")
 	// Auth 默认值 / Auth defaults
 	viper.SetDefault("auth.enabled", true)
 

@@ -106,3 +106,10 @@ heartbeat:
   contradiction_max_comparisons: 50
   decay_audit_min_age_days: 90
   decay_audit_threshold: 0.1
+
+# MCP 服务器配置 / MCP server configuration
+mcp:
+  enabled: false                   # 手动开启 / Opt-in
+  port: 8081
+  default_team_id: "default"
+  default_owner_id: "mcp-user"
