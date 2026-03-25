@@ -55,7 +55,7 @@
 - Modify: `config.yaml`
 - Modify: `deploy/config.yaml`
 
-- [ ] **Step 1: Add MCPConfig struct and field**
+- [x] **Step 1: Add MCPConfig struct and field**
 
 In `internal/config/config.go`, after the `HeartbeatConfig` definition, add:
 
@@ -71,7 +71,7 @@ type MCPConfig struct {
 
 Add `MCP MCPConfig \`mapstructure:"mcp"\`` to the `Config` struct after `Heartbeat HeartbeatConfig`.
 
-- [ ] **Step 2: Add Viper defaults**
+- [x] **Step 2: Add Viper defaults**
 
 In `LoadConfig()` in `internal/config/config.go`, add after the existing `viper.SetDefault` calls:
 
@@ -82,7 +82,7 @@ viper.SetDefault("mcp.default_team_id", "default")
 viper.SetDefault("mcp.default_owner_id", "mcp-user")
 ```
 
-- [ ] **Step 3: Add mcp section to config.yaml**
+- [x] **Step 3: Add mcp section to config.yaml**
 
 Append to `config.yaml` after the `heartbeat:` block:
 
@@ -97,7 +97,7 @@ mcp:
 
 Do the same for `deploy/config.yaml`.
 
-- [ ] **Step 4: Verify syntax**
+- [x] **Step 4: Verify syntax**
 
 ```bash
 gofmt -e internal/config/config.go
@@ -105,7 +105,7 @@ gofmt -e internal/config/config.go
 
 Expected: file content printed with no errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/config/config.go config.yaml deploy/config.yaml
@@ -119,13 +119,13 @@ git commit -m "feat(config): add MCPConfig for MCP server"
 **Files:**
 - Create: `internal/bootstrap/wiring.go`
 
-- [ ] **Step 1: Create the package directory**
+- [x] **Step 1: Create the package directory**
 
 ```bash
 mkdir -p internal/bootstrap
 ```
 
-- [ ] **Step 2: Write wiring.go**
+- [x] **Step 2: Write wiring.go**
 
 ```go
 // Package bootstrap 应用组件共享初始化 / Shared application component bootstrapping
@@ -312,7 +312,7 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 }
 ```
 
-- [ ] **Step 3: Verify syntax**
+- [x] **Step 3: Verify syntax**
 
 ```bash
 gofmt -e internal/bootstrap/wiring.go
@@ -320,7 +320,7 @@ gofmt -e internal/bootstrap/wiring.go
 
 Expected: file content with no errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/bootstrap/wiring.go
@@ -334,7 +334,7 @@ git commit -m "feat(bootstrap): extract shared Init() from cmd/server/main.go"
 **Files:**
 - Modify: `cmd/server/main.go`
 
-- [ ] **Step 1: Replace main.go with bootstrap-calling version**
+- [x] **Step 1: Replace main.go with bootstrap-calling version**
 
 Rewrite `cmd/server/main.go`:
 
@@ -410,7 +410,7 @@ func main() {
 }
 ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 ```bash
 gofmt -e cmd/server/main.go
@@ -418,7 +418,7 @@ gofmt -e cmd/server/main.go
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add cmd/server/main.go
@@ -432,7 +432,7 @@ git commit -m "refactor(server): delegate wiring to bootstrap.Init()"
 **Files:**
 - Create: `internal/mcp/protocol.go`
 
-- [ ] **Step 1: Write protocol.go**
+- [x] **Step 1: Write protocol.go**
 
 ```go
 // Package mcp MCP 协议层 / MCP protocol layer — JSON-RPC 2.0 types and MCP method constants
@@ -569,13 +569,13 @@ func errResponse(id json.RawMessage, code int, message string) *JSONRPCResponse 
 }
 ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 ```bash
 gofmt -e internal/mcp/protocol.go
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/mcp/protocol.go
@@ -589,7 +589,7 @@ git commit -m "feat(mcp): add JSON-RPC 2.0 protocol types and MCP constants"
 **Files:**
 - Create: `internal/mcp/handler.go`
 
-- [ ] **Step 1: Write handler.go**
+- [x] **Step 1: Write handler.go**
 
 ```go
 // Package mcp 处理器接口定义 / Handler interface definitions for MCP tools, resources, and prompts
@@ -627,13 +627,13 @@ type PromptHandler interface {
 }
 ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 ```bash
 gofmt -e internal/mcp/handler.go
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/mcp/handler.go
