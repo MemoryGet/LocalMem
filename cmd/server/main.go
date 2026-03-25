@@ -6,218 +6,48 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"iclude/internal/api"
+	"iclude/internal/bootstrap"
 	"iclude/internal/config"
-	"iclude/internal/document"
-	"iclude/internal/embed"
-	"iclude/internal/heartbeat"
-	"iclude/internal/llm"
 	"iclude/internal/logger"
-	"iclude/internal/memory"
-	reflectpkg "iclude/internal/reflect"
-	"iclude/internal/scheduler"
-	"iclude/internal/search"
-	"iclude/internal/store"
 
 	"go.uber.org/zap"
 )
 
 func main() {
-	// 初始化日志
 	logger.InitLogger()
 	defer logger.GetLogger().Sync()
 
-	// 加载配置
 	if err := config.LoadConfig(); err != nil {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
-
 	cfg := config.GetConfig()
-	logger.Info("config loaded",
-		zap.Bool("sqlite_enabled", cfg.Storage.SQLite.Enabled),
-		zap.Bool("qdrant_enabled", cfg.Storage.Qdrant.Enabled),
-		zap.Int("server_port", cfg.Server.Port),
-	)
 
-	// 初始化 Embedder（Qdrant 启用时才需要）
-	var embedder store.Embedder
-	if cfg.Storage.Qdrant.Enabled {
-		embCfg := cfg.LLM.Embedding
-		var apiKeyOrURL string
-		switch embCfg.Provider {
-		case "openai":
-			apiKeyOrURL = cfg.LLM.OpenAI.APIKey
-		case "ollama":
-			apiKeyOrURL = cfg.LLM.Ollama.BaseURL
-		}
-		var err error
-		embedder, err = embed.NewEmbedder(embCfg.Provider, embCfg.Model, apiKeyOrURL)
-		if err != nil {
-			logger.Warn("failed to create embedder, vector features will be limited",
-				zap.Error(err),
-			)
-		} else {
-			logger.Info("embedder initialized",
-				zap.String("provider", embCfg.Provider),
-				zap.String("model", embCfg.Model),
-			)
-		}
-	}
-
-	// 初始化存储
-	ctx := context.Background()
-	stores, err := store.InitStores(ctx, cfg, embedder)
+	deps, cleanup, err := bootstrap.Init(context.Background(), cfg)
 	if err != nil {
-		logger.Fatal("failed to initialize stores", zap.Error(err))
+		logger.Fatal("failed to initialize", zap.Error(err))
 	}
-	defer stores.Close()
+	defer cleanup()
 
-	// 初始化 LLM Provider / Initialize LLM Provider (must be before Extractor and ReflectEngine)
-	var llmProvider llm.Provider
-	switch {
-	case cfg.LLM.OpenAI.APIKey != "":
-		baseURL := cfg.LLM.OpenAI.BaseURL
-		if baseURL == "" {
-			baseURL = "https://api.openai.com/v1"
-		}
-		llmProvider = llm.NewOpenAIProvider(baseURL, cfg.LLM.OpenAI.APIKey, cfg.LLM.OpenAI.Model)
-		logger.Info("llm provider initialized",
-			zap.String("provider", "openai"),
-			zap.String("model", cfg.LLM.OpenAI.Model),
-		)
-	case cfg.LLM.Ollama.BaseURL != "":
-		ollamaBase := strings.TrimSuffix(cfg.LLM.Ollama.BaseURL, "/") + "/v1"
-		ollamaModel := cfg.LLM.Ollama.Model
-		if ollamaModel == "" {
-			ollamaModel = cfg.LLM.OpenAI.Model
-		}
-		llmProvider = llm.NewOpenAIProvider(ollamaBase, "", ollamaModel)
-		logger.Info("llm provider initialized",
-			zap.String("provider", "ollama"),
-			zap.String("model", ollamaModel),
-		)
-	}
-
-	// 知识图谱管理器（需要 GraphStore）/ Graph manager (must be before Extractor)
-	var graphManager *memory.GraphManager
-	if stores.GraphStore != nil {
-		graphManager = memory.NewGraphManager(stores.GraphStore)
-		logger.Info("graph manager initialized")
-	}
-
-	// 初始化 Extractor / Initialize Extractor (must be before Manager)
-	var extractor *memory.Extractor
-	if llmProvider != nil && graphManager != nil {
-		extractor = memory.NewExtractor(llmProvider, graphManager, stores.MemoryStore, cfg.Extract)
-		logger.Info("extractor initialized")
-	}
-
-	// 初始化查询预处理器 / Initialize query preprocessor
-	var preprocessor *search.Preprocessor
-	if cfg.Retrieval.Preprocess.Enabled {
-		preprocessor = search.NewPreprocessor(stores.Tokenizer, stores.GraphStore, llmProvider, cfg.Retrieval)
-		logger.Info("query preprocessor initialized",
-			zap.Bool("use_llm", cfg.Retrieval.Preprocess.UseLLM),
-		)
-	}
-
-	// 访问计数追踪器（best-effort 异步刷新）/ Access count tracker
-	accessTracker := memory.NewAccessTracker(stores.MemoryStore, 10000)
-
-	// 记忆归纳引擎（需要 vecStore + llm）/ Memory consolidation engine
-	var consolidator *memory.Consolidator
-	if stores.VectorStore != nil && llmProvider != nil && cfg.Consolidation.Enabled {
-		consolidator = memory.NewConsolidator(stores.MemoryStore, stores.VectorStore, llmProvider)
-		logger.Info("consolidator initialized")
-	}
-
-	// 创建业务层 / Create business layer managers
-	memManager := memory.NewManager(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.TagStore, stores.ContextStore, extractor)
-	ret := search.NewRetriever(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.GraphStore, llmProvider, cfg.Retrieval, preprocessor, accessTracker)
-
-	// 上下文管理器（需要 ContextStore）
-	var ctxManager *memory.ContextManager
-	if stores.ContextStore != nil {
-		ctxManager = memory.NewContextManager(stores.ContextStore)
-		logger.Info("context manager initialized")
-	}
-
-	// 文档处理器（需要 DocumentStore）
-	var docProcessor *document.Processor
-	if stores.DocumentStore != nil {
-		docProcessor = document.NewProcessor(stores.DocumentStore, stores.MemoryStore, stores.Embedder)
-		logger.Info("document processor initialized")
-	}
-
-	// 初始化 ReflectEngine / Initialize ReflectEngine
-	var reflectEngine *reflectpkg.ReflectEngine
-	if llmProvider != nil {
-		reflectEngine = reflectpkg.NewReflectEngine(ret, memManager, llmProvider, cfg.Reflect)
-		logger.Info("reflect engine initialized")
-	}
-
-	// 设置路由
 	router := api.SetupRouter(&api.RouterDeps{
-		MemManager:     memManager,
-		Retriever:      ret,
-		ContextManager: ctxManager,
-		GraphManager:   graphManager,
-		DocProcessor:   docProcessor,
-		TagStore:       stores.TagStore,
-		ReflectEngine:  reflectEngine,
-		Extractor:      extractor,
+		MemManager:     deps.MemManager,
+		Retriever:      deps.Retriever,
+		ContextManager: deps.ContextManager,
+		GraphManager:   deps.GraphManager,
+		DocProcessor:   deps.DocProcessor,
+		TagStore:       deps.Stores.TagStore,
+		ReflectEngine:  deps.ReflectEngine,
+		Extractor:      deps.Extractor,
 		AuthConfig:     cfg.Auth,
 		ReflectConfig:  cfg.Reflect,
 	})
 
-	// 后台调度器 / Background scheduler
-	sched := scheduler.New()
-	schedCtx, schedCancel := context.WithCancel(context.Background())
-	if cfg.Scheduler.Enabled {
-		// access-flush：定时批量刷新访问计数 / Flush access counts periodically
-		sched.Register("access-flush", cfg.Scheduler.AccessFlushInterval, accessTracker.Flush)
-
-		// cleanup：软删除过期 + 硬删除30天前的软删除 / Expire + purge old soft-deletes
-		sched.Register("cleanup", cfg.Scheduler.CleanupInterval, func(ctx context.Context) error {
-			if _, err := stores.MemoryStore.CleanupExpired(ctx); err != nil {
-				logger.Warn("scheduler: cleanup expired failed", zap.Error(err))
-			}
-			if _, err := stores.MemoryStore.PurgeDeleted(ctx, 30*24*time.Hour); err != nil {
-				logger.Warn("scheduler: purge deleted failed", zap.Error(err))
-			}
-			return nil
-		})
-
-		// consolidation：记忆归纳（需要 vecStore + llm）/ Memory consolidation
-		if consolidator != nil {
-			sched.Register("consolidation", cfg.Scheduler.ConsolidationInterval, consolidator.Run)
-		}
-
-		// heartbeat：自主巡检（衰减审计/孤儿清理/矛盾检测）/ Autonomous inspection
-		if cfg.Heartbeat.Enabled {
-			hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, llmProvider)
-			sched.Register("heartbeat", cfg.Heartbeat.Interval, hbEngine.Run)
-		}
-
-		go sched.Run(schedCtx)
-		logger.Info("scheduler started",
-			zap.Bool("heartbeat_enabled", cfg.Heartbeat.Enabled),
-			zap.Bool("consolidation_enabled", consolidator != nil),
-		)
-	}
-
-	// 启动服务器
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
-	srv := &http.Server{
-		Addr:    addr,
-		Handler: router,
-	}
+	srv := &http.Server{Addr: addr, Handler: router}
 
-	// 优雅关闭
 	go func() {
 		logger.Info("server starting", zap.String("addr", addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -230,14 +60,8 @@ func main() {
 	<-quit
 
 	logger.Info("shutting down server...")
-
-	// 先停调度器，再关 HTTP
-	schedCancel()
-	sched.Wait(10 * time.Second)
-
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("server forced to shutdown", zap.Error(err))
 	}
