@@ -14,10 +14,12 @@ import (
 	"iclude/internal/config"
 	"iclude/internal/document"
 	"iclude/internal/embed"
+	"iclude/internal/heartbeat"
 	"iclude/internal/llm"
 	"iclude/internal/logger"
 	"iclude/internal/memory"
 	reflectpkg "iclude/internal/reflect"
+	"iclude/internal/scheduler"
 	"iclude/internal/search"
 	"iclude/internal/store"
 
@@ -123,9 +125,19 @@ func main() {
 		)
 	}
 
+	// 访问计数追踪器（best-effort 异步刷新）/ Access count tracker
+	accessTracker := memory.NewAccessTracker(stores.MemoryStore, 10000)
+
+	// 记忆归纳引擎（需要 vecStore + llm）/ Memory consolidation engine
+	var consolidator *memory.Consolidator
+	if stores.VectorStore != nil && llmProvider != nil && cfg.Consolidation.Enabled {
+		consolidator = memory.NewConsolidator(stores.MemoryStore, stores.VectorStore, llmProvider)
+		logger.Info("consolidator initialized")
+	}
+
 	// 创建业务层 / Create business layer managers
 	memManager := memory.NewManager(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.TagStore, stores.ContextStore, extractor)
-	ret := search.NewRetriever(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.GraphStore, llmProvider, cfg.Retrieval, preprocessor)
+	ret := search.NewRetriever(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.GraphStore, llmProvider, cfg.Retrieval, preprocessor, accessTracker)
 
 	// 上下文管理器（需要 ContextStore）
 	var ctxManager *memory.ContextManager
@@ -159,7 +171,44 @@ func main() {
 		ReflectEngine:  reflectEngine,
 		Extractor:      extractor,
 		AuthConfig:     cfg.Auth,
+		ReflectConfig:  cfg.Reflect,
 	})
+
+	// 后台调度器 / Background scheduler
+	sched := scheduler.New()
+	schedCtx, schedCancel := context.WithCancel(context.Background())
+	if cfg.Scheduler.Enabled {
+		// access-flush：定时批量刷新访问计数 / Flush access counts periodically
+		sched.Register("access-flush", cfg.Scheduler.AccessFlushInterval, accessTracker.Flush)
+
+		// cleanup：软删除过期 + 硬删除30天前的软删除 / Expire + purge old soft-deletes
+		sched.Register("cleanup", cfg.Scheduler.CleanupInterval, func(ctx context.Context) error {
+			if _, err := stores.MemoryStore.CleanupExpired(ctx); err != nil {
+				logger.Warn("scheduler: cleanup expired failed", zap.Error(err))
+			}
+			if _, err := stores.MemoryStore.PurgeDeleted(ctx, 30*24*time.Hour); err != nil {
+				logger.Warn("scheduler: purge deleted failed", zap.Error(err))
+			}
+			return nil
+		})
+
+		// consolidation：记忆归纳（需要 vecStore + llm）/ Memory consolidation
+		if consolidator != nil {
+			sched.Register("consolidation", cfg.Scheduler.ConsolidationInterval, consolidator.Run)
+		}
+
+		// heartbeat：自主巡检（衰减审计/孤儿清理/矛盾检测）/ Autonomous inspection
+		if cfg.Heartbeat.Enabled {
+			hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, llmProvider)
+			sched.Register("heartbeat", cfg.Heartbeat.Interval, hbEngine.Run)
+		}
+
+		go sched.Run(schedCtx)
+		logger.Info("scheduler started",
+			zap.Bool("heartbeat_enabled", cfg.Heartbeat.Enabled),
+			zap.Bool("consolidation_enabled", consolidator != nil),
+		)
+	}
 
 	// 启动服务器
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
@@ -181,6 +230,11 @@ func main() {
 	<-quit
 
 	logger.Info("shutting down server...")
+
+	// 先停调度器，再关 HTTP
+	schedCancel()
+	sched.Wait(10 * time.Second)
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

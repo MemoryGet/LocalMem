@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"iclude/internal/config"
 	"iclude/internal/llm"
@@ -94,11 +95,18 @@ func (e *Engine) runContradictionCheck(ctx context.Context, cfg config.Heartbeat
 	return nil
 }
 
+// contradictionLLMTimeout 单次矛盾检测 LLM 超时 / Per-call timeout for contradiction LLM check
+const contradictionLLMTimeout = 15 * time.Second
+
 // checkContradictionWithLLM 用 LLM 判断两条记忆是否矛盾
 func (e *Engine) checkContradictionWithLLM(ctx context.Context, contentA, contentB string) (bool, error) {
 	prompt := fmt.Sprintf("Do these two statements contradict each other? Answer only 'yes' or 'no'.\n\nStatement A: %s\nStatement B: %s", contentA, contentB)
 
-	resp, err := e.llm.Chat(ctx, &llm.ChatRequest{
+	// 独立超时防止单个 LLM 调用 hang 住整次巡检 / Per-call timeout prevents hanging the full inspection run
+	llmCtx, cancel := context.WithTimeout(ctx, contradictionLLMTimeout)
+	defer cancel()
+
+	resp, err := e.llm.Chat(llmCtx, &llm.ChatRequest{
 		Messages: []llm.ChatMessage{
 			{Role: "system", Content: "You are a fact-checking engine. Answer only 'yes' or 'no'."},
 			{Role: "user", Content: prompt},

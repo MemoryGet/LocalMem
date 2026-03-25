@@ -224,6 +224,27 @@ func (c *Client) GetPoints(ctx context.Context, ids []string) ([]PointResult, er
 	return results, nil
 }
 
+// EnsureFieldIndex 为 payload 字段创建 keyword 索引（幂等）/ Create keyword payload index for a field (idempotent)
+// 大数据量时加速过滤查询 / Accelerates filtered queries at scale
+func (c *Client) EnsureFieldIndex(ctx context.Context, field string) error {
+	body := map[string]any{
+		"field_name":   field,
+		"field_schema": "keyword",
+	}
+	url := fmt.Sprintf("%s/collections/%s/index", c.baseURL, c.collection)
+	resp, err := c.doRequest(ctx, http.MethodPut, url, body)
+	if err != nil {
+		return fmt.Errorf("failed to create field index for %q: %w", field, err)
+	}
+	defer resp.Body.Close()
+
+	// 200 OK 或 400（已存在）均视为成功 / 200 OK or 400 (already exists) treated as success
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusBadRequest {
+		return c.readError(resp, fmt.Sprintf("create field index %q", field))
+	}
+	return nil
+}
+
 // doRequest 发送 HTTP 请求
 func (c *Client) doRequest(ctx context.Context, method, url string, body any) (*http.Response, error) {
 	var reqBody io.Reader

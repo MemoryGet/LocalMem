@@ -4,6 +4,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"iclude/internal/config"
 	"iclude/internal/logger"
@@ -157,17 +158,29 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		}
 	}
 
-	// 自动实体抽取（同步，最佳努力）/ Auto entity extraction (synchronous, best-effort)
+	// 自动实体抽取（异步，最佳努力）/ Auto entity extraction (async goroutine, best-effort)
 	if req.AutoExtract && m.extractor != nil {
-		_, err := m.extractor.Extract(ctx, &model.ExtractRequest{
+		extractReq := &model.ExtractRequest{
 			MemoryID: mem.ID,
 			Content:  mem.Content,
 			Scope:    mem.Scope,
 			TeamID:   mem.TeamID,
-		})
-		if err != nil {
-			logger.Warn("auto extract failed", zap.String("memory_id", mem.ID), zap.Error(err))
 		}
+		extractTimeout := config.GetConfig().Extract.Timeout
+		if extractTimeout <= 0 {
+			extractTimeout = 30 * time.Second
+		}
+		go func() {
+			// 独立超时防止 LLM 挂起导致 goroutine 永久泄漏 / Timeout prevents goroutine leak on LLM hang
+			ctx, cancel := context.WithTimeout(context.Background(), extractTimeout)
+			defer cancel()
+			if _, err := m.extractor.Extract(ctx, extractReq); err != nil {
+				logger.Warn("auto extract failed",
+					zap.String("memory_id", extractReq.MemoryID),
+					zap.Error(err),
+				)
+			}
+		}()
 	}
 
 	return mem, nil

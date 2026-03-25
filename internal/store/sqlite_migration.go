@@ -14,7 +14,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 6
+const latestVersion = 7
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -95,6 +95,15 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		if err := migrateV5ToV6(db); err != nil {
 			return fmt.Errorf("migration V5→V6 failed: %w", err)
 		}
+		version = 6
+	}
+
+	// V6→V7: 图谱关联表索引 / Graph and memory-entity association table indexes
+	if version < 7 {
+		if err := migrateV6ToV7(db); err != nil {
+			return fmt.Errorf("migrate V6→V7: %w", err)
+		}
+		version = 7
 	}
 
 	return nil
@@ -609,6 +618,61 @@ func migrateV5ToV6(db *sql.DB) error {
 	}
 
 	logger.Info("migration V5→V6 completed successfully")
+	return tx.Commit()
+}
+
+// migrateV6ToV7 图谱关联表索引 / Graph and memory-entity association table indexes
+func migrateV6ToV7(db *sql.DB) error {
+	logger.Info("executing migration V6→V7")
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin V6→V7: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 按表分组，仅当表存在时才创建对应索引 / Only create indexes when the table exists
+	tableIndexes := []struct {
+		table string
+		stmts []string
+	}{
+		{
+			table: "entity_relations",
+			stmts: []string{
+				`CREATE INDEX IF NOT EXISTS idx_entity_relations_source ON entity_relations(source_id)`,
+				`CREATE INDEX IF NOT EXISTS idx_entity_relations_target ON entity_relations(target_id)`,
+			},
+		},
+		{
+			table: "memory_entities",
+			stmts: []string{
+				`CREATE INDEX IF NOT EXISTS idx_memory_entities_entity_id ON memory_entities(entity_id)`,
+				`CREATE INDEX IF NOT EXISTS idx_memory_entities_memory_id ON memory_entities(memory_id)`,
+			},
+		},
+	}
+
+	for _, ti := range tableIndexes {
+		var cnt int
+		if err := tx.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", ti.table).Scan(&cnt); err != nil {
+			return fmt.Errorf("V6→V7 check table %s: %w", ti.table, err)
+		}
+		if cnt == 0 {
+			logger.Info("migration V6→V7: skip indexes for missing table", zap.String("table", ti.table))
+			continue
+		}
+		for _, stmt := range ti.stmts {
+			if _, err := tx.Exec(stmt); err != nil {
+				return fmt.Errorf("V6→V7 exec %q: %w", stmt, err)
+			}
+		}
+	}
+
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO schema_version(version) VALUES(7)`); err != nil {
+		return fmt.Errorf("V6→V7 schema_version: %w", err)
+	}
+
+	logger.Info("migration V6→V7 completed successfully")
 	return tx.Commit()
 }
 

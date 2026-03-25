@@ -11,7 +11,6 @@ import (
 	"iclude/internal/config"
 	"iclude/internal/llm"
 	"iclude/internal/logger"
-	"iclude/internal/model"
 	"iclude/internal/store"
 	"iclude/pkg/tokenizer"
 
@@ -153,23 +152,20 @@ func (p *Preprocessor) extractKeywords(ctx context.Context, query string) []stri
 
 // matchEntities 实体快速匹配 / Match keywords against graph entities
 // [fix] 去掉 100 硬限，短关键词(<3 rune)要求精确匹配
+// 注意：GraphStore.ListEntities 接口仅支持 limit，不支持 offset，
+// 因此无法真正分页遍历全部实体；当实体总量超过 batchSize 时仅能读取前 N 条。
+// Note: GraphStore.ListEntities only accepts limit (no offset), so full pagination
+// is not possible; only the first batchSize entities are matched when total > batchSize.
 func (p *Preprocessor) matchEntities(ctx context.Context, keywords []string, scope string) []string {
 	if len(keywords) == 0 {
 		return nil
 	}
 
-	// 分页获取全部实体 / Paginate to get all entities
-	var allEntities []*model.Entity
+	// 一次性拉取实体（接口不支持 offset，无法分页）/ Fetch entities in one call (no offset support in interface)
 	batchSize := 500
-	for offset := 0; offset < 10000; offset += batchSize {
-		batch, err := p.graphStore.ListEntities(ctx, scope, "", batchSize)
-		if err != nil {
-			break
-		}
-		allEntities = append(allEntities, batch...)
-		if len(batch) < batchSize {
-			break
-		}
+	allEntities, err := p.graphStore.ListEntities(ctx, scope, "", batchSize)
+	if err != nil {
+		return nil
 	}
 
 	var matched []string

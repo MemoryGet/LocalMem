@@ -233,7 +233,7 @@ func LoadConfig() error {
 	viper.SetDefault("storage.sqlite.enabled", true)
 	viper.SetDefault("storage.sqlite.path", "./data/iclude.db")
 	viper.SetDefault("server.port", 8080)
-	viper.SetDefault("server.auth_enabled", false)
+	viper.SetDefault("server.auth_enabled", true)
 	viper.SetDefault("partitions.enabled", false)
 	viper.SetDefault("partitions.catalog_path", "./data/partitions.db")
 	viper.SetDefault("storage.sqlite.search.bm25_weights.content", 10.0)
@@ -256,7 +256,7 @@ func LoadConfig() error {
 	viper.SetDefault("reflect.max_rounds", 3)
 	viper.SetDefault("reflect.token_budget", 4096)
 	viper.SetDefault("reflect.round_timeout", "30s")
-	viper.SetDefault("reflect.auto_save", true)
+	viper.SetDefault("reflect.auto_save", false)
 	// Extract 默认值 / Extract defaults
 	viper.SetDefault("extract.max_entities", 20)
 	viper.SetDefault("extract.max_relations", 30)
@@ -302,7 +302,7 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.preprocess.llm_timeout", "5s")
 	viper.SetDefault("retrieval.preprocess.stopword_files", []string{"config/stopwords_en.txt", "config/stopwords_zh.txt"})
 	// Auth 默认值 / Auth defaults
-	viper.SetDefault("auth.enabled", false)
+	viper.SetDefault("auth.enabled", true)
 
 	// 从环境变量读取
 	viper.AutomaticEnv()

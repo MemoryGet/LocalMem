@@ -33,8 +33,8 @@ type CreateMemoryRequest struct {
 	AutoExtract bool `json:"auto_extract,omitempty"`
 
 	// V6: 身份与可见性 / Identity & Visibility
-	OwnerID    string `json:"-"`                     // API 层注入 / Injected by API layer
-	Visibility string `json:"visibility,omitempty"`  // private(default) / team / public
+	OwnerID    string `json:"-"`                    // API 层注入 / Injected by API layer
+	Visibility string `json:"visibility,omitempty"` // private(default) / team / public
 }
 
 // UpdateMemoryRequest 更新记忆请求 / Update memory request DTO
@@ -77,6 +77,10 @@ type RetrieveRequest struct {
 	DetailLevel  string         `json:"detail_level,omitempty"` // abstract_only / summary / full
 	MaxTokens    int            `json:"max_tokens,omitempty"`
 	GraphEnabled *bool          `json:"graph_enabled,omitempty"`
+
+	// Phase 2: MMR 多样性重排（覆盖全局配置）/ Per-request MMR override
+	MmrEnabled *bool    `json:"mmr_enabled,omitempty"` // nil=使用配置文件默认值 / nil=use config default
+	MmrLambda  *float64 `json:"mmr_lambda,omitempty"`  // 相关性 vs 多样性，推荐 0.7 / Relevance vs diversity
 }
 
 // ListRequest 分页列表请求 / Paginated list request DTO

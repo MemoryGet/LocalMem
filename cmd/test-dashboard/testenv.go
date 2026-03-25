@@ -359,7 +359,7 @@ func (e *TestEnv) Load(datasetFile string) error {
 	}
 
 	e.preprocessor = search.NewPreprocessor(tok, stores.GraphStore, nil, retrievalCfg)
-	e.retriever = search.NewRetriever(stores.MemoryStore, nil, nil, stores.GraphStore, nil, retrievalCfg, e.preprocessor)
+	e.retriever = search.NewRetriever(stores.MemoryStore, nil, nil, stores.GraphStore, nil, retrievalCfg, e.preprocessor, nil)
 	e.datasetName = ds.Name
 	e.testCases = ds.TestCases
 	e.stats = DatasetStats{

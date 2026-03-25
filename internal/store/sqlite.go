@@ -438,17 +438,19 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 
 	visCond, visArgs := visibilityCondition("m.", identity)
 	w := s.bm25Weights
-	sqlQuery := `SELECT ` + memoryColumnsAliased + `,
-		bm25(memories_fts, ?, ?, ?)
+	// 用 CTE 消除 bm25() 重复计算 / Use CTE to avoid computing bm25() twice
+	sqlQuery := `WITH ranked AS (
+		SELECT ` + memoryColumnsAliased + `,
+			bm25(memories_fts, ?, ?, ?) AS rank
 		FROM memories m
 		JOIN memories_fts f ON m.rowid = f.rowid
 		WHERE memories_fts MATCH ? AND m.deleted_at IS NULL AND ` + visCond + `
-		ORDER BY bm25(memories_fts, ?, ?, ?)
-		LIMIT ?`
+	)
+	SELECT * FROM ranked ORDER BY rank LIMIT ?`
 
 	args := []interface{}{w[0], w[1], w[2], tokenizedQuery}
 	args = append(args, visArgs...)
-	args = append(args, w[0], w[1], w[2], limit)
+	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search memories: %w", err)
@@ -568,18 +570,19 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 	whereClause, whereArgs := wb.Build()
 	w := s.bm25Weights
 
-	sqlQuery := fmt.Sprintf(`SELECT %s,
-		bm25(memories_fts, ?, ?, ?)
+	// 用 CTE 消除 bm25() 重复计算 / Use CTE to avoid computing bm25() twice
+	sqlQuery := fmt.Sprintf(`WITH ranked AS (
+		SELECT %s,
+			bm25(memories_fts, ?, ?, ?) AS rank
 		FROM memories m
 		JOIN memories_fts f ON m.rowid = f.rowid
 		WHERE %s
-		ORDER BY bm25(memories_fts, ?, ?, ?)
-		LIMIT ?`, memoryColumnsAliased, whereClause)
+	)
+	SELECT * FROM ranked ORDER BY rank LIMIT ?`, memoryColumnsAliased, whereClause)
 
-	finalArgs := make([]interface{}, 0, len(whereArgs)+7)
+	finalArgs := make([]interface{}, 0, len(whereArgs)+4)
 	finalArgs = append(finalArgs, w[0], w[1], w[2])
 	finalArgs = append(finalArgs, whereArgs...)
-	finalArgs = append(finalArgs, w[0], w[1], w[2])
 	finalArgs = append(finalArgs, limit)
 
 	rows, err := s.db.QueryContext(ctx, sqlQuery, finalArgs...)
@@ -623,6 +626,13 @@ func (s *SQLiteMemoryStore) ListTimeline(ctx context.Context, req *model.Timelin
 	qb.Where().AndIf(req.Scope != "", "scope = ?", req.Scope)
 	qb.Where().AndIf(req.After != nil, "COALESCE(happened_at, created_at) >= ?", req.After)
 	qb.Where().AndIf(req.Before != nil, "COALESCE(happened_at, created_at) <= ?", req.Before)
+
+	// 可见性过滤：使用请求中携带的身份信息 / Apply visibility filter using identity from request
+	if req.TeamID != "" || req.OwnerID != "" {
+		identity := &model.Identity{TeamID: req.TeamID, OwnerID: req.OwnerID}
+		visCond, visArgs := visibilityCondition("", identity)
+		qb.Where().And(visCond, visArgs...)
+	}
 
 	sqlQuery, args := qb.Build()
 
@@ -1019,19 +1029,22 @@ func (s *SQLiteMemoryStore) CleanupExpired(ctx context.Context) (int, error) {
 func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Duration) (int, error) {
 	cutoff := time.Now().UTC().Add(-olderThan)
 
-	// 获取待清理的 rowid 列表用于 FTS5 清理
-	rows, err := s.db.QueryContext(ctx, `SELECT rowid FROM memories WHERE deleted_at IS NOT NULL AND deleted_at < ?`, cutoff)
+	// 合并两次相同 SELECT：一次查询同时收集 rowid 和 id / Merge two identical SELECTs into one scan
+	rows, err := s.db.QueryContext(ctx, `SELECT rowid, id FROM memories WHERE deleted_at IS NOT NULL AND deleted_at < ?`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query purge candidates: %w", err)
 	}
 	var rowids []int64
+	var memoryIDs []string
 	for rows.Next() {
 		var rowid int64
-		if err := rows.Scan(&rowid); err != nil {
+		var id string
+		if err := rows.Scan(&rowid, &id); err != nil {
 			rows.Close()
-			return 0, fmt.Errorf("failed to scan rowid: %w", err)
+			return 0, fmt.Errorf("failed to scan purge candidate: %w", err)
 		}
 		rowids = append(rowids, rowid)
+		memoryIDs = append(memoryIDs, id)
 	}
 	rows.Close()
 
@@ -1041,22 +1054,6 @@ func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Dur
 			// best-effort FTS5 清理
 		}
 	}
-
-	// 收集待清理的 memory ID / Collect memory IDs for cascade cleanup
-	idRows, err := s.db.QueryContext(ctx, `SELECT id FROM memories WHERE deleted_at IS NOT NULL AND deleted_at < ?`, cutoff)
-	if err != nil {
-		return 0, fmt.Errorf("failed to query purge candidate ids: %w", err)
-	}
-	var memoryIDs []string
-	for idRows.Next() {
-		var id string
-		if err := idRows.Scan(&id); err != nil {
-			idRows.Close()
-			return 0, fmt.Errorf("failed to scan memory id: %w", err)
-		}
-		memoryIDs = append(memoryIDs, id)
-	}
-	idRows.Close()
 
 	// 级联清理关联表中的孤儿记录 / Cascade cleanup orphan records in association tables
 	if len(memoryIDs) > 0 {

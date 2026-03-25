@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"iclude/internal/config"
@@ -20,7 +21,7 @@ import (
 type Consolidator struct {
 	memStore store.MemoryStore
 	vecStore store.VectorStore // 可为 nil / may be nil
-	llm      llm.Provider     // 可为 nil / may be nil
+	llm      llm.Provider      // 可为 nil / may be nil
 }
 
 // NewConsolidator 创建归纳引擎 / Create a new consolidator
@@ -111,25 +112,49 @@ func (c *Consolidator) selectCandidates(ctx context.Context, cfg config.Consolid
 	return candidates, nil
 }
 
+// consolidateLLMTimeout 单次归纳 LLM 超时 / Per-call timeout for consolidation LLM
+const consolidateLLMTimeout = 30 * time.Second
+
 // consolidateCluster 归纳一个簇 / Consolidate a single cluster
 func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.Memory, idx int) error {
-	// 构建 LLM prompt
-	var contents string
+	// 收集内容和元数据 / Collect content and metadata
+	var memLines string
 	maxStrength := 0.0
 	totalReinforced := 0
+	// 取首个非空 scope/kind 作为归纳记忆的元数据 / Inherit scope/kind from first non-empty member
+	var inheritScope, inheritKind, inheritTeamID string
 	for _, m := range cluster {
-		contents += fmt.Sprintf("- %s\n", m.Content)
+		// 带编号和 kind 前缀，保留结构化上下文 / Numbered entries with kind prefix preserve context
+		kindTag := ""
+		if m.Kind != "" {
+			kindTag = fmt.Sprintf("[%s] ", m.Kind)
+		}
+		memLines += fmt.Sprintf("%d. %s%s\n", len(memLines)+1, kindTag, m.Content)
 		if m.Strength > maxStrength {
 			maxStrength = m.Strength
 		}
 		totalReinforced += m.ReinforcedCount
+		if inheritScope == "" && m.Scope != "" {
+			inheritScope = m.Scope
+		}
+		if inheritKind == "" && m.Kind != "" && m.Kind != "consolidated" {
+			inheritKind = m.Kind
+		}
+		if inheritTeamID == "" && m.TeamID != "" {
+			inheritTeamID = m.TeamID
+		}
 	}
 
-	prompt := fmt.Sprintf("Consolidate these %d related memories into one comprehensive memory. Preserve all unique facts. Remove redundancy. Output only the consolidated text:\n\n%s", len(cluster), contents)
+	sysPrompt := "You are a memory consolidation engine. Merge the numbered memories into one concise, accurate memory. Preserve all unique facts and key details. Remove redundancy. Output ONLY the consolidated memory text — no prefixes, no explanations, no numbering."
+	prompt := fmt.Sprintf("Merge these %d related memories into one comprehensive memory:\n\n%s", len(cluster), memLines)
 
-	resp, err := c.llm.Chat(ctx, &llm.ChatRequest{
+	// 独立超时防止 LLM hang / Per-call timeout
+	llmCtx, cancel := context.WithTimeout(ctx, consolidateLLMTimeout)
+	defer cancel()
+
+	resp, err := c.llm.Chat(llmCtx, &llm.ChatRequest{
 		Messages: []llm.ChatMessage{
-			{Role: "system", Content: "You are a memory consolidation engine. Output only the consolidated memory content, nothing else."},
+			{Role: "system", Content: sysPrompt},
 			{Role: "user", Content: prompt},
 		},
 	})
@@ -137,17 +162,35 @@ func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.
 		return fmt.Errorf("LLM consolidation failed: %w", err)
 	}
 
-	// 创建归纳记忆
+	// 输出验证：结果不得为空，且长度不得短于最短原始记忆的 10% / Validate output is non-trivially short
+	consolidatedContent := strings.TrimSpace(resp.Content)
+	if consolidatedContent == "" {
+		return fmt.Errorf("LLM returned empty consolidation for cluster %d", idx)
+	}
+	shortestSource := len(cluster[0].Content)
+	for _, m := range cluster[1:] {
+		if len(m.Content) < shortestSource {
+			shortestSource = len(m.Content)
+		}
+	}
+	if len(consolidatedContent) < shortestSource/10 {
+		logger.Warn("consolidation: LLM output suspiciously short, skipping cluster",
+			zap.Int("cluster", idx),
+			zap.Int("output_len", len(consolidatedContent)),
+			zap.Int("min_source_len", shortestSource),
+		)
+		return fmt.Errorf("consolidation output too short (cluster %d), skipping to preserve data integrity", idx)
+	}
+
+	// 创建归纳记忆 / Create consolidated memory
 	consolidated := &model.Memory{
-		Content:       resp.Content,
+		Content:       consolidatedContent,
 		RetentionTier: model.TierPermanent,
-		Kind:          "consolidated",
+		Kind:          inheritKind,
 		Strength:      math.Min(maxStrength*1.1, 1.0),
 		SourceType:    "consolidation",
-	}
-	if len(cluster) > 0 {
-		consolidated.Scope = cluster[0].Scope
-		consolidated.TeamID = cluster[0].TeamID
+		Scope:         inheritScope,
+		TeamID:        inheritTeamID,
 	}
 	ResolveTierDefaults(consolidated)
 
@@ -155,7 +198,7 @@ func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.
 		return fmt.Errorf("failed to create consolidated memory: %w", err)
 	}
 
-	// soft-delete 原始记忆并设置 consolidated_into
+	// soft-delete 原始记忆并记录归纳目标 / Soft-delete sources and set consolidated_into
 	for _, m := range cluster {
 		m.ConsolidatedInto = consolidated.ID
 		if err := c.memStore.Update(ctx, m); err != nil {
@@ -176,6 +219,7 @@ func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.
 		zap.Int("cluster", idx),
 		zap.Int("source_count", len(cluster)),
 		zap.String("consolidated_id", consolidated.ID),
+		zap.String("scope", inheritScope),
 	)
 	return nil
 }

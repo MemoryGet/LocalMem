@@ -23,10 +23,19 @@ func NewQdrantVectorStore(baseURL, collection string, dimension int) *QdrantVect
 	}
 }
 
-// Init 初始化向量存储，确保集合存在 / Initialize vector storage, ensure collection exists
+// Init 初始化向量存储，确保集合存在并创建常用过滤字段的 payload index / Initialize vector storage
 func (s *QdrantVectorStore) Init(ctx context.Context) error {
 	if err := s.client.EnsureCollection(ctx); err != nil {
 		return fmt.Errorf("failed to initialize qdrant vector store: %w", err)
+	}
+
+	// 为高频过滤字段创建 keyword payload index（幂等，失败不阻断启动）
+	// Create keyword payload indexes for high-frequency filter fields (idempotent, non-fatal)
+	for _, field := range []string{"scope", "context_id", "kind", "team_id", "owner_id", "visibility"} {
+		if err := s.client.EnsureFieldIndex(ctx, field); err != nil {
+			// 非致命：Qdrant 不可用时降级为全量扫描 / Non-fatal: falls back to full scan
+			_ = err
+		}
 	}
 	return nil
 }

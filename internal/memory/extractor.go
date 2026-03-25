@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"iclude/internal/config"
 	"iclude/internal/llm"
@@ -347,6 +348,9 @@ func (e *Extractor) resolveEntity(ctx context.Context, ent extractedEntity, scop
 	}, false, nil
 }
 
+// normalizeLLMTimeout 单次规范化 LLM 超时 / Per-call timeout for normalization LLM call
+const normalizeLLMTimeout = 10 * time.Second
+
 // llmNormalize LLM辅助实体规范化 / LLM-assisted entity normalization
 func (e *Extractor) llmNormalize(ctx context.Context, name string, candidates []*model.Entity) (bool, string) {
 	candidateNames := make([]string, 0, len(candidates))
@@ -367,7 +371,11 @@ func (e *Extractor) llmNormalize(ctx context.Context, name string, candidates []
 		Temperature:    &temp,
 	}
 
-	resp, err := e.llm.Chat(ctx, req)
+	// 独立超时防止单次规范化 hang 住整个抽取流程 / Per-call timeout prevents blocking extraction
+	llmCtx, cancel := context.WithTimeout(ctx, normalizeLLMTimeout)
+	defer cancel()
+
+	resp, err := e.llm.Chat(llmCtx, req)
 	if err != nil {
 		logger.Warn("normalize LLM call failed, creating new entity",
 			zap.String("name", name), zap.Error(err))

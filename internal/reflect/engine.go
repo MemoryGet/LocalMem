@@ -195,7 +195,10 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 			Temperature:    &temp,
 		}
 
-		chatResp, err := e.llmProvider.Chat(ctx, chatReq)
+		// 单次 LLM 调用独立超时（防止单个请求 hang 住整轮）/ Per-call timeout prevents single LLM hang
+		llmCtx, llmCancel := context.WithTimeout(ctx, e.cfg.RoundTimeout)
+		chatResp, err := e.llmProvider.Chat(llmCtx, chatReq)
+		llmCancel()
 		if err != nil {
 			logger.Warn("reflect LLM call failed",
 				zap.Int("round", round),
@@ -376,8 +379,14 @@ func formatMemoriesForLLM(results []*model.SearchResult) string {
 		if r.Memory == nil {
 			continue
 		}
-		fmt.Fprintf(&sb, "[%d] (score=%.3f, source=%s) %s\n",
-			i+1, r.Score, r.Source, r.Memory.Content)
+		// 优先使用用户标注的事件时间，否则使用记忆创建时间 / Prefer user-annotated event time, fall back to creation time
+		effectiveTime := r.Memory.CreatedAt
+		if r.Memory.HappenedAt != nil && !r.Memory.HappenedAt.IsZero() {
+			effectiveTime = *r.Memory.HappenedAt
+		}
+		timeStr := effectiveTime.Format("2006-01-02 15:04")
+		fmt.Fprintf(&sb, "[%d] (score=%.3f, source=%s, time=%s) %s\n",
+			i+1, r.Score, r.Source, timeStr, r.Memory.Content)
 	}
 	return sb.String()
 }
