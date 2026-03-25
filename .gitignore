@@ -1,6 +1,9 @@
 # Worktrees
 .worktrees/
 
+# Compiled binaries
+test-dashboard
+
 # OS
 .DS_Store
 
