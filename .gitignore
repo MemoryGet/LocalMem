@@ -3,6 +3,8 @@
 
 # Compiled binaries
 test-dashboard
+/mcp
+/server
 
 # OS
 .DS_Store

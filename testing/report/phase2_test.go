@@ -225,7 +225,7 @@ func TestReport_Heartbeat_DecayAudit(t *testing.T) {
 
 	// 验证低强度记忆存在
 	identity := &model.Identity{TeamID: "t1", OwnerID: model.SystemOwnerID}
-	list, err := s.List(nil, identity, 0, 10) //nolint
+	list, err := s.List(t.Context(), identity, 0, 10) //nolint
 	require.NoError(t, err)
 	lowCount := 0
 	for _, m := range list {
@@ -320,7 +320,7 @@ func TestReport_Consolidation_MetadataInheritance(t *testing.T) {
 	tc.Step("插入 3 条源记忆")
 
 	identity := &model.Identity{TeamID: "team-1", OwnerID: model.SystemOwnerID}
-	list, err := s.List(nil, identity, 0, 10) //nolint
+	list, err := s.List(t.Context(), identity, 0, 10) //nolint
 	require.NoError(t, err)
 	require.Len(t, list, 3)
 	tc.Step("验证 3 条记忆写入成功")

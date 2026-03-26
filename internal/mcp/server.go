@@ -20,7 +20,7 @@ import (
 type Server struct {
 	cfg      config.MCPConfig
 	registry *Registry
-	sessions sync.Map  // map[string]*Session
+	sessions sync.Map // map[string]*Session
 	mux      *http.ServeMux
 }
 

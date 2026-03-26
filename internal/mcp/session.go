@@ -29,7 +29,7 @@ type Session struct {
 	registry *Registry
 	identity *model.Identity
 	outCh    chan []byte // SSE 输出 channel（未导出） / SSE output channel (unexported)
-	once     sync.Once  // 保证 outCh 只关闭一次 / Ensures outCh is closed exactly once
+	once     sync.Once   // 保证 outCh 只关闭一次 / Ensures outCh is closed exactly once
 }
 
 // NewSession 创建新的客户端会话 / Create a new client session
