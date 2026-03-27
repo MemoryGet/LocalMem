@@ -18,17 +18,17 @@ import (
 
 // mockPromptRetriever 测试用记忆检索存根 / Memory retriever stub for prompt tests
 type mockPromptRetriever struct {
-	memories []*model.Memory
+	results  []*model.SearchResult
 	err      error
 	captured *model.RetrieveRequest
 }
 
-func (m *mockPromptRetriever) Retrieve(_ context.Context, req *model.RetrieveRequest) ([]*model.Memory, error) {
+func (m *mockPromptRetriever) Retrieve(_ context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	m.captured = req
 	if m.err != nil {
 		return nil, m.err
 	}
-	return m.memories, nil
+	return m.results, nil
 }
 
 // TestMemoryContextPrompt_Definition 验证提示定义字段 / Verify prompt definition fields
@@ -61,7 +61,7 @@ func TestMemoryContextPrompt_Definition(t *testing.T) {
 // TestMemoryContextPrompt_Get_success 成功检索并生成系统消息 / Retrieves memories and returns system + user messages
 func TestMemoryContextPrompt_Get_success(t *testing.T) {
 	mem := &model.Memory{ID: "m1", Content: "IClude is a memory system"}
-	retriever := &mockPromptRetriever{memories: []*model.Memory{mem}}
+	retriever := &mockPromptRetriever{results: []*model.SearchResult{{Memory: mem, Score: 0.9}}}
 	p := prompts.NewMemoryContextPrompt(retriever)
 
 	result, err := p.Get(context.Background(), map[string]string{
@@ -101,7 +101,7 @@ func TestMemoryContextPrompt_Get_missingQuestion(t *testing.T) {
 
 // TestMemoryContextPrompt_Get_withScope scope 参数正确传递到 SearchFilters / Scope argument propagates to SearchFilters
 func TestMemoryContextPrompt_Get_withScope(t *testing.T) {
-	retriever := &mockPromptRetriever{memories: []*model.Memory{}}
+	retriever := &mockPromptRetriever{results: []*model.SearchResult{}}
 	p := prompts.NewMemoryContextPrompt(retriever)
 
 	_, err := p.Get(context.Background(), map[string]string{
@@ -117,7 +117,7 @@ func TestMemoryContextPrompt_Get_withScope(t *testing.T) {
 
 // TestMemoryContextPrompt_Get_withLimit limit 参数正确解析 / Limit argument is parsed correctly
 func TestMemoryContextPrompt_Get_withLimit(t *testing.T) {
-	retriever := &mockPromptRetriever{memories: []*model.Memory{}}
+	retriever := &mockPromptRetriever{results: []*model.SearchResult{}}
 	p := prompts.NewMemoryContextPrompt(retriever)
 
 	_, err := p.Get(context.Background(), map[string]string{
@@ -132,7 +132,7 @@ func TestMemoryContextPrompt_Get_withLimit(t *testing.T) {
 
 // TestMemoryContextPrompt_Get_defaultLimit limit 默认值为 10 / Default limit is 10
 func TestMemoryContextPrompt_Get_defaultLimit(t *testing.T) {
-	retriever := &mockPromptRetriever{memories: []*model.Memory{}}
+	retriever := &mockPromptRetriever{results: []*model.SearchResult{}}
 	p := prompts.NewMemoryContextPrompt(retriever)
 
 	_, err := p.Get(context.Background(), map[string]string{
@@ -145,7 +145,7 @@ func TestMemoryContextPrompt_Get_defaultLimit(t *testing.T) {
 
 // TestMemoryContextPrompt_Get_invalidLimit 无效 limit 回退到默认值 / Invalid limit falls back to 10
 func TestMemoryContextPrompt_Get_invalidLimit(t *testing.T) {
-	retriever := &mockPromptRetriever{memories: []*model.Memory{}}
+	retriever := &mockPromptRetriever{results: []*model.SearchResult{}}
 	p := prompts.NewMemoryContextPrompt(retriever)
 
 	_, err := p.Get(context.Background(), map[string]string{
@@ -173,7 +173,7 @@ func TestMemoryContextPrompt_Get_retrieverError(t *testing.T) {
 
 // TestMemoryContextPrompt_Get_withIdentity 身份注入 TeamID 正确传递 / Identity TeamID propagated to request
 func TestMemoryContextPrompt_Get_withIdentity(t *testing.T) {
-	retriever := &mockPromptRetriever{memories: []*model.Memory{}}
+	retriever := &mockPromptRetriever{results: []*model.SearchResult{}}
 	p := prompts.NewMemoryContextPrompt(retriever)
 
 	id := &model.Identity{TeamID: "team-abc"}
@@ -190,7 +190,7 @@ func TestMemoryContextPrompt_Get_withIdentity(t *testing.T) {
 
 // TestMemoryContextPrompt_Get_emptyMemories 无记忆时仍返回有效结果 / Valid result returned when no memories found
 func TestMemoryContextPrompt_Get_emptyMemories(t *testing.T) {
-	retriever := &mockPromptRetriever{memories: []*model.Memory{}}
+	retriever := &mockPromptRetriever{results: []*model.SearchResult{}}
 	p := prompts.NewMemoryContextPrompt(retriever)
 
 	result, err := p.Get(context.Background(), map[string]string{
@@ -208,7 +208,7 @@ func TestMemoryContextPrompt_Get_emptyMemories(t *testing.T) {
 // TestMemoryContextPrompt_Get_systemMessageContainsJSON JSON 序列化正确嵌入 / JSON is correctly embedded in system message
 func TestMemoryContextPrompt_Get_systemMessageContainsJSON(t *testing.T) {
 	mem := &model.Memory{ID: "abc-123", Content: "some remembered fact"}
-	retriever := &mockPromptRetriever{memories: []*model.Memory{mem}}
+	retriever := &mockPromptRetriever{results: []*model.SearchResult{{Memory: mem, Score: 0.9}}}
 	p := prompts.NewMemoryContextPrompt(retriever)
 
 	result, err := p.Get(context.Background(), map[string]string{
@@ -230,5 +230,8 @@ func TestMemoryContextPrompt_Get_systemMessageContainsJSON(t *testing.T) {
 	require.True(t, endIdx >= 0, "closing ``` not found")
 	jsonPart := sysText[startIdx : startIdx+endIdx]
 	require.NoError(t, json.Unmarshal([]byte(jsonPart), &parsed))
-	assert.Equal(t, "abc-123", parsed[0]["id"])
+	// SearchResult JSON 结构: {"memory": {...}, "score": ...} / SearchResult JSON: {"memory": {...}, "score": ...}
+	memMap, ok := parsed[0]["memory"].(map[string]any)
+	require.True(t, ok, "expected memory field in SearchResult JSON")
+	assert.Equal(t, "abc-123", memMap["id"])
 }

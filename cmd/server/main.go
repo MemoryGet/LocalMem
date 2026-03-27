@@ -33,16 +33,17 @@ func main() {
 	defer cleanup()
 
 	router := api.SetupRouter(&api.RouterDeps{
-		MemManager:     deps.MemManager,
-		Retriever:      deps.Retriever,
-		ContextManager: deps.ContextManager,
-		GraphManager:   deps.GraphManager,
-		DocProcessor:   deps.DocProcessor,
-		TagStore:       deps.Stores.TagStore,
-		ReflectEngine:  deps.ReflectEngine,
-		Extractor:      deps.Extractor,
-		AuthConfig:     cfg.Auth,
-		ReflectConfig:  cfg.Reflect,
+		MemManager:         deps.MemManager,
+		Retriever:          deps.Retriever,
+		ContextManager:     deps.ContextManager,
+		GraphManager:       deps.GraphManager,
+		DocProcessor:       deps.DocProcessor,
+		TagStore:           deps.Stores.TagStore,
+		ReflectEngine:      deps.ReflectEngine,
+		Extractor:          deps.Extractor,
+		AuthConfig:         cfg.Auth,
+		ReflectConfig:      cfg.Reflect,
+		CORSAllowedOrigins: cfg.Auth.CORSAllowedOrigins,
 	})
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

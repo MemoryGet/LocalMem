@@ -13,16 +13,17 @@ import (
 
 // RouterDeps 路由依赖 / Router dependencies
 type RouterDeps struct {
-	MemManager     *memory.Manager
-	ContextManager *memory.ContextManager
-	GraphManager   *memory.GraphManager
-	Retriever      *search.Retriever
-	DocProcessor   *document.Processor
-	TagStore       store.TagStore
-	ReflectEngine  *reflectpkg.ReflectEngine
-	Extractor      *memory.Extractor // 可为 nil / may be nil
-	AuthConfig     config.AuthConfig
-	ReflectConfig  config.ReflectConfig
+	MemManager         *memory.Manager
+	ContextManager     *memory.ContextManager
+	GraphManager       *memory.GraphManager
+	Retriever          *search.Retriever
+	DocProcessor       *document.Processor
+	TagStore           store.TagStore
+	ReflectEngine      *reflectpkg.ReflectEngine
+	Extractor          *memory.Extractor // 可为 nil / may be nil
+	AuthConfig         config.AuthConfig
+	ReflectConfig      config.ReflectConfig
+	CORSAllowedOrigins []string
 }
 
 // SetupRouter 初始化路由 / Initialize router with all handlers
@@ -31,7 +32,7 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 	r := gin.New()
 
 	r.Use(gin.Recovery())
-	r.Use(CORSMiddleware())
+	r.Use(CORSMiddleware(deps.CORSAllowedOrigins))
 	r.Use(LoggerMiddleware())
 
 	r.GET("/health", func(c *gin.Context) {

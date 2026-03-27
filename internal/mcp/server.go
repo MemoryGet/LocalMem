@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -35,10 +36,26 @@ func NewServer(cfg config.MCPConfig, registry *Registry) *Server {
 // Handler 返回 HTTP handler / Return HTTP handler
 func (s *Server) Handler() http.Handler { return s.mux }
 
+// checkAuth 验证 Bearer token（token 为空时跳过验证）/ Verify Bearer token; skip if token is empty
+func (s *Server) checkAuth(r *http.Request) bool {
+	if s.cfg.APIToken == "" {
+		return true // token 未配置时不鉴权（本地开发模式）
+	}
+	auth := r.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, "Bearer ") {
+		return false
+	}
+	return strings.TrimPrefix(auth, "Bearer ") == s.cfg.APIToken
+}
+
 // handleSSE GET /sse — 建立 SSE 流，创建会话，推送 endpoint 事件 / Establish SSE stream, create session, push endpoint event
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.checkAuth(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	flusher, ok := w.(http.Flusher)
@@ -62,7 +79,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", s.cfg.CORSAllowedOrigin)
 	w.WriteHeader(http.StatusOK)
 
 	// 发送 endpoint 事件，告知客户端消息端点 URL / Send endpoint event with message URL for the client
@@ -92,6 +109,10 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !s.checkAuth(r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	sessionID := r.URL.Query().Get("session")

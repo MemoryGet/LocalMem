@@ -54,27 +54,16 @@ func (a *memoryCreatorAdapter) Create(ctx context.Context, mem *model.Memory) (*
 	return a.manager.Create(ctx, req)
 }
 
-// memoryRetrieverAdapter 将 *search.Retriever.Retrieve([]*model.SearchResult) 适配为 MemoryRetriever / tools.MemoryRetriever / prompts.MemoryRetriever 接口
-// Adapts *search.Retriever.Retrieve([]*model.SearchResult) to the []*model.Memory interface expected by tools and prompts
+// memoryRetrieverAdapter 将 *search.Retriever 适配为 tools/prompts 的 MemoryRetriever 接口 / Adapter for search.Retriever
 type memoryRetrieverAdapter struct {
 	retriever interface {
 		Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error)
 	}
 }
 
-// Retrieve 调用底层检索器并从 SearchResult 中提取 Memory / Delegate to underlying retriever and extract Memory from SearchResult
-func (a *memoryRetrieverAdapter) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.Memory, error) {
-	results, err := a.retriever.Retrieve(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	mems := make([]*model.Memory, 0, len(results))
-	for _, r := range results {
-		if r != nil && r.Memory != nil {
-			mems = append(mems, r.Memory)
-		}
-	}
-	return mems, nil
+// Retrieve 直接委托底层检索器，保留评分元数据 / Delegate directly, preserving score metadata
+func (a *memoryRetrieverAdapter) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
+	return a.retriever.Retrieve(ctx, req)
 }
 
 func main() {
@@ -123,16 +112,22 @@ func main() {
 	addr := fmt.Sprintf(":%d", cfg.MCP.Port)
 	httpSrv := &http.Server{Addr: addr, Handler: srv.Handler()}
 
+	srvErr := make(chan error, 1)
 	go func() {
 		logger.Info("mcp server starting", zap.String("addr", addr))
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("mcp server listen failed", zap.Error(err))
+			srvErr <- err
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	select {
+	case sig := <-quit:
+		logger.Info("mcp server received shutdown signal", zap.String("signal", sig.String()))
+	case err := <-srvErr:
+		logger.Error("mcp server listen failed", zap.Error(err))
+	}
 
 	logger.Info("shutting down mcp server...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

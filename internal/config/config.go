@@ -81,8 +81,9 @@ type ServerConfig struct {
 
 // AuthConfig 认证配置 / Authentication configuration
 type AuthConfig struct {
-	Enabled bool         `mapstructure:"enabled"`
-	APIKeys []APIKeyItem `mapstructure:"api_keys"`
+	Enabled            bool         `mapstructure:"enabled"`
+	APIKeys            []APIKeyItem `mapstructure:"api_keys"`
+	CORSAllowedOrigins []string     `mapstructure:"cors_allowed_origins"`
 }
 
 // APIKeyItem API Key 配置项 / API Key configuration item
@@ -171,25 +172,25 @@ type MMRConfig struct {
 
 // CrystallizationConfig 自动晶化配置 / Auto-crystallization configuration
 type CrystallizationConfig struct {
-	Enabled          bool          `mapstructure:"enabled"`
-	MinReinforceCount int          `mapstructure:"min_reinforce_count"` // 最小强化次数 / Min reinforce count threshold
-	MinStrength      float64       `mapstructure:"min_strength"`        // 最小强度 / Min strength threshold
-	MinAge           time.Duration `mapstructure:"min_age"`             // 最小存活时间 / Min memory age
+	Enabled           bool          `mapstructure:"enabled"`
+	MinReinforceCount int           `mapstructure:"min_reinforce_count"` // 最小强化次数 / Min reinforce count threshold
+	MinStrength       float64       `mapstructure:"min_strength"`        // 最小强度 / Min strength threshold
+	MinAge            time.Duration `mapstructure:"min_age"`             // 最小存活时间 / Min memory age
 }
 
 // DedupConfig 去重配置 / Deduplication configuration
 type DedupConfig struct {
-	HashEnabled      bool    `mapstructure:"hash_enabled"`       // P0 哈希去重 / Hash dedup
-	VectorEnabled    bool    `mapstructure:"vector_enabled"`     // P1 余弦去重 / Cosine dedup
-	SkipThreshold    float64 `mapstructure:"skip_threshold"`     // 直接跳过阈值 / Skip threshold (>=0.95)
-	MergeThreshold   float64 `mapstructure:"merge_threshold"`    // 合并判断阈值 / Merge threshold (>=0.85)
+	HashEnabled    bool    `mapstructure:"hash_enabled"`    // P0 哈希去重 / Hash dedup
+	VectorEnabled  bool    `mapstructure:"vector_enabled"`  // P1 余弦去重 / Cosine dedup
+	SkipThreshold  float64 `mapstructure:"skip_threshold"`  // 直接跳过阈值 / Skip threshold (>=0.95)
+	MergeThreshold float64 `mapstructure:"merge_threshold"` // 合并判断阈值 / Merge threshold (>=0.85)
 }
 
 // HeartbeatConfig HEARTBEAT 自主巡检配置 / HEARTBEAT autonomous inspection configuration
 type HeartbeatConfig struct {
 	Enabled              bool          `mapstructure:"enabled"`
 	Interval             time.Duration `mapstructure:"interval"`
-	ContradictionEnabled bool          `mapstructure:"contradiction_enabled"` // 矛盾检测开关 / Contradiction detection toggle
+	ContradictionEnabled bool          `mapstructure:"contradiction_enabled"`         // 矛盾检测开关 / Contradiction detection toggle
 	ContradictionMaxComp int           `mapstructure:"contradiction_max_comparisons"` // 每轮最大比较数 / Max comparisons per run
 	DecayAuditMinAgeDays int           `mapstructure:"decay_audit_min_age_days"`      // 衰减审计最小天数 / Min age for decay audit
 	DecayAuditThreshold  float64       `mapstructure:"decay_audit_threshold"`         // 衰减审计强度阈值 / Strength threshold for decay audit
@@ -197,10 +198,12 @@ type HeartbeatConfig struct {
 
 // MCPConfig MCP 服务器配置 / MCP server configuration
 type MCPConfig struct {
-	Enabled        bool   `mapstructure:"enabled"`
-	Port           int    `mapstructure:"port"`
-	DefaultTeamID  string `mapstructure:"default_team_id"`
-	DefaultOwnerID string `mapstructure:"default_owner_id"`
+	Enabled           bool   `mapstructure:"enabled"`
+	Port              int    `mapstructure:"port"`
+	DefaultTeamID     string `mapstructure:"default_team_id"`
+	DefaultOwnerID    string `mapstructure:"default_owner_id"`
+	CORSAllowedOrigin string `mapstructure:"cors_allowed_origin"`
+	APIToken          string `mapstructure:"api_token"`
 }
 
 // SchedulerConfig 后台调度器配置 / Background scheduler configuration
@@ -315,8 +318,11 @@ func LoadConfig() error {
 	viper.SetDefault("mcp.port", 8081)
 	viper.SetDefault("mcp.default_team_id", "default")
 	viper.SetDefault("mcp.default_owner_id", "mcp-user")
+	viper.SetDefault("mcp.cors_allowed_origin", "*")
+	viper.SetDefault("mcp.api_token", "")
 	// Auth 默认值 / Auth defaults
 	viper.SetDefault("auth.enabled", true)
+	viper.SetDefault("auth.cors_allowed_origins", []string{"*"})
 
 	// 从环境变量读取
 	viper.AutomaticEnv()

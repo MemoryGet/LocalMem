@@ -256,8 +256,8 @@ func parseExtractOutput(ctx context.Context, raw string, prevMessages []llm.Chat
 
 // validateAndTruncate 校验并截断输出 / Validate and truncate output
 func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
-	// 过滤无效实体类型 / Filter invalid entity types
-	valid := output.Entities[:0]
+	// 过滤无效实体类型（新切片避免原地修改）/ Filter invalid entity types into new slice to avoid in-place mutation
+	valid := make([]extractedEntity, 0, len(output.Entities))
 	for _, ent := range output.Entities {
 		ent.EntityType = strings.ToLower(strings.TrimSpace(ent.EntityType))
 		if validEntityTypes[ent.EntityType] && strings.TrimSpace(ent.Name) != "" {
@@ -271,8 +271,8 @@ func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
 		output.Entities = output.Entities[:e.cfg.MaxEntities]
 	}
 
-	// 过滤无效关系类型 / Filter invalid relation types
-	validRels := output.Relations[:0]
+	// 过滤无效关系类型（新切片避免原地修改）/ Filter invalid relation types into new slice
+	validRels := make([]extractedRelation, 0, len(output.Relations))
 	for _, rel := range output.Relations {
 		rel.RelationType = strings.ToLower(strings.TrimSpace(rel.RelationType))
 		if validRelationTypes[rel.RelationType] && rel.Source != "" && rel.Target != "" {

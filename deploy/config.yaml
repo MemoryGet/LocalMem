@@ -2,7 +2,10 @@
 
 auth:
   enabled: true
-  api_keys: []
+  # api_keys — 每个 key 绑定一个 team_id / Each key maps to a team_id
+  # api_keys:
+  #   - key: "your-secret-api-key-here"
+  #     team_id: "default"
 
 storage:
   sqlite:

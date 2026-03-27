@@ -10,9 +10,9 @@ import (
 	"iclude/internal/model"
 )
 
-// MemoryRetriever 记忆检索接口 / Interface for prompt memory retrieval
+// MemoryRetriever 记忆检索接口（返回包含评分的完整结果）/ Interface for prompt memory retrieval with full ranking metadata
 type MemoryRetriever interface {
-	Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.Memory, error)
+	Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error)
 }
 
 // MemoryContextPrompt memory_context 提示模板处理器 / memory_context prompt handler
@@ -67,12 +67,12 @@ func (p *MemoryContextPrompt) Get(ctx context.Context, arguments map[string]stri
 		req.Filters = &model.SearchFilters{Scope: scope}
 	}
 
-	memories, err := p.retriever.Retrieve(ctx, req)
+	results, err := p.retriever.Retrieve(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve memories: %w", err)
 	}
 
-	memJSON, _ := json.MarshalIndent(memories, "", "  ")
+	memJSON, _ := json.MarshalIndent(results, "", "  ")
 	systemText := fmt.Sprintf(
 		"## Relevant memories from IClude\n\n```json\n%s\n```\n\nUse the above memories as context when answering the following question.",
 		string(memJSON),

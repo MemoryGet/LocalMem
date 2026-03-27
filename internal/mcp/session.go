@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"sync"
 
+	"iclude/internal/logger"
 	"iclude/internal/model"
+
+	"go.uber.org/zap"
 )
 
 // identityCtxKey 私有 context key，防止与 gin string key 碰撞 / Unexported context key type prevents collisions
@@ -158,7 +161,7 @@ func (s *Session) handlePromptsGet(ctx context.Context, req *JSONRPCRequest) *JS
 	return okResponse(req.ID, result)
 }
 
-// send 序列化并发送响应到输出 channel / Serialize and send response to output channel; drops if full
+// send 序列化并发送响应到输出 channel；channel 满时记录警告并关闭会话 / Serialize and send response; log warning and close session if channel is full
 func (s *Session) send(resp *JSONRPCResponse) {
 	data, err := json.Marshal(resp)
 	if err != nil {
@@ -167,6 +170,9 @@ func (s *Session) send(resp *JSONRPCResponse) {
 	select {
 	case s.outCh <- data:
 	default:
-		// 丢弃：channel 满时降级 / Drop: graceful degradation when channel is full
+		// channel 满：客户端消费过慢，关闭会话防止永久挂起 / Channel full: client too slow, close session to prevent hung client
+		logger.Warn("mcp: session outCh full, closing session to unblock client",
+			zap.String("session_id", s.id))
+		s.Close()
 	}
 }

@@ -322,8 +322,8 @@ func (e *ReflectEngine) parseOutput(ctx context.Context, raw string, prevMessage
 		}
 	}
 
-	// L2: 正则提取 JSON 对象 / Regex extract JSON object
-	re := regexp.MustCompile(`\{[^{}]*"action"[^{}]*\}`)
+	// L2: 正则提取 JSON 对象（允许一层嵌套）/ Regex extract JSON object (allows one level of nesting)
+	re := regexp.MustCompile(`\{(?:[^{}]|\{[^{}]*\})*"action"(?:[^{}]|\{[^{}]*\})*\}`)
 	if match := re.FindString(raw); match != "" {
 		var extracted reflectLLMOutput
 		if err := json.Unmarshal([]byte(match), &extracted); err == nil {

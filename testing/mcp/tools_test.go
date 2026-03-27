@@ -17,28 +17,28 @@ import (
 
 // mockMemoryRetriever 测试用记忆检索存根 / Memory retriever stub for testing
 type mockMemoryRetriever struct {
-	memories []*model.Memory
-	err      error
+	results []*model.SearchResult
+	err     error
 }
 
-func (m *mockMemoryRetriever) Retrieve(_ context.Context, req *model.RetrieveRequest) ([]*model.Memory, error) {
+func (m *mockMemoryRetriever) Retrieve(_ context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return m.memories, nil
+	return m.results, nil
 }
 
 // capturingRetriever 捕获请求的存根 / Retriever stub that captures the incoming request
 type capturingRetriever struct {
-	onRetrieve func(*model.RetrieveRequest) ([]*model.Memory, error)
+	onRetrieve func(*model.RetrieveRequest) ([]*model.SearchResult, error)
 }
 
-func (c *capturingRetriever) Retrieve(_ context.Context, req *model.RetrieveRequest) ([]*model.Memory, error) {
+func (c *capturingRetriever) Retrieve(_ context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	return c.onRetrieve(req)
 }
 
 func TestRecallTool_Execute_success(t *testing.T) {
-	ret := &mockMemoryRetriever{memories: []*model.Memory{{ID: "m1", Content: "answer"}}}
+	ret := &mockMemoryRetriever{results: []*model.SearchResult{{Memory: &model.Memory{ID: "m1", Content: "answer"}, Score: 0.9}}}
 	tool := tools.NewRecallTool(ret)
 	args, _ := json.Marshal(map[string]any{"query": "what is the answer?"})
 	result, err := tool.Execute(context.Background(), args)
@@ -74,7 +74,7 @@ func TestRecallTool_Execute_retrieverError(t *testing.T) {
 
 func TestRecallTool_Execute_defaultLimit(t *testing.T) {
 	var capturedReq *model.RetrieveRequest
-	ret := &capturingRetriever{onRetrieve: func(req *model.RetrieveRequest) ([]*model.Memory, error) {
+	ret := &capturingRetriever{onRetrieve: func(req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 		capturedReq = req
 		return nil, nil
 	}}
@@ -88,7 +88,7 @@ func TestRecallTool_Execute_defaultLimit(t *testing.T) {
 
 func TestRecallTool_Execute_scopeFilter(t *testing.T) {
 	var capturedReq *model.RetrieveRequest
-	ret := &capturingRetriever{onRetrieve: func(req *model.RetrieveRequest) ([]*model.Memory, error) {
+	ret := &capturingRetriever{onRetrieve: func(req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 		capturedReq = req
 		return nil, nil
 	}}
@@ -103,7 +103,7 @@ func TestRecallTool_Execute_scopeFilter(t *testing.T) {
 
 func TestRecallTool_Execute_withIdentity(t *testing.T) {
 	var capturedReq *model.RetrieveRequest
-	ret := &capturingRetriever{onRetrieve: func(req *model.RetrieveRequest) ([]*model.Memory, error) {
+	ret := &capturingRetriever{onRetrieve: func(req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 		capturedReq = req
 		return nil, nil
 	}}

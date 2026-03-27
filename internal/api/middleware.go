@@ -114,12 +114,29 @@ func LoggerMiddleware() gin.HandlerFunc {
 	}
 }
 
-// CORSMiddleware 跨域中间件 / CORS middleware
-func CORSMiddleware() gin.HandlerFunc {
+// CORSMiddleware 跨域中间件，支持可配置的允许来源列表 / CORS middleware with configurable allowed origins
+func CORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
+	// 构建来源集合 / Build origin set for O(1) lookup
+	originSet := make(map[string]bool, len(allowedOrigins))
+	wildcard := false
+	for _, o := range allowedOrigins {
+		if o == "*" {
+			wildcard = true
+		}
+		originSet[o] = true
+	}
+
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		origin := c.GetHeader("Origin")
+		allowed := wildcard || originSet[origin]
+		if allowed && origin != "" {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Vary", "Origin")
+		} else if wildcard {
+			c.Header("Access-Control-Allow-Origin", "*")
+		}
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-ID")
 		c.Header("Access-Control-Max-Age", "86400")
 
 		if c.Request.Method == "OPTIONS" {

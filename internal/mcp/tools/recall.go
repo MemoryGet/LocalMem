@@ -9,9 +9,9 @@ import (
 	"iclude/internal/model"
 )
 
-// MemoryRetriever 记忆检索接口 / Interface for retrieving memories
+// MemoryRetriever 记忆检索接口（返回包含评分的完整结果）/ Interface for retrieving memories with full ranking metadata
 type MemoryRetriever interface {
-	Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.Memory, error)
+	Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error)
 }
 
 // RecallTool iclude_recall 工具 / iclude_recall MCP tool

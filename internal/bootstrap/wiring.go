@@ -136,7 +136,7 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 
 	// Scheduler
 	sched := scheduler.New()
-	schedCtx, schedCancel := context.WithCancel(context.Background())
+	schedCtx, schedCancel := context.WithCancel(ctx)
 	if cfg.Scheduler.Enabled {
 		sched.Register("access-flush", cfg.Scheduler.AccessFlushInterval, accessTracker.Flush)
 		sched.Register("cleanup", cfg.Scheduler.CleanupInterval, func(ctx context.Context) error {

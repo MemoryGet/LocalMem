@@ -74,6 +74,7 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		if err := migrateV2ToV3(db); err != nil {
 			return fmt.Errorf("migration V2→V3 failed: %w", err)
 		}
+		version = 3
 	}
 
 	// V3→V4: 内容哈希去重 + meta 表 + FTS5 重建（gse 分词）
@@ -104,6 +105,11 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 			return fmt.Errorf("migrate V6→V7: %w", err)
 		}
 		version = 7
+	}
+
+	// 性能索引（幂等，CREATE IF NOT EXISTS）
+	if err := migrateAddPerformanceIndexes(db); err != nil {
+		return fmt.Errorf("performance indexes migration failed: %w", err)
 	}
 
 	return nil
@@ -674,6 +680,22 @@ func migrateV6ToV7(db *sql.DB) error {
 
 	logger.Info("migration V6→V7 completed successfully")
 	return tx.Commit()
+}
+
+// migrateAddPerformanceIndexes 添加性能索引 / Add performance indexes for common query patterns
+func migrateAddPerformanceIndexes(db *sql.DB) error {
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_memories_strength ON memories(strength) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_updated_at ON memories(updated_at DESC) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_scope_kind ON memories(scope, kind) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_owner_team ON memories(owner_id, team_id) WHERE deleted_at IS NULL`,
+	}
+	for _, idx := range indexes {
+		if _, err := db.Exec(idx); err != nil {
+			return fmt.Errorf("failed to create index: %w", err)
+		}
+	}
+	return nil
 }
 
 // isColumnExistsError 检查是否为列已存在错误

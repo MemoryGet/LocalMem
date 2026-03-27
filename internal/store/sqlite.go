@@ -8,11 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"iclude/internal/logger"
 	"iclude/internal/model"
 	"iclude/pkg/sqlbuilder"
 	"iclude/pkg/tokenizer"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	_ "modernc.org/sqlite"
 )
 
@@ -63,8 +65,8 @@ func NewSQLiteMemoryStore(dbPath string, bm25Weights [3]float64, tok tokenizer.T
 	}
 
 	// 连接池配置 / Connection pool configuration
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
+	db.SetMaxOpenConns(5)
+	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	weights := bm25Weights
@@ -247,16 +249,18 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit batch insert: %w", err)
+	// FTS5 同步在事务内，保证原子性 / Sync FTS5 inside transaction for atomicity
+	for _, mem := range memories {
+		if err := s.syncFTS5Tx(ctx, tx, mem); err != nil {
+			logger.Warn("CreateBatch: FTS5 sync failed",
+				zap.String("id", mem.ID),
+				zap.Error(err),
+			)
+		}
 	}
 
-	// FTS5 同步在事务外，best-effort
-	for _, mem := range memories {
-		if err := s.syncFTS5(ctx, mem); err != nil {
-			// FTS5 同步失败不影响主数据
-			_ = err
-		}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit batch insert: %w", err)
 	}
 
 	return nil
@@ -659,6 +663,12 @@ func (s *SQLiteMemoryStore) SoftDelete(ctx context.Context, id string) error {
 	}
 	if rows == 0 {
 		return model.ErrMemoryNotFound
+	}
+
+	// 清理 FTS5 索引，防止软删记忆污染 BM25 评分 / Remove from FTS5 index to prevent soft-deleted memories from polluting BM25 scores
+	var rowid int64
+	if err := s.db.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, id).Scan(&rowid); err == nil {
+		_ = s.deleteFTS5ByRowID(ctx, rowid)
 	}
 
 	return nil
@@ -1129,6 +1139,34 @@ func (s *SQLiteMemoryStore) syncFTS5(ctx context.Context, mem *model.Memory) err
 	}
 
 	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO memories_fts(rowid, content, abstract, summary) VALUES (?, ?, ?, ?)`,
+		rowid, content, abstract, summary,
+	)
+	return err
+}
+
+// syncFTS5Tx FTS5 原子同步（在事务内执行）/ Atomic FTS5 sync within a transaction
+func (s *SQLiteMemoryStore) syncFTS5Tx(ctx context.Context, tx *sql.Tx, mem *model.Memory) error {
+	// 获取 rowid（事务内查询）
+	var rowid int64
+	if err := tx.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, mem.ID).Scan(&rowid); err != nil {
+		return fmt.Errorf("failed to get rowid for FTS5 sync: %w", err)
+	}
+
+	content, err := s.tokenizer.Tokenize(ctx, mem.Content)
+	if err != nil {
+		content = mem.Content
+	}
+	abstract, err := s.tokenizer.Tokenize(ctx, mem.Abstract)
+	if err != nil {
+		abstract = mem.Abstract
+	}
+	summary, err := s.tokenizer.Tokenize(ctx, mem.Summary)
+	if err != nil {
+		summary = mem.Summary
+	}
+
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO memories_fts(rowid, content, abstract, summary) VALUES (?, ?, ?, ?)`,
 		rowid, content, abstract, summary,
 	)
