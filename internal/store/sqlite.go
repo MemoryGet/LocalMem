@@ -155,10 +155,16 @@ func (s *SQLiteMemoryStore) Create(ctx context.Context, mem *model.Memory) error
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	query := `INSERT INTO memories (` + memoryColumns + `)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	_, err = s.db.ExecContext(ctx, query,
+	_, err = tx.ExecContext(ctx, query,
 		mem.ID, mem.Content, metadataJSON, mem.TeamID,
 		mem.EmbeddingID, mem.ParentID, boolToInt(mem.IsLatest), mem.AccessCount,
 		mem.CreatedAt, mem.UpdatedAt,
@@ -174,8 +180,12 @@ func (s *SQLiteMemoryStore) Create(ctx context.Context, mem *model.Memory) error
 	}
 
 	// 同步 FTS5（external content 模式）
-	if err := s.syncFTS5(ctx, mem); err != nil {
+	if err := s.syncFTS5Tx(ctx, tx, mem); err != nil {
 		return fmt.Errorf("failed to sync FTS5 after insert: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit create tx: %w", err)
 	}
 
 	return nil
@@ -319,9 +329,15 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 
 	mem.UpdatedAt = time.Now().UTC()
 
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	// 先读取旧行的 rowid 用于 FTS5 删除
 	var rowid int64
-	if err := s.db.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, mem.ID).Scan(&rowid); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, mem.ID).Scan(&rowid); err != nil {
 		if err == sql.ErrNoRows {
 			return model.ErrMemoryNotFound
 		}
@@ -329,7 +345,7 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 	}
 
 	// 删除旧 FTS5 行
-	if err := s.deleteFTS5ByRowID(ctx, rowid); err != nil {
+	if err := s.deleteFTS5ByRowIDTx(ctx, tx, rowid); err != nil {
 		return fmt.Errorf("failed to delete old FTS5 entry: %w", err)
 	}
 
@@ -341,7 +357,7 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 		retention_tier = ?, message_role = ?, turn_number = ?, owner_id = ?, visibility = ?
 		WHERE id = ?`
 
-	result, err := s.db.ExecContext(ctx, query,
+	result, err := tx.ExecContext(ctx, query,
 		mem.Content, metadataJSON, mem.TeamID, mem.EmbeddingID, mem.ParentID,
 		boolToInt(mem.IsLatest), mem.UpdatedAt,
 		mem.URI, mem.ContextID, mem.Kind, mem.SubKind, mem.Scope, mem.Abstract, mem.Summary,
@@ -363,8 +379,12 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 	}
 
 	// 插入新 FTS5 行
-	if err := s.syncFTS5(ctx, mem); err != nil {
+	if err := s.syncFTS5Tx(ctx, tx, mem); err != nil {
 		return fmt.Errorf("failed to sync FTS5 after update: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit update tx: %w", err)
 	}
 
 	return nil
@@ -1058,14 +1078,20 @@ func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Dur
 	}
 	rows.Close()
 
-	// 删除 FTS5 条目
+	// 删除 FTS5 条目（best-effort，事务外）
 	for _, rowid := range rowids {
 		if err := s.deleteFTS5ByRowID(ctx, rowid); err != nil {
 			// best-effort FTS5 清理
 		}
 	}
 
-	// 级联清理关联表中的孤儿记录 / Cascade cleanup orphan records in association tables
+	// 原子删除关联表记录和主记录 / Atomically delete association records and main records
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin purge tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	if len(memoryIDs) > 0 {
 		placeholders := strings.Repeat("?,", len(memoryIDs))
 		placeholders = placeholders[:len(placeholders)-1]
@@ -1074,12 +1100,16 @@ func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Dur
 			args[i] = id
 		}
 
-		s.db.ExecContext(ctx, `DELETE FROM memory_tags WHERE memory_id IN (`+placeholders+`)`, args...)
-		s.db.ExecContext(ctx, `DELETE FROM memory_entities WHERE memory_id IN (`+placeholders+`)`, args...)
+		if _, err := tx.ExecContext(ctx, `DELETE FROM memory_tags WHERE memory_id IN (`+placeholders+`)`, args...); err != nil {
+			return 0, fmt.Errorf("failed to delete memory_tags during purge: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM memory_entities WHERE memory_id IN (`+placeholders+`)`, args...); err != nil {
+			return 0, fmt.Errorf("failed to delete memory_entities during purge: %w", err)
+		}
 	}
 
 	// 硬删除
-	result, err := s.db.ExecContext(ctx,
+	result, err := tx.ExecContext(ctx,
 		`DELETE FROM memories WHERE deleted_at IS NOT NULL AND deleted_at < ?`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to purge deleted memories: %w", err)
@@ -1088,6 +1118,11 @@ func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Dur
 	if err != nil {
 		return 0, fmt.Errorf("failed to get rows affected: %w", err)
 	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit purge tx: %w", err)
+	}
+
 	return int(affected), nil
 }
 
@@ -1186,6 +1221,24 @@ func (s *SQLiteMemoryStore) deleteFTS5ByRowID(ctx context.Context, rowid int64) 
 	}
 
 	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO memories_fts(memories_fts, rowid, content, abstract, summary) VALUES('delete', ?, ?, ?, ?)`,
+		rowid, content, abstract, summary,
+	)
+	return err
+}
+
+// deleteFTS5ByRowIDTx 在事务内通过 rowid 删除 FTS5 条目 / Delete FTS5 entry by rowid within a transaction
+func (s *SQLiteMemoryStore) deleteFTS5ByRowIDTx(ctx context.Context, tx *sql.Tx, rowid int64) error {
+	var content, abstract, summary string
+	err := tx.QueryRowContext(ctx, `SELECT content, COALESCE(abstract, ''), COALESCE(summary, '') FROM memories WHERE rowid = ?`, rowid).Scan(&content, &abstract, &summary)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return fmt.Errorf("failed to get old content for FTS5 delete: %w", err)
+	}
+
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO memories_fts(memories_fts, rowid, content, abstract, summary) VALUES('delete', ?, ?, ?, ?)`,
 		rowid, content, abstract, summary,
 	)

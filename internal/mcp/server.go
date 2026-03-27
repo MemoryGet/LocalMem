@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"iclude/internal/config"
@@ -28,6 +29,9 @@ type Server struct {
 // NewServer 创建 MCP 服务器并注册路由 / Create MCP server and register routes
 func NewServer(cfg config.MCPConfig, registry *Registry) *Server {
 	s := &Server{cfg: cfg, registry: registry, mux: http.NewServeMux()}
+	if s.cfg.APIToken == "" {
+		logger.Warn("MCP server running without authentication — set mcp.api_token in config for production use")
+	}
 	s.mux.HandleFunc("/sse", s.handleSSE)
 	s.mux.HandleFunc("/messages", s.handleMessages)
 	return s
@@ -127,6 +131,7 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	sess := val.(*Session)
 
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB limit
 	var body json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid JSON body", http.StatusBadRequest)
@@ -134,6 +139,10 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 异步分发，响应通过 SSE 推送 / Dispatch asynchronously; response delivered via SSE
-	go sess.Dispatch(context.Background(), body)
+	dispatchCtx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	go func() {
+		sess.Dispatch(dispatchCtx, body)
+	}()
 	w.WriteHeader(http.StatusAccepted)
 }

@@ -684,6 +684,13 @@ func migrateV6ToV7(db *sql.DB) error {
 
 // migrateAddPerformanceIndexes 添加性能索引 / Add performance indexes for common query patterns
 func migrateAddPerformanceIndexes(db *sql.DB) error {
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin performance index tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	indexes := []string{
 		`CREATE INDEX IF NOT EXISTS idx_memories_strength ON memories(strength) WHERE deleted_at IS NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_memories_updated_at ON memories(updated_at DESC) WHERE deleted_at IS NULL`,
@@ -691,9 +698,13 @@ func migrateAddPerformanceIndexes(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_memories_owner_team ON memories(owner_id, team_id) WHERE deleted_at IS NULL`,
 	}
 	for _, idx := range indexes {
-		if _, err := db.Exec(idx); err != nil {
+		if _, err := tx.ExecContext(ctx, idx); err != nil {
 			return fmt.Errorf("failed to create index: %w", err)
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit performance index tx: %w", err)
 	}
 	return nil
 }

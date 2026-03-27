@@ -289,7 +289,7 @@ func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
 // resolveEntity 实体规范化（两阶段）/ Entity normalization (two-phase)
 func (e *Extractor) resolveEntity(ctx context.Context, ent extractedEntity, scope string) (*model.ExtractedEntityResult, bool, error) {
 	// 阶段 1: 精确匹配 / Phase 1: Exact match
-	existing, err := e.graphManager.graphStore.ListEntities(ctx, scope, ent.EntityType, 100)
+	existing, err := e.graphManager.graphStore.ListEntities(ctx, scope, ent.EntityType, e.cfg.NormalizeCandidates)
 	if err != nil {
 		logger.Warn("list entities failed during normalization", zap.Error(err))
 		// 继续创建新实体 / Continue to create new entity

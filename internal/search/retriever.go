@@ -99,7 +99,9 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 			filters = &model.SearchFilters{HappenedAfter: &recent}
 		} else if plan.Temporal && filters != nil && filters.HappenedAfter == nil {
 			recent := time.Now().UTC().Add(-7 * 24 * time.Hour)
-			filters.HappenedAfter = &recent
+			filtersCopy := *filters
+			filtersCopy.HappenedAfter = &recent
+			filters = &filtersCopy
 		}
 	}
 
@@ -420,7 +422,7 @@ func (r *Retriever) llmExtractEntities(ctx context.Context, query string, scope 
 
 	// 在 GraphStore 中匹配实体名 / Match entity names in GraphStore
 	var matchedIDs []string
-	allEntities, err := r.graphStore.ListEntities(ctx, scope, "", 100)
+	allEntities, err := r.graphStore.ListEntities(ctx, scope, "", 500)
 	if err != nil {
 		logger.Warn("graph: ListEntities failed", zap.Error(err))
 		return nil

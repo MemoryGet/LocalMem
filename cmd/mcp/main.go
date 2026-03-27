@@ -110,7 +110,12 @@ func main() {
 
 	srv := mcp.NewServer(cfg.MCP, reg)
 	addr := fmt.Sprintf(":%d", cfg.MCP.Port)
-	httpSrv := &http.Server{Addr: addr, Handler: srv.Handler()}
+	httpSrv := &http.Server{
+		Addr:         addr,
+		Handler:      srv.Handler(),
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+	}
 
 	srvErr := make(chan error, 1)
 	go func() {
