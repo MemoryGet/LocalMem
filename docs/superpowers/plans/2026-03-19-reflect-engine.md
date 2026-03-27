@@ -44,7 +44,7 @@
 **Files:**
 - Modify: `internal/config/config.go`
 
-- [ ] **Step 1: 在 OpenAIConfig 中添加 BaseURL 字段**
+- [x] **Step 1: 在 OpenAIConfig 中添加 BaseURL 字段**
 
 ```go
 // OpenAIConfig OpenAI 配置 / OpenAI configuration
@@ -57,7 +57,7 @@ type OpenAIConfig struct {
 
 在 `internal/config/config.go:88-92` 中将 `OpenAIConfig` 替换为上面的版本。
 
-- [ ] **Step 2: 新增 ReflectConfig 类型**
+- [x] **Step 2: 新增 ReflectConfig 类型**
 
 在 `OllamaConfig` 定义之后（约第 104 行）添加：
 
@@ -73,7 +73,7 @@ type ReflectConfig struct {
 
 需要在文件顶部 import 中添加 `"time"`。
 
-- [ ] **Step 3: Config struct 添加 Reflect 字段**
+- [x] **Step 3: Config struct 添加 Reflect 字段**
 
 在 `internal/config/config.go:14-19` 的 `Config` struct 中添加：
 
@@ -87,7 +87,7 @@ type Config struct {
 }
 ```
 
-- [ ] **Step 4: LoadConfig 添加 Viper 默认值**
+- [x] **Step 4: LoadConfig 添加 Viper 默认值**
 
 在 `LoadConfig()` 函数中，在 `viper.SetDefault("llm.embedding.model", ...)` 之后添加：
 
@@ -100,12 +100,12 @@ type Config struct {
 	viper.SetDefault("reflect.auto_save", true)
 ```
 
-- [ ] **Step 5: 验证编译通过**
+- [x] **Step 5: 验证编译通过**
 
 Run: `cd /d/workspace/AI_P/mem0 && go build ./internal/config/...`
 Expected: 编译成功，无错误
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/config/config.go
@@ -120,7 +120,7 @@ git commit -m "feat(config): add ReflectConfig and OpenAI BaseURL for Phase 2 Re
 - Modify: `internal/model/errors.go`
 - Modify: `internal/model/request.go`
 
-- [ ] **Step 1: 在 errors.go 末尾添加 Reflect sentinel errors**
+- [x] **Step 1: 在 errors.go 末尾添加 Reflect sentinel errors**
 
 在 `ErrInvalidRetentionTier` 之后添加：
 
@@ -141,7 +141,7 @@ git commit -m "feat(config): add ReflectConfig and OpenAI BaseURL for Phase 2 Re
 	ErrReflectInvalidRequest = errors.New("reflect: invalid request")
 ```
 
-- [ ] **Step 2: 在 request.go 末尾添加 Reflect 请求/响应类型**
+- [x] **Step 2: 在 request.go 末尾添加 Reflect 请求/响应类型**
 
 在文件末尾（`ConversationMessage` 之后）添加：
 
@@ -186,12 +186,12 @@ type ReflectMeta struct {
 }
 ```
 
-- [ ] **Step 3: 验证编译通过**
+- [x] **Step 3: 验证编译通过**
 
 Run: `cd /d/workspace/AI_P/mem0 && go build ./internal/model/...`
 Expected: 编译成功
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/model/errors.go internal/model/request.go
@@ -207,7 +207,7 @@ git commit -m "feat(model): add Reflect request/response DTOs and sentinel error
 - Create: `internal/llm/openai.go`
 - Create: `testing/llm/provider_test.go`
 
-- [ ] **Step 1: 创建 provider.go 接口定义**
+- [x] **Step 1: 创建 provider.go 接口定义**
 
 ```go
 // Package llm LLM推理调用抽象层 / LLM inference call abstraction layer
@@ -249,7 +249,7 @@ type Provider interface {
 }
 ```
 
-- [ ] **Step 2: 创建 openai.go 实现**
+- [x] **Step 2: 创建 openai.go 实现**
 
 ```go
 package llm
@@ -373,12 +373,12 @@ func (p *OpenAIProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatRespo
 }
 ```
 
-- [ ] **Step 3: 验证 llm 包编译通过**
+- [x] **Step 3: 验证 llm 包编译通过**
 
 Run: `cd /d/workspace/AI_P/mem0 && go build ./internal/llm/...`
 Expected: 编译成功
 
-- [ ] **Step 4: 编写 LLM Provider 测试**
+- [x] **Step 4: 编写 LLM Provider 测试**
 
 创建 `testing/llm/provider_test.go`：
 
@@ -549,12 +549,12 @@ func TestOpenAIProvider_Chat_JSONResponse(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: 运行测试**
+- [x] **Step 5: 运行测试**
 
 Run: `cd /d/workspace/AI_P/mem0 && go test ./testing/llm/... -v -count=1`
 Expected: 所有测试 PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/llm/provider.go internal/llm/openai.go testing/llm/provider_test.go
@@ -570,7 +570,7 @@ git commit -m "feat(llm): add LLM Provider interface with OpenAI-compatible impl
 **Files:**
 - Create: `internal/reflect/engine.go`
 
-- [ ] **Step 1: 创建 engine.go 完整实现**
+- [x] **Step 1: 创建 engine.go 完整实现**
 
 ```go
 // Package reflect 反思引擎 / Reflect engine for multi-step memory reasoning
@@ -936,12 +936,12 @@ Rules:
 6. Do NOT output anything outside the JSON object.`
 ```
 
-- [ ] **Step 2: 验证编译通过**
+- [x] **Step 2: 验证编译通过**
 
 Run: `cd /d/workspace/AI_P/mem0 && go build ./internal/reflect/...`
 Expected: 编译成功
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/reflect/engine.go
@@ -955,7 +955,7 @@ git commit -m "feat(reflect): add ReflectEngine core with multi-round reasoning 
 **Files:**
 - Create: `testing/reflect/engine_test.go`
 
-- [ ] **Step 1: 创建 engine_test.go**
+- [x] **Step 1: 创建 engine_test.go**
 
 ```go
 package reflect_test
@@ -1286,12 +1286,12 @@ func TestParseReflectOutput_Fallback(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 运行测试**
+- [x] **Step 2: 运行测试**
 
 Run: `cd /d/workspace/AI_P/mem0 && go test ./testing/reflect/... -v -count=1`
 Expected: 所有测试 PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add testing/reflect/engine_test.go
@@ -1307,7 +1307,7 @@ git commit -m "test(reflect): add ReflectEngine unit tests with mock LLM provide
 - Modify: `internal/api/response.go`
 - Modify: `internal/api/router.go`
 
-- [ ] **Step 1: 创建 reflect_handler.go**
+- [x] **Step 1: 创建 reflect_handler.go**
 
 ```go
 package api
@@ -1347,7 +1347,7 @@ func (h *ReflectHandler) Reflect(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 2: 在 response.go 的 mapError 中添加 Reflect 错误映射**
+- [x] **Step 2: 在 response.go 的 mapError 中添加 Reflect 错误映射**
 
 在 `case errors.Is(err, model.ErrInvalidRetentionTier):` 之后、`default:` 之前添加：
 
@@ -1362,7 +1362,7 @@ func (h *ReflectHandler) Reflect(c *gin.Context) {
 		return http.StatusBadGateway, 502, err.Error()
 ```
 
-- [ ] **Step 3: 在 router.go 的 import 中添加 `reflectpkg "iclude/internal/reflect"` 并修改 RouterDeps**
+- [x] **Step 3: 在 router.go 的 import 中添加 `reflectpkg "iclude/internal/reflect"` 并修改 RouterDeps**
 
 ```go
 type RouterDeps struct {
@@ -1376,7 +1376,7 @@ type RouterDeps struct {
 }
 ```
 
-- [ ] **Step 4: 在 SetupRouter 中条件注册 reflect 端点**
+- [x] **Step 4: 在 SetupRouter 中条件注册 reflect 端点**
 
 在 `Documents` 注册块之后（`if deps.DocProcessor != nil { ... }` 之后）添加：
 
@@ -1388,12 +1388,12 @@ type RouterDeps struct {
 		}
 ```
 
-- [ ] **Step 5: 验证编译通过**
+- [x] **Step 5: 验证编译通过**
 
 Run: `cd /d/workspace/AI_P/mem0 && go build ./internal/api/...`
 Expected: 编译成功
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/api/reflect_handler.go internal/api/response.go internal/api/router.go
@@ -1407,7 +1407,7 @@ git commit -m "feat(api): add POST /v1/reflect handler with error mapping and co
 **Files:**
 - Modify: `cmd/server/main.go`
 
-- [ ] **Step 1: 在 main.go 中添加 LLM Provider + ReflectEngine 初始化**
+- [x] **Step 1: 在 main.go 中添加 LLM Provider + ReflectEngine 初始化**
 
 在 import 中添加：
 ```go
@@ -1453,7 +1453,7 @@ git commit -m "feat(api): add POST /v1/reflect handler with error mapping and co
 	}
 ```
 
-- [ ] **Step 2: 在 RouterDeps 中添加 ReflectEngine**
+- [x] **Step 2: 在 RouterDeps 中添加 ReflectEngine**
 
 将 `router := api.SetupRouter(...)` 调用修改为：
 
@@ -1469,12 +1469,12 @@ git commit -m "feat(api): add POST /v1/reflect handler with error mapping and co
 	})
 ```
 
-- [ ] **Step 3: 验证整体编译通过**
+- [x] **Step 3: 验证整体编译通过**
 
 Run: `cd /d/workspace/AI_P/mem0 && go build ./cmd/server/...`
 Expected: 编译成功
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add cmd/server/main.go
@@ -1488,14 +1488,14 @@ git commit -m "feat(server): wire LLM Provider and ReflectEngine into startup"
 **Files:**
 - Modify: `config.yaml`
 
-- [ ] **Step 1: 在 config.yaml 的 llm.openai 段添加 base_url**
+- [x] **Step 1: 在 config.yaml 的 llm.openai 段添加 base_url**
 
 在 `api_key` 行之后添加：
 ```yaml
     base_url: ""  # 留空使用 OpenAI 默认，可改为兼容 API 地址
 ```
 
-- [ ] **Step 2: 在 config.yaml 末尾添加 reflect 段**
+- [x] **Step 2: 在 config.yaml 末尾添加 reflect 段**
 
 ```yaml
 # Reflect 反思引擎配置
@@ -1506,7 +1506,7 @@ reflect:
   auto_save: true
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add config.yaml
@@ -1520,7 +1520,7 @@ git commit -m "feat(config): add reflect engine and LLM base_url config sections
 **Files:**
 - Create: `testing/api/reflect_test.go`
 
-- [ ] **Step 1: 创建 reflect_test.go**
+- [x] **Step 1: 创建 reflect_test.go**
 
 > 此测试需要在已有的 `testing/api/` 目录下创建，与现有 API 测试风格保持一致。使用 `httptest` 启动 Gin router，mock LLM Provider。
 
@@ -1647,12 +1647,12 @@ func TestReflectAPI_LLMFailure(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 运行测试**
+- [x] **Step 2: 运行测试**
 
 Run: `cd /d/workspace/AI_P/mem0 && go test ./testing/api/... -v -count=1 -run TestReflectAPI`
 Expected: 所有测试 PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add testing/api/reflect_test.go
@@ -1663,22 +1663,22 @@ git commit -m "test(api): add Reflect API integration tests"
 
 ## Task 10: 全量测试验证 / Full Test Suite
 
-- [ ] **Step 1: 运行所有测试**
+- [x] **Step 1: 运行所有测试**
 
 Run: `cd /d/workspace/AI_P/mem0 && go test ./testing/... -v -count=1`
 Expected: 所有测试 PASS，包括之前的 store/memory/search/api 测试不受影响
 
-- [ ] **Step 2: 运行 go vet**
+- [x] **Step 2: 运行 go vet**
 
 Run: `cd /d/workspace/AI_P/mem0 && go vet ./...`
 Expected: 无问题
 
-- [ ] **Step 3: 运行 go fmt**
+- [x] **Step 3: 运行 go fmt**
 
 Run: `cd /d/workspace/AI_P/mem0 && go fmt ./...`
 Expected: 无格式问题或已自动修复
 
-- [ ] **Step 4: 最终 Commit（如果 fmt 有变更）**
+- [x] **Step 4: 最终 Commit（如果 fmt 有变更）**
 
 ```bash
 git add -A

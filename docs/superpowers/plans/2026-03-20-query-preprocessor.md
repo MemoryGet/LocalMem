@@ -17,7 +17,7 @@
 **Files:**
 - Modify: `internal/store/factory.go:16-24` (Stores struct) and `:42` (tok assignment)
 
-- [ ] **Step 1: Add Tokenizer field to Stores struct**
+- [x] **Step 1: Add Tokenizer field to Stores struct**
 
 In `internal/store/factory.go`, add the field to `Stores`:
 
@@ -36,7 +36,7 @@ type Stores struct {
 
 Import `"iclude/pkg/tokenizer"` is already present.
 
-- [ ] **Step 2: Assign Tokenizer in InitStores**
+- [x] **Step 2: Assign Tokenizer in InitStores**
 
 In `InitStores`, after line 42 (`tok := newTokenizer(...)`), add:
 
@@ -44,12 +44,12 @@ In `InitStores`, after line 42 (`tok := newTokenizer(...)`), add:
 stores.Tokenizer = tok
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `go build ./...`
 Expected: SUCCESS, no compilation errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/store/factory.go
@@ -63,7 +63,7 @@ git commit -m "refactor: expose Tokenizer on store.Stores for reuse by preproces
 **Files:**
 - Modify: `internal/config/config.go:129-137` (RetrievalConfig) and `:181-188` (defaults)
 
-- [ ] **Step 1: Add PreprocessConfig struct and embed in RetrievalConfig**
+- [x] **Step 1: Add PreprocessConfig struct and embed in RetrievalConfig**
 
 In `internal/config/config.go`, add the struct after `RetrievalConfig`:
 
@@ -91,7 +91,7 @@ type RetrievalConfig struct {
 }
 ```
 
-- [ ] **Step 2: Add viper defaults in LoadConfig**
+- [x] **Step 2: Add viper defaults in LoadConfig**
 
 After the existing retrieval defaults block (after line 188), add:
 
@@ -102,12 +102,12 @@ viper.SetDefault("retrieval.preprocess.use_llm", false)
 viper.SetDefault("retrieval.preprocess.llm_timeout", "5s")
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `go build ./...`
 Expected: SUCCESS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/config/config.go
@@ -122,7 +122,7 @@ git commit -m "feat: add PreprocessConfig for query preprocessing"
 - Create: `internal/search/preprocess.go`
 - Create: `testing/search/preprocess_test.go`
 
-- [ ] **Step 1: Write failing tests for intent classification**
+- [x] **Step 1: Write failing tests for intent classification**
 
 Create `testing/search/preprocess_test.go`:
 
@@ -241,12 +241,12 @@ func TestPreprocessor_EmptyQuery(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `go test ./testing/search/ -run TestPreprocessor -v`
 Expected: FAIL — `search.NewPreprocessor` undefined
 
-- [ ] **Step 3: Implement Preprocessor**
+- [x] **Step 3: Implement Preprocessor**
 
 Create `internal/search/preprocess.go`:
 
@@ -452,12 +452,12 @@ func (p *Preprocessor) computeWeights(intent QueryIntent) ChannelWeights {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `go test ./testing/search/ -run TestPreprocessor -v`
 Expected: PASS — all 4 test functions pass
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/search/preprocess.go testing/search/preprocess_test.go
@@ -474,7 +474,7 @@ git commit -m "feat: add rule-based query preprocessor with intent classificatio
 
 **Note:** This task adds the `llm.Provider` dependency to `Preprocessor`. The struct, constructor, and `Process()` all change. Task 3's tests continue to pass since they pass `nil` for llm.
 
-- [ ] **Step 1: Update Preprocessor struct and constructor to accept llm.Provider**
+- [x] **Step 1: Update Preprocessor struct and constructor to accept llm.Provider**
 
 In `internal/search/preprocess.go`:
 
@@ -516,7 +516,7 @@ Add the LLM call to `Process()`, after `computeWeights`:
 
 Update Task 3's test constructors to pass the new `nil` llm argument — change all `search.NewPreprocessor(tok, nil, cfg)` to `search.NewPreprocessor(tok, nil, nil, cfg)` in `testing/search/preprocess_test.go`.
 
-- [ ] **Step 2: Write failing tests for LLM enhancement and fallback**
+- [x] **Step 2: Write failing tests for LLM enhancement and fallback**
 
 Append to `testing/search/preprocess_test.go` (add `"fmt"`, `"time"`, `"iclude/internal/llm"` to imports):
 
@@ -609,12 +609,12 @@ func TestPreprocessor_LLMBadJSON(t *testing.T) {
 
 Add imports at the top of the file: `"fmt"`, `"time"`, `"iclude/internal/llm"`.
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `go test ./testing/search/ -run TestPreprocessor_LLM -v`
 Expected: FAIL — `llmEnhance` method not defined yet
 
-- [ ] **Step 4: Implement llmEnhance method**
+- [x] **Step 4: Implement llmEnhance method**
 
 Add to `internal/search/preprocess.go`:
 
@@ -702,12 +702,12 @@ func isValidIntent(intent QueryIntent) bool {
 
 Add `"time"`, `"encoding/json"`, `"iclude/internal/logger"`, and `"go.uber.org/zap"` to the import block in `preprocess.go`.
 
-- [ ] **Step 5: Run all preprocessor tests**
+- [x] **Step 5: Run all preprocessor tests**
 
 Run: `go test ./testing/search/ -run TestPreprocessor -v`
 Expected: PASS — all 7 test functions pass (4 from Task 3 + 3 new)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/search/preprocess.go testing/search/preprocess_test.go
@@ -721,7 +721,7 @@ git commit -m "feat: add LLM-enhanced query preprocessing with fallback"
 **Files:**
 - Modify: `internal/search/retriever.go:21-40` (struct + constructor) and `:44-159` (Retrieve method)
 
-- [ ] **Step 1: Add preprocessor field to Retriever and update constructor**
+- [x] **Step 1: Add preprocessor field to Retriever and update constructor**
 
 In `internal/search/retriever.go`, add field to struct:
 
@@ -753,7 +753,7 @@ func NewRetriever(memStore store.MemoryStore, vecStore store.VectorStore, embedd
 }
 ```
 
-- [ ] **Step 2: Update all NewRetriever call sites**
+- [x] **Step 2: Update all NewRetriever call sites**
 
 In `cmd/server/main.go` (line 119), pass `nil` temporarily (Task 6 will replace with real preprocessor):
 
@@ -776,7 +776,7 @@ Update all 6 test call sites to pass `nil` as the 7th argument:
 - `testing/api/handler_test.go:41`:
   `search.NewRetriever(s, nil, nil, nil, nil, config.RetrievalConfig{}, nil)`
 
-- [ ] **Step 3: Integrate preprocessing into Retrieve method**
+- [x] **Step 3: Integrate preprocessing into Retrieve method**
 
 At the beginning of `Retrieve()`, after the limit validation (line ~56), add:
 
@@ -895,7 +895,7 @@ Remove the old embedding resolution block at lines 62-74 (which used `req.Query`
 	}
 ```
 
-- [ ] **Step 4: Refactor graph traversal to support pre-matched entities**
+- [x] **Step 4: Refactor graph traversal to support pre-matched entities**
 
 Extract the shared traversal logic (phases 2-4) from `graphRetrieve` into a private helper, then call it from both `graphRetrieve` and the new preprocessor path.
 
@@ -1019,17 +1019,17 @@ func (r *Retriever) graphRetrieveByEntities(ctx context.Context, entityIDs []str
 }
 ```
 
-- [ ] **Step 5: Verify build**
+- [x] **Step 5: Verify build**
 
 Run: `go build ./...`
 Expected: SUCCESS
 
-- [ ] **Step 6: Run all existing tests to check for regressions**
+- [x] **Step 6: Run all existing tests to check for regressions**
 
 Run: `go test ./testing/... -v -count=1`
 Expected: PASS — no regressions (existing tests pass `nil` for preprocessor)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/search/retriever.go cmd/server/main.go testing/reflect/engine_test.go testing/api/reflect_test.go testing/search/graph_retrieval_test.go testing/api/integration_test.go testing/api/handler_test.go
@@ -1043,7 +1043,7 @@ git commit -m "feat: integrate query preprocessor into retriever pipeline"
 **Files:**
 - Modify: `cmd/server/main.go:110-119`
 
-- [ ] **Step 1: Add Preprocessor construction and update Retriever call**
+- [x] **Step 1: Add Preprocessor construction and update Retriever call**
 
 In `cmd/server/main.go`, after the Extractor initialization block and before the Retriever construction, add:
 
@@ -1064,12 +1064,12 @@ Replace the `nil` placeholder from Task 5 with the real preprocessor:
 	ret := search.NewRetriever(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.GraphStore, llmProvider, cfg.Retrieval, preprocessor)
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `go build ./cmd/server/`
 Expected: SUCCESS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add cmd/server/main.go
@@ -1080,22 +1080,22 @@ git commit -m "feat: wire query preprocessor into server startup"
 
 ### Task 7: End-to-end verification
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 Run: `go test ./testing/... -v -count=1`
 Expected: ALL PASS
 
-- [ ] **Step 2: Run vet and fmt**
+- [x] **Step 2: Run vet and fmt**
 
 Run: `go vet ./... && go fmt ./...`
 Expected: No issues
 
-- [ ] **Step 3: Generate test report**
+- [x] **Step 3: Generate test report**
 
 Run: `go test ./testing/report/ -v -count=1`
 Expected: HTML report generated at `testing/report/report.html`
 
-- [ ] **Step 4: Final commit if any formatting changes**
+- [x] **Step 4: Final commit if any formatting changes**
 
 ```bash
 git add -A

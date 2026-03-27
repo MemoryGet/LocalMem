@@ -20,7 +20,7 @@
 - Create: `testing/fixtures/tech_knowledge.json`
 - Create: `testing/fixtures/meeting_notes.json`
 
-- [ ] **Step 1: Create tech_knowledge.json**
+- [x] **Step 1: Create tech_knowledge.json**
 
 Create `testing/fixtures/tech_knowledge.json`:
 
@@ -78,7 +78,7 @@ Create `testing/fixtures/tech_knowledge.json`:
 }
 ```
 
-- [ ] **Step 2: Create meeting_notes.json**
+- [x] **Step 2: Create meeting_notes.json**
 
 Create `testing/fixtures/meeting_notes.json`:
 
@@ -121,12 +121,12 @@ Create `testing/fixtures/meeting_notes.json`:
 }
 ```
 
-- [ ] **Step 3: Verify JSON is valid**
+- [x] **Step 3: Verify JSON is valid**
 
 Run: `cd "D:/workspace/AI_P/mem0" && python -m json.tool testing/fixtures/tech_knowledge.json > /dev/null && python -m json.tool testing/fixtures/meeting_notes.json > /dev/null && echo "OK"`
 Expected: `OK`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add testing/fixtures/
@@ -140,7 +140,7 @@ git commit -m "feat: add test fixture datasets for playground"
 **Files:**
 - Create: `cmd/test-dashboard/testenv.go`
 
-- [ ] **Step 1: Implement TestEnv struct and Load/Close/Query methods**
+- [x] **Step 1: Implement TestEnv struct and Load/Close/Query methods**
 
 Create `cmd/test-dashboard/testenv.go`:
 
@@ -619,12 +619,12 @@ func (e *TestEnv) RunCase(tc TestCaseDef) *CaseResult {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `go build ./cmd/test-dashboard/`
 Expected: SUCCESS (may need `go get github.com/google/uuid` if not already a dependency)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add cmd/test-dashboard/testenv.go
@@ -638,7 +638,7 @@ git commit -m "feat: add TestEnv for ephemeral dataset loading and query executi
 **Files:**
 - Create: `cmd/test-dashboard/api.go`
 
-- [ ] **Step 1: Implement API handlers**
+- [x] **Step 1: Implement API handlers**
 
 Create `cmd/test-dashboard/api.go`:
 
@@ -798,7 +798,7 @@ func (e *TestEnv) HandleRunCases(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 2: Register routes in main.go**
+- [x] **Step 2: Register routes in main.go**
 
 In `cmd/test-dashboard/main.go`, add after `hub := newHub()`:
 
@@ -817,12 +817,12 @@ Add route registrations before `log.Printf(...)`:
 	http.HandleFunc("/api/cases/run", env.HandleRunCases)
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `go build ./cmd/test-dashboard/`
 Expected: SUCCESS
 
-- [ ] **Step 4: Manual smoke test**
+- [x] **Step 4: Manual smoke test**
 
 Run: `./test-dashboard.exe &` then:
 ```bash
@@ -833,7 +833,7 @@ curl -X POST http://localhost:3001/api/cases/run
 ```
 Expected: JSON responses with data
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cmd/test-dashboard/api.go cmd/test-dashboard/main.go
@@ -844,12 +844,12 @@ git commit -m "feat: add REST API for dataset loading and interactive query"
 
 ### Task 4: Rebuild test-dashboard binary
 
-- [ ] **Step 1: Build new binary**
+- [x] **Step 1: Build new binary**
 
 Run: `cd "D:/workspace/AI_P/mem0" && go build -o test-dashboard.exe ./cmd/test-dashboard/`
 Expected: New `test-dashboard.exe` with REST API support
 
-- [ ] **Step 2: Commit binary**
+- [x] **Step 2: Commit binary**
 
 ```bash
 git add test-dashboard.exe
@@ -866,7 +866,7 @@ git commit -m "chore: rebuild test-dashboard binary with REST API"
 - Modify: `tools/test-dashboard-ui/vite.config.ts`
 - Create: `tools/test-dashboard-ui/src/stores/playgroundStore.ts`
 
-- [ ] **Step 1: Add /api proxy to vite.config.ts**
+- [x] **Step 1: Add /api proxy to vite.config.ts**
 
 ```typescript
 export default defineConfig({
@@ -887,7 +887,7 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 2: Create playgroundStore.ts**
+- [x] **Step 2: Create playgroundStore.ts**
 
 Create `tools/test-dashboard-ui/src/stores/playgroundStore.ts`:
 
@@ -1037,12 +1037,12 @@ export const usePlaygroundStore = defineStore('playground', () => {
 })
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `cd tools/test-dashboard-ui && npx vue-tsc --noEmit`
 Expected: No type errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tools/test-dashboard-ui/vite.config.ts tools/test-dashboard-ui/src/stores/playgroundStore.ts
@@ -1059,7 +1059,7 @@ git commit -m "feat: add playground store and API proxy config"
 - Create: `tools/test-dashboard-ui/src/components/QueryResult.vue`
 - Create: `tools/test-dashboard-ui/src/components/PlaygroundView.vue`
 
-- [ ] **Step 1: Create DatasetSelector.vue**
+- [x] **Step 1: Create DatasetSelector.vue**
 
 Create `tools/test-dashboard-ui/src/components/DatasetSelector.vue`:
 
@@ -1103,7 +1103,7 @@ onMounted(() => { store.fetchDatasets() })
 </template>
 ```
 
-- [ ] **Step 2: Create QueryResult.vue**
+- [x] **Step 2: Create QueryResult.vue**
 
 Create `tools/test-dashboard-ui/src/components/QueryResult.vue`:
 
@@ -1232,7 +1232,7 @@ function formatScore(s: number) { return s > 0 ? s.toFixed(4) : '-' }
 </template>
 ```
 
-- [ ] **Step 3: Create BatchCases.vue**
+- [x] **Step 3: Create BatchCases.vue**
 
 Create `tools/test-dashboard-ui/src/components/BatchCases.vue`:
 
@@ -1302,7 +1302,7 @@ const intentColors: Record<string, string> = {
 </template>
 ```
 
-- [ ] **Step 4: Create PlaygroundView.vue**
+- [x] **Step 4: Create PlaygroundView.vue**
 
 Create `tools/test-dashboard-ui/src/components/PlaygroundView.vue`:
 
@@ -1326,7 +1326,7 @@ import QueryResult from './QueryResult.vue'
 </template>
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/test-dashboard-ui/src/components/DatasetSelector.vue tools/test-dashboard-ui/src/components/QueryResult.vue tools/test-dashboard-ui/src/components/BatchCases.vue tools/test-dashboard-ui/src/components/PlaygroundView.vue
@@ -1340,7 +1340,7 @@ git commit -m "feat: add Playground Vue components"
 **Files:**
 - Modify: `tools/test-dashboard-ui/src/App.vue`
 
-- [ ] **Step 1: Add tab switching to App.vue**
+- [x] **Step 1: Add tab switching to App.vue**
 
 Replace the content of `tools/test-dashboard-ui/src/App.vue`:
 
@@ -1397,12 +1397,12 @@ const activeTab = ref<'tests' | 'playground'>('tests')
 </template>
 ```
 
-- [ ] **Step 2: Verify dev server runs**
+- [x] **Step 2: Verify dev server runs**
 
 Run: `cd tools/test-dashboard-ui && npx vite --port 5173`
 Open http://localhost:5173, verify both tabs are visible and switchable.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tools/test-dashboard-ui/src/App.vue
@@ -1413,20 +1413,20 @@ git commit -m "feat: integrate Playground tab into dashboard app"
 
 ### Task 8: End-to-end verification
 
-- [ ] **Step 1: Start backend**
+- [x] **Step 1: Start backend**
 
 Run: `./test-dashboard.exe`
 Expected: `Test Dashboard server running on :3001`
 
-- [ ] **Step 2: Start frontend**
+- [x] **Step 2: Start frontend**
 
 Run: `cd tools/test-dashboard-ui && npm run dev`
 
-- [ ] **Step 3: Verify Go Tests tab**
+- [x] **Step 3: Verify Go Tests tab**
 
 Open browser, select "Go Tests" tab, click Run. Verify existing flow graph works.
 
-- [ ] **Step 4: Verify Playground tab**
+- [x] **Step 4: Verify Playground tab**
 
 1. Switch to "Playground" tab
 2. Select "技术知识库" from dropdown, click Load
@@ -1436,11 +1436,11 @@ Open browser, select "Go Tests" tab, click Run. Verify existing flow graph works
 6. Verify Preprocess section shows intent=keyword, weights adjusted
 7. Verify Merged section shows relevant memories
 
-- [ ] **Step 5: Run go vet and fmt**
+- [x] **Step 5: Run go vet and fmt**
 
 Run: `go vet ./... && go fmt ./...`
 
-- [ ] **Step 6: Final commit**
+- [x] **Step 6: Final commit**
 
 ```bash
 git add -A

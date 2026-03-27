@@ -17,7 +17,7 @@
 **Files:**
 - Modify: `pkg/testreport/reporter.go`
 
-- [ ] **Step 1: Add `emitJSON` helper function**
+- [x] **Step 1: Add `emitJSON` helper function**
 
 Add at bottom of `reporter.go`:
 
@@ -35,7 +35,7 @@ func emitJSON(data map[string]any) {
 }
 ```
 
-- [ ] **Step 2: Inject emitJSON calls into Input, Step, Output, Done methods**
+- [x] **Step 2: Inject emitJSON calls into Input, Step, Output, Done methods**
 
 In `Case.Input()` — add after appending to `c.Inputs`:
 ```go
@@ -100,17 +100,17 @@ emitJSON(map[string]any{
 })
 ```
 
-- [ ] **Step 3: Verify existing tests still pass**
+- [x] **Step 3: Verify existing tests still pass**
 
 Run: `go test ./testing/... 2>&1 | grep -E "(ok|FAIL)" | head -10`
 Expected: All packages pass (emitJSON is no-op without env var)
 
-- [ ] **Step 4: Verify JSON mode works**
+- [x] **Step 4: Verify JSON mode works**
 
 Run: `TESTREPORT_JSON=1 go test -v ./testing/report/... 2>&1 | grep "##TESTREPORT##" | head -5`
 Expected: Lines starting with `##TESTREPORT##` followed by valid JSON
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/testreport/reporter.go
@@ -124,11 +124,11 @@ git commit -m "feat(testreport): add JSON stdout mode for dashboard integration"
 **Files:**
 - Create: `cmd/test-dashboard/main.go`
 
-- [ ] **Step 1: Install nhooyr.io/websocket**
+- [x] **Step 1: Install nhooyr.io/websocket**
 
 Run: `go get nhooyr.io/websocket@latest`
 
-- [ ] **Step 2: Create `cmd/test-dashboard/main.go`**
+- [x] **Step 2: Create `cmd/test-dashboard/main.go`**
 
 ```go
 package main
@@ -454,17 +454,17 @@ func main() {
 }
 ```
 
-- [ ] **Step 3: Verify it compiles**
+- [x] **Step 3: Verify it compiles**
 
 Run: `go build ./cmd/test-dashboard/`
 Expected: No errors
 
-- [ ] **Step 4: Verify it starts**
+- [x] **Step 4: Verify it starts**
 
 Run: `go run ./cmd/test-dashboard/ &` then `curl -s http://localhost:3001/ || echo "server running (no root handler, expected)"`
 Expected: Server starts without crash
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cmd/test-dashboard/main.go go.mod go.sum
@@ -904,17 +904,17 @@ git commit -m "feat: add animated SVG flow graph for test visualization"
 
 **Files:** None new — verification only
 
-- [ ] **Step 1: Start Go server**
+- [x] **Step 1: Start Go server**
 
 Run: `go run ./cmd/test-dashboard/`
 Expected: `Test Dashboard server running on :3001`
 
-- [ ] **Step 2: Start Vite dev server**
+- [x] **Step 2: Start Vite dev server**
 
 Run: `cd tools/test-dashboard-ui && npm run dev`
 Expected: `http://localhost:5173`
 
-- [ ] **Step 3: Open browser and run tests**
+- [x] **Step 3: Open browser and run tests**
 
 Open http://localhost:5173, click [▶ Run All]
 
@@ -927,7 +927,7 @@ Verify:
 6. Progress bar fills as tests complete
 7. Final statistics shown (passed/failed/total)
 
-- [ ] **Step 4: Commit any fixes**
+- [x] **Step 4: Commit any fixes**
 
 ```bash
 git add cmd/test-dashboard/ tools/test-dashboard-ui/ pkg/testreport/
@@ -942,6 +942,6 @@ git commit -m "fix: integration polish for test dashboard"
 - [x] `go build ./cmd/test-dashboard/` compiles
 - [x] `go test ./testing/...` all pass (testreport changes are backwards compatible)
 - [x] `cd tools/test-dashboard-ui && npm run build` produces dist/
-- [ ] Browser shows real-time test execution with animated flow graphs
-- [ ] Pass = green nodes, Fail = red nodes
-- [ ] Input/Steps/Output visible in detail panel
+- [x] Browser shows real-time test execution with animated flow graphs
+- [x] Pass = green nodes, Fail = red nodes
+- [x] Input/Steps/Output visible in detail panel

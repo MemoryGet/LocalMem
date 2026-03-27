@@ -648,7 +648,7 @@ git commit -m "feat(mcp): add ToolHandler, ResourceHandler, PromptHandler interf
 - Create: `internal/mcp/registry.go`
 - Create: `testing/mcp/registry_test.go`
 
-- [ ] **Step 1: Write failing registry tests**
+- [x] **Step 1: Write failing registry tests**
 
 ```go
 // Package mcp_test 注册表测试 / Registry tests
@@ -743,7 +743,7 @@ func TestRegistry_GetPrompt(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests — expect compile failure**
+- [x] **Step 2: Run tests — expect compile failure**
 
 ```bash
 go test ./testing/mcp/... 2>&1 | head -20
@@ -751,7 +751,7 @@ go test ./testing/mcp/... 2>&1 | head -20
 
 Expected: `cannot find package "iclude/internal/mcp"` or similar.
 
-- [ ] **Step 3: Write registry.go**
+- [x] **Step 3: Write registry.go**
 
 ```go
 // Package mcp 工具/资源/提示模板注册表 / Tool, Resource, and Prompt registry with dispatch
@@ -849,7 +849,7 @@ func (r *Registry) GetPrompt(ctx context.Context, name string, args map[string]s
 }
 ```
 
-- [ ] **Step 4: Run tests — expect pass**
+- [x] **Step 4: Run tests — expect pass**
 
 ```bash
 go test ./testing/mcp/... -run TestRegistry -v
@@ -857,7 +857,7 @@ go test ./testing/mcp/... -run TestRegistry -v
 
 Expected: all `TestRegistry_*` tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/mcp/registry.go testing/mcp/registry_test.go
@@ -872,7 +872,7 @@ git commit -m "feat(mcp): add Registry with tool/resource/prompt dispatch"
 - Create: `internal/mcp/session.go`
 - Create: `testing/mcp/server_test.go` (partial — session dispatch tests)
 
-- [ ] **Step 1: Write failing session dispatch tests**
+- [x] **Step 1: Write failing session dispatch tests**
 
 ```go
 // Package mcp_test MCP 服务器与会话测试 / MCP server and session tests
@@ -945,13 +945,13 @@ func TestSession_HandleRequest_unknownMethod(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests — expect compile failure**
+- [x] **Step 2: Run tests — expect compile failure**
 
 ```bash
 go test ./testing/mcp/... -run TestSession 2>&1 | head -10
 ```
 
-- [ ] **Step 3: Write session.go**
+- [x] **Step 3: Write session.go**
 
 ```go
 // Package mcp MCP 客户端会话 / Per-client MCP session with identity context and JSON-RPC dispatch
@@ -1087,7 +1087,7 @@ func (s *Session) handlePromptsGet(ctx context.Context, req *JSONRPCRequest) *JS
 }
 ```
 
-- [ ] **Step 4: Run tests — expect pass**
+- [x] **Step 4: Run tests — expect pass**
 
 ```bash
 go test ./testing/mcp/... -run TestSession -v
@@ -1095,7 +1095,7 @@ go test ./testing/mcp/... -run TestSession -v
 
 Expected: all `TestSession_*` PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/mcp/session.go testing/mcp/server_test.go
@@ -1109,7 +1109,7 @@ git commit -m "feat(mcp): add Session with identity context and JSON-RPC dispatc
 **Files:**
 - Create: `internal/mcp/server.go`
 
-- [ ] **Step 1: Write server.go**
+- [x] **Step 1: Write server.go**
 
 ```go
 // Package mcp HTTP+SSE 传输层 / HTTP+SSE transport for MCP 2024-11-05
@@ -1275,13 +1275,13 @@ func (s *Server) identityFromRequest(r *http.Request) *model.Identity {
 > }
 > ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 ```bash
 gofmt -e internal/mcp/server.go
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/mcp/server.go
@@ -1296,7 +1296,7 @@ git commit -m "feat(mcp): add HTTP+SSE transport server"
 - Create: `internal/mcp/tools/retain.go`
 - Create: `testing/mcp/tools_test.go` (first test)
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 ```go
 // Package mcp_test MCP 工具处理器测试 / MCP tool handler tests
@@ -1359,7 +1359,7 @@ func TestRetainTool_Definition(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write retain.go**
+- [x] **Step 2: Write retain.go**
 
 ```go
 // Package tools MCP 工具处理器 / MCP tool handlers
@@ -1447,13 +1447,13 @@ func (t *RetainTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 }
 ```
 
-- [ ] **Step 3: Run tests — expect pass**
+- [x] **Step 3: Run tests — expect pass**
 
 ```bash
 go test ./testing/mcp/... -run TestRetainTool -v
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/mcp/tools/retain.go testing/mcp/tools_test.go
@@ -1468,7 +1468,7 @@ git commit -m "feat(mcp/tools): add iclude_retain tool"
 - Modify: `internal/mcp/tools/recall.go` (new)
 - Modify: `testing/mcp/tools_test.go` (add tests)
 
-- [ ] **Step 1: Add recall tests to tools_test.go**
+- [x] **Step 1: Add recall tests to tools_test.go**
 
 Add to `testing/mcp/tools_test.go`:
 
@@ -1507,7 +1507,7 @@ func TestRecallTool_Execute_missingQuery(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write recall.go**
+- [x] **Step 2: Write recall.go**
 
 ```go
 package tools
@@ -1606,13 +1606,13 @@ func (t *RecallTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 }
 ```
 
-- [ ] **Step 3: Run tests — expect pass**
+- [x] **Step 3: Run tests — expect pass**
 
 ```bash
 go test ./testing/mcp/... -run TestRecallTool -v
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/mcp/tools/recall.go testing/mcp/tools_test.go
@@ -1627,7 +1627,7 @@ git commit -m "feat(mcp/tools): add iclude_recall tool"
 - Create: `internal/mcp/tools/reflect.go`
 - Modify: `testing/mcp/tools_test.go`
 
-- [ ] **Step 1: Add reflect test**
+- [x] **Step 1: Add reflect test**
 
 ```go
 // mockReflectEngine 反思引擎 stub / ReflectEngine stub
@@ -1662,7 +1662,7 @@ func TestReflectTool_Execute_missingQuestion(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write reflect.go**
+- [x] **Step 2: Write reflect.go**
 
 ```go
 package tools
@@ -1739,13 +1739,13 @@ func (t *ReflectTool) Execute(ctx context.Context, arguments json.RawMessage) (*
 }
 ```
 
-- [ ] **Step 3: Run tests — expect pass**
+- [x] **Step 3: Run tests — expect pass**
 
 ```bash
 go test ./testing/mcp/... -run TestReflectTool -v
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/mcp/tools/reflect.go testing/mcp/tools_test.go
@@ -1761,7 +1761,7 @@ git commit -m "feat(mcp/tools): add iclude_reflect tool"
 - Create: `internal/mcp/tools/timeline.go`
 - Modify: `testing/mcp/tools_test.go`
 
-- [ ] **Step 1: Add tests for both tools**
+- [x] **Step 1: Add tests for both tools**
 
 Add to `testing/mcp/tools_test.go`:
 
@@ -1810,7 +1810,7 @@ func TestTimelineTool_Execute(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write ingest_conversation.go**
+- [x] **Step 2: Write ingest_conversation.go**
 
 ```go
 package tools
@@ -1901,7 +1901,7 @@ func (t *IngestConversationTool) Execute(ctx context.Context, arguments json.Raw
 }
 ```
 
-- [ ] **Step 3: Write timeline.go**
+- [x] **Step 3: Write timeline.go**
 
 ```go
 package tools
@@ -1985,13 +1985,13 @@ func (t *TimelineTool) Execute(ctx context.Context, arguments json.RawMessage) (
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./testing/mcp/... -run "TestIngest|TestTimeline" -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/mcp/tools/ingest_conversation.go internal/mcp/tools/timeline.go testing/mcp/tools_test.go
@@ -2007,7 +2007,7 @@ git commit -m "feat(mcp/tools): add iclude_ingest_conversation and iclude_timeli
 - Create: `internal/mcp/resources/session_context.go`
 - Create: `testing/mcp/resources_test.go`
 
-- [ ] **Step 1: Write failing resource tests**
+- [x] **Step 1: Write failing resource tests**
 
 ```go
 // Package mcp_test MCP 资源处理器测试 / MCP resource handler tests
@@ -2055,7 +2055,7 @@ func TestSessionContextResource_Match(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write recent.go**
+- [x] **Step 2: Write recent.go**
 
 ```go
 // Package resources MCP 资源处理器 / MCP resource handlers
@@ -2108,7 +2108,7 @@ func (r *RecentResource) Read(ctx context.Context, _ string) ([]mcp.ContentBlock
 }
 ```
 
-- [ ] **Step 3: Write session_context.go**
+- [x] **Step 3: Write session_context.go**
 
 ```go
 package resources
@@ -2161,13 +2161,13 @@ func (r *SessionContextResource) Read(ctx context.Context, uri string) ([]mcp.Co
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 go test ./testing/mcp/... -run "TestRecentResource|TestSessionContextResource" -v
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/mcp/resources/ testing/mcp/resources_test.go
@@ -2181,7 +2181,7 @@ git commit -m "feat(mcp/resources): add recent and session_context resource hand
 **Files:**
 - Create: `internal/mcp/prompts/memory_context.go`
 
-- [ ] **Step 1: Write memory_context.go**
+- [x] **Step 1: Write memory_context.go**
 
 ```go
 // Package prompts MCP 提示模板处理器 / MCP prompt handlers
@@ -2267,13 +2267,13 @@ MEMORY PROTOCOL:
 }
 ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 ```bash
 gofmt -e internal/mcp/prompts/memory_context.go
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/mcp/prompts/memory_context.go
@@ -2287,7 +2287,7 @@ git commit -m "feat(mcp/prompts): add memory_context prompt template"
 **Files:**
 - Create: `cmd/mcp/main.go`
 
-- [ ] **Step 1: Write main.go**
+- [x] **Step 1: Write main.go**
 
 ```go
 // Package main IClude MCP Server 入口 / IClude MCP Server entry point
@@ -2387,13 +2387,13 @@ func main() {
 }
 ```
 
-- [ ] **Step 2: Verify syntax**
+- [x] **Step 2: Verify syntax**
 
 ```bash
 gofmt -e cmd/mcp/main.go
 ```
 
-- [ ] **Step 3: Check interface compatibility**
+- [x] **Step 3: Check interface compatibility**
 
 Verify that `deps.MemManager` satisfies `tools.MemoryCreator`, `tools.ConversationIngester` and that `deps.Retriever` satisfies `tools.MemoryRetriever`, `tools.TimelineQuerier`, `resources.TimelineReader`, `prompts.MemoryRetriever`. Check method signatures exist:
 
@@ -2403,7 +2403,7 @@ grep -n "func.*Manager.*Create\|func.*Manager.*IngestConversation\|func.*Retriev
 
 Resolve any signature mismatches before proceeding.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add cmd/mcp/main.go
@@ -2417,7 +2417,7 @@ git commit -m "feat(mcp): add cmd/mcp/main.go entry point"
 **Files:**
 - Create: `testing/mcp/integration_test.go`
 
-- [ ] **Step 1: Write integration test**
+- [x] **Step 1: Write integration test**
 
 ```go
 // Package mcp_test MCP 集成测试 / MCP integration test — full handshake via httptest.Server
@@ -2553,7 +2553,7 @@ func TestIntegration_Messages_SessionNotFound(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run integration tests**
+- [x] **Step 2: Run integration tests**
 
 ```bash
 go test ./testing/mcp/... -run TestIntegration -v -timeout 30s
@@ -2561,7 +2561,7 @@ go test ./testing/mcp/... -run TestIntegration -v -timeout 30s
 
 Expected: `TestIntegration_FullHandshake` and `TestIntegration_Messages_SessionNotFound` PASS.
 
-- [ ] **Step 3: Run all mcp tests**
+- [x] **Step 3: Run all mcp tests**
 
 ```bash
 go test ./testing/mcp/... -v
@@ -2569,7 +2569,7 @@ go test ./testing/mcp/... -v
 
 Expected: all tests PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add testing/mcp/integration_test.go
@@ -2580,7 +2580,7 @@ git commit -m "test(mcp): add full handshake integration test"
 
 ## Task 17: Final validation
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 ```bash
 go test ./testing/... -timeout 120s 2>&1 | tail -20
@@ -2588,7 +2588,7 @@ go test ./testing/... -timeout 120s 2>&1 | tail -20
 
 Expected: no regressions in existing tests.
 
-- [ ] **Step 2: Verify no new dependencies added**
+- [x] **Step 2: Verify no new dependencies added**
 
 ```bash
 git diff HEAD~10 go.mod go.sum | grep "^+" | grep -v "^+++"
@@ -2596,13 +2596,13 @@ git diff HEAD~10 go.mod go.sum | grep "^+" | grep -v "^+++"
 
 Expected: only `github.com/google/uuid` if used (acceptable), or nothing if stdlib UUID used.
 
-- [ ] **Step 3: Format all new files**
+- [x] **Step 3: Format all new files**
 
 ```bash
 gofmt -w internal/bootstrap/ internal/mcp/ cmd/mcp/
 ```
 
-- [ ] **Step 4: Update Claude CLI settings**
+- [x] **Step 4: Update Claude CLI settings**
 
 Add to `~/.claude/settings.json`:
 
@@ -2617,7 +2617,7 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-- [ ] **Step 5: Final commit**
+- [x] **Step 5: Final commit**
 
 ```bash
 git add -A

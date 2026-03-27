@@ -49,7 +49,7 @@
 - Modify: `internal/model/errors.go:5-74`
 - Modify: `internal/model/memory.go:42-94`
 
-- [ ] **Step 1: Create Identity struct and visibility constants**
+- [x] **Step 1: Create Identity struct and visibility constants**
 
 ```go
 // internal/model/identity.go
@@ -82,7 +82,7 @@ func ValidVisibility(v string) bool {
 }
 ```
 
-- [ ] **Step 2: Add sentinel errors**
+- [x] **Step 2: Add sentinel errors**
 
 In `internal/model/errors.go`, add after line 73 (ErrDuplicateMemory):
 
@@ -94,7 +94,7 @@ In `internal/model/errors.go`, add after line 73 (ErrDuplicateMemory):
 	ErrForbidden = errors.New("access denied")
 ```
 
-- [ ] **Step 3: Add fields to Memory struct**
+- [x] **Step 3: Add fields to Memory struct**
 
 In `internal/model/memory.go`, add after line 93 (ConsolidatedInto):
 
@@ -104,12 +104,12 @@ In `internal/model/memory.go`, add after line 93 (ConsolidatedInto):
 	Visibility string `json:"visibility,omitempty"`  // private / team / public
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run: `go build ./...`
 Expected: SUCCESS (no compilation errors)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/model/identity.go internal/model/errors.go internal/model/memory.go
@@ -123,7 +123,7 @@ git commit -m "feat(model): add Identity struct, visibility constants, and auth 
 **Files:**
 - Modify: `internal/model/request.go:5-107`
 
-- [ ] **Step 1: Add Visibility to CreateMemoryRequest**
+- [x] **Step 1: Add Visibility to CreateMemoryRequest**
 
 After line 33 (AutoExtract field), add:
 
@@ -132,7 +132,7 @@ After line 33 (AutoExtract field), add:
 	Visibility string `json:"visibility,omitempty"` // private(default) / team / public
 ```
 
-- [ ] **Step 2: Add Visibility to UpdateMemoryRequest**
+- [x] **Step 2: Add Visibility to UpdateMemoryRequest**
 
 After line 60 (TurnNumber field), add:
 
@@ -141,7 +141,7 @@ After line 60 (TurnNumber field), add:
 	Visibility *string `json:"visibility,omitempty"`
 ```
 
-- [ ] **Step 3: Add TeamID and OwnerID to SearchFilters**
+- [x] **Step 3: Add TeamID and OwnerID to SearchFilters**
 
 After line 97 (MessageRole field), add:
 
@@ -151,7 +151,7 @@ After line 97 (MessageRole field), add:
 	OwnerID string `json:"-"` // 不从 JSON 反序列化 / Not deserialized from JSON
 ```
 
-- [ ] **Step 4: Add TeamID and OwnerID to TimelineRequest**
+- [x] **Step 4: Add TeamID and OwnerID to TimelineRequest**
 
 In `TimelineRequest` struct (line 100-106), add after Limit:
 
@@ -161,12 +161,12 @@ In `TimelineRequest` struct (line 100-106), add after Limit:
 	OwnerID string `json:"-"`
 ```
 
-- [ ] **Step 5: Verify build**
+- [x] **Step 5: Verify build**
 
 Run: `go build ./...`
 Expected: SUCCESS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/model/request.go
@@ -180,7 +180,7 @@ git commit -m "feat(model): add visibility and identity fields to request DTOs"
 **Files:**
 - Modify: `internal/config/config.go:14-27` (Config struct), `71-75` (ServerConfig), `209+` (defaults)
 
-- [ ] **Step 1: Add AuthConfig struct and Config field**
+- [x] **Step 1: Add AuthConfig struct and Config field**
 
 After the existing config structs (around line 75, after ServerConfig), add:
 
@@ -205,7 +205,7 @@ In the `Config` struct (line 14-27), add:
 	Auth AuthConfig `mapstructure:"auth"`
 ```
 
-- [ ] **Step 2: Add defaults in LoadConfig**
+- [x] **Step 2: Add defaults in LoadConfig**
 
 In the defaults section of `LoadConfig()`, add:
 
@@ -213,7 +213,7 @@ In the defaults section of `LoadConfig()`, add:
 	viper.SetDefault("auth.enabled", false)
 ```
 
-- [ ] **Step 3: Add deprecation bridge**
+- [x] **Step 3: Add deprecation bridge**
 
 After config is loaded (after `viper.Unmarshal`), add logic: if `server.auth_enabled` is true but `auth.enabled` is false, bridge the value and log a warning.
 
@@ -225,12 +225,12 @@ After config is loaded (after `viper.Unmarshal`), add logic: if `server.auth_ena
 	}
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run: `go build ./...`
 Expected: SUCCESS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/config/config.go
@@ -245,7 +245,7 @@ git commit -m "feat(config): add AuthConfig for API Key management"
 - Modify: `internal/store/sqlite_migration.go:17` (latestVersion), `39-94` (Migrate func)
 - Test: `testing/store/migration_v6_test.go`
 
-- [ ] **Step 1: Write migration test**
+- [x] **Step 1: Write migration test**
 
 ```go
 // testing/store/migration_v6_test.go
@@ -307,12 +307,12 @@ func TestMigrateV5ToV6_AddsOwnershipFields(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./testing/store/ -run TestMigrateV5ToV6 -v`
 Expected: FAIL (migration V6 not yet implemented, columns won't exist)
 
-- [ ] **Step 3: Implement migration V6**
+- [x] **Step 3: Implement migration V6**
 
 In `internal/store/sqlite_migration.go`:
 
@@ -380,12 +380,12 @@ func migrateV5ToV6(db *sql.DB) error {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `go test ./testing/store/ -run TestMigrateV5ToV6 -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/store/sqlite_migration.go testing/store/migration_v6_test.go
@@ -399,7 +399,7 @@ git commit -m "feat(store): add migration V6 — owner_id + visibility columns w
 **Files:**
 - Modify: `internal/store/sqlite.go:22-34` (columns), `100-159` (Create), `700-810` (scan helpers)
 
-- [ ] **Step 1: Update memoryColumns constant**
+- [x] **Step 1: Update memoryColumns constant**
 
 Change `memoryColumns` (line 22-27) to append `, owner_id, visibility` at the end:
 
@@ -413,7 +413,7 @@ const memoryColumns = `id, content, metadata, team_id, embedding_id, parent_id, 
 
 Update `memoryColumnsAliased` (line 29-34) similarly, adding `m.owner_id, m.visibility`.
 
-- [ ] **Step 2: Update scanMemory — add owner_id and visibility to Scan**
+- [x] **Step 2: Update scanMemory — add owner_id and visibility to Scan**
 
 In `scanMemory` (line 702), add variables:
 
@@ -435,11 +435,11 @@ After the consolidatedInto block (line 748-749), add:
 	}
 ```
 
-- [ ] **Step 3: Update scanMemoryFromRows and scanMemoryWithRank identically**
+- [x] **Step 3: Update scanMemoryFromRows and scanMemoryWithRank identically**
 
 Apply the same changes to `scanMemoryFromRows` (line 754+) and `scanMemoryWithRank` (line 806+).
 
-- [ ] **Step 4: Update Create method — add owner_id and visibility to INSERT**
+- [x] **Step 4: Update Create method — add owner_id and visibility to INSERT**
 
 In `Create` (line 100-159):
 
@@ -460,7 +460,7 @@ Update the INSERT query (line 136-137) — add 2 more `?` placeholders (total 35
 
 In the ExecContext args (line 139-148), append `mem.OwnerID, mem.Visibility` after `mem.ConsolidatedInto`.
 
-- [ ] **Step 5: Update CreateBatch method identically**
+- [x] **Step 5: Update CreateBatch method identically**
 
 In `CreateBatch` (line 161+):
 
@@ -483,12 +483,12 @@ In the ExecContext args (line 210+), append `mem.OwnerID, mem.Visibility` after 
 
 **Also update the Update method** (line 263+): add `owner_id = ?, visibility = ?` to the SET clause, and append the corresponding args. Note: `owner_id` should NOT be updatable via the API (enforced at handler level), but the store-level Update should still persist it.
 
-- [ ] **Step 6: Verify build + existing tests still pass**
+- [x] **Step 6: Verify build + existing tests still pass**
 
 Run: `go build ./... && go test ./testing/store/ -v -count=1`
 Expected: BUILD SUCCESS, tests PASS (migration test creates new schema with all columns)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/store/sqlite.go
@@ -504,7 +504,7 @@ git commit -m "feat(store): add owner_id + visibility to columns, scan helpers, 
 - Modify: `internal/store/sqlite.go:360-460` (List, SearchText, ListByContext)
 - Test: `testing/store/visibility_test.go`
 
-- [ ] **Step 1: Write visibility filtering tests**
+- [x] **Step 1: Write visibility filtering tests**
 
 ```go
 // testing/store/visibility_test.go
@@ -599,12 +599,12 @@ func TestList_VisibilityFiltering(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./testing/store/ -run TestList_VisibilityFiltering -v`
 Expected: FAIL (List signature doesn't accept Identity yet)
 
-- [ ] **Step 3: Update MemoryStore interface signatures**
+- [x] **Step 3: Update MemoryStore interface signatures**
 
 > **Atomicity note:** Steps 3-9 form a single atomic unit. The interface change in Step 3 will break all callers. Steps 4-9 fix those callers. The code will NOT compile between Steps 3 and 9. This is expected — commit only after Step 12.
 
@@ -636,7 +636,7 @@ Add new method after `Get` (line 28):
 	GetVisible(ctx context.Context, id string, identity *model.Identity) (*model.Memory, error)
 ```
 
-- [ ] **Step 4: Implement visibility SQL helper**
+- [x] **Step 4: Implement visibility SQL helper**
 
 In `internal/store/sqlite.go`, add a helper function:
 
@@ -651,7 +651,7 @@ func visibilityCondition(prefix string, identity *model.Identity) (string, []int
 }
 ```
 
-- [ ] **Step 5: Update List method**
+- [x] **Step 5: Update List method**
 
 Change signature and query in `List` (line 360-378):
 
@@ -678,7 +678,7 @@ func (s *SQLiteMemoryStore) List(ctx context.Context, identity *model.Identity, 
 }
 ```
 
-- [ ] **Step 6: Update SearchText method**
+- [x] **Step 6: Update SearchText method**
 
 Change signature and query in `SearchText` (line 380-432):
 
@@ -688,7 +688,7 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 
 Replace the WHERE clause to use `visibilityCondition("m.", identity)` instead of `(m.team_id = ? OR ? = '')`.
 
-- [ ] **Step 7: Implement GetVisible**
+- [x] **Step 7: Implement GetVisible**
 
 ```go
 func (s *SQLiteMemoryStore) GetVisible(ctx context.Context, id string, identity *model.Identity) (*model.Memory, error) {
@@ -708,11 +708,11 @@ func (s *SQLiteMemoryStore) GetVisible(ctx context.Context, id string, identity 
 }
 ```
 
-- [ ] **Step 8: Update ListByContext and ListByContextOrdered similarly**
+- [x] **Step 8: Update ListByContext and ListByContextOrdered similarly**
 
 Add Identity parameter, use `visibilityCondition`.
 
-- [ ] **Step 9: Fix all compilation errors in callers**
+- [x] **Step 9: Fix all compilation errors in callers**
 
 Update callers that pass `teamID string` to now pass `*model.Identity`:
 
@@ -722,17 +722,17 @@ Update callers that pass `teamID string` to now pass `*model.Identity`:
 - `cmd/test-dashboard/testenv.go` — use `&model.Identity{TeamID: "default", OwnerID: model.SystemOwnerID}`
 - All handler files — will be updated in Task 8, for now use placeholder Identity to compile
 
-- [ ] **Step 10: Run test to verify it passes**
+- [x] **Step 10: Run test to verify it passes**
 
 Run: `go test ./testing/store/ -run TestList_VisibilityFiltering -v`
 Expected: PASS
 
-- [ ] **Step 11: Run full test suite**
+- [x] **Step 11: Run full test suite**
 
 Run: `go test ./testing/... -v -count=1`
 Expected: PASS (all existing tests should still work)
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add internal/store/interfaces.go internal/store/sqlite.go internal/memory/ internal/search/ cmd/ testing/store/visibility_test.go
@@ -749,7 +749,7 @@ git commit -m "feat(store): enforce visibility filtering on List, SearchText, Ge
 - Test: `testing/api/auth_middleware_test.go`
 - Test: `testing/api/identity_middleware_test.go`
 
-- [ ] **Step 1: Write auth middleware test**
+- [x] **Step 1: Write auth middleware test**
 
 ```go
 // testing/api/auth_middleware_test.go
@@ -830,12 +830,12 @@ func TestAuthMiddleware_Disabled(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./testing/api/ -run TestAuthMiddleware -v`
 Expected: FAIL (AuthMiddleware not yet defined)
 
-- [ ] **Step 3: Implement middleware**
+- [x] **Step 3: Implement middleware**
 
 In `internal/api/middleware.go`, add:
 
@@ -935,12 +935,12 @@ func GetIdentity(c *gin.Context) *model.Identity {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `go test ./testing/api/ -run TestAuthMiddleware -v`
 Expected: PASS
 
-- [ ] **Step 5: Register middleware on router**
+- [x] **Step 5: Register middleware on router**
 
 In `internal/api/router.go`, update `SetupRouter`:
 
@@ -963,12 +963,12 @@ In `SetupRouter`, after `r.Use(LoggerMiddleware())` (line 32), add auth middlewa
 
 Update `cmd/server/main.go` to pass `AuthConfig` in `RouterDeps`.
 
-- [ ] **Step 6: Verify build**
+- [x] **Step 6: Verify build**
 
 Run: `go build ./...`
 Expected: SUCCESS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/api/middleware.go internal/api/router.go cmd/server/main.go testing/api/
@@ -983,7 +983,7 @@ git commit -m "feat(api): add AuthMiddleware + IdentityMiddleware with API Key v
 - Modify: `internal/api/memory_handler.go:24-171`
 - Modify: all other handler files
 
-- [ ] **Step 1: Update Create handler to inject identity**
+- [x] **Step 1: Update Create handler to inject identity**
 
 In `memory_handler.go` Create method, after binding the request, add:
 
@@ -1016,24 +1016,24 @@ Validate and set visibility:
 	}
 ```
 
-- [ ] **Step 2: Update List handler**
+- [x] **Step 2: Update List handler**
 
 Replace `teamID := c.Query("team_id")` with identity from context. Pass `identity` to `manager.List()`.
 
-- [ ] **Step 3: Update Get handler**
+- [x] **Step 3: Update Get handler**
 
 Use `GetVisible` instead of `Get` for API-facing requests.
 
-- [ ] **Step 4: Update all other handlers**
+- [x] **Step 4: Update all other handlers**
 
 For each handler file (conversation, document, graph, tag, context), replace query param `team_id` usage with `GetIdentity(c)`.
 
-- [ ] **Step 5: Verify build + full test suite**
+- [x] **Step 5: Verify build + full test suite**
 
 Run: `go build ./... && go test ./testing/... -v -count=1`
 Expected: ALL PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/api/
@@ -1049,26 +1049,26 @@ git commit -m "feat(api): inject Identity in all handlers, enforce visibility on
 - Modify: `internal/store/interfaces.go:84-103` (VectorStore)
 - Modify: `internal/store/qdrant.go` (if exists)
 
-- [ ] **Step 1: Update SearchTextFiltered to use SearchFilters.TeamID/OwnerID**
+- [x] **Step 1: Update SearchTextFiltered to use SearchFilters.TeamID/OwnerID**
 
 In `SearchTextFiltered`, replace the existing `team_id` filter with `visibilityCondition` using `filters.TeamID` and `filters.OwnerID`.
 
-- [ ] **Step 2: Update VectorStore.Search signature**
+- [x] **Step 2: Update VectorStore.Search signature**
 
 Change `Search(ctx, embedding, teamID string, limit int)` to `Search(ctx, embedding []float32, identity *model.Identity, limit int)`.
 
 Update `internal/store/qdrant.go` implementation to add `owner_id` + `visibility` payload filters.
 
-- [ ] **Step 3: Update Retriever to pass Identity through**
+- [x] **Step 3: Update Retriever to pass Identity through**
 
 In `internal/search/retriever.go`, ensure the Identity from `RetrieveRequest` is threaded into both SQLite and Qdrant search calls.
 
-- [ ] **Step 4: Verify build + tests**
+- [x] **Step 4: Verify build + tests**
 
 Run: `go build ./... && go test ./testing/... -v -count=1`
 Expected: ALL PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/store/ internal/search/
@@ -1082,7 +1082,7 @@ git commit -m "feat(search): enforce visibility in SearchTextFiltered and Vector
 **Files:**
 - Create: `testing/report/identity_test.go`
 
-- [ ] **Step 1: Write testreport-integrated test**
+- [x] **Step 1: Write testreport-integrated test**
 
 ```go
 // testing/report/identity_test.go
@@ -1151,12 +1151,12 @@ func TestIdentity_VisibilityIsolation(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test**
+- [x] **Step 2: Run test**
 
 Run: `go test ./testing/report/ -run TestIdentity -v -count=1`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add testing/report/identity_test.go
@@ -1171,7 +1171,7 @@ git commit -m "test: add testreport integration tests for visibility isolation"
 - Modify: `deploy/config.yaml` (if exists)
 - Modify: `.env.example`
 
-- [ ] **Step 1: Add auth section to config.yaml**
+- [x] **Step 1: Add auth section to config.yaml**
 
 ```yaml
 auth:
@@ -1179,11 +1179,11 @@ auth:
   api_keys: []
 ```
 
-- [ ] **Step 2: Update .env.example with auth notes**
+- [x] **Step 2: Update .env.example with auth notes**
 
 Add comment explaining API Key configuration.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add deploy/ .env.example
@@ -1194,22 +1194,22 @@ git commit -m "docs: add auth config section to deploy config and .env.example"
 
 ## Task 12: Final verification
 
-- [ ] **Step 1: Full build**
+- [x] **Step 1: Full build**
 
 Run: `go build ./...`
 Expected: SUCCESS
 
-- [ ] **Step 2: Full test suite**
+- [x] **Step 2: Full test suite**
 
 Run: `go test ./testing/... -v -count=1`
 Expected: ALL PASS
 
-- [ ] **Step 3: Generate test report**
+- [x] **Step 3: Generate test report**
 
 Run: `go test ./testing/report/ -v -count=1`
 Verify: `testing/report/report.html` includes identity test cases
 
-- [ ] **Step 4: Manual smoke test**
+- [x] **Step 4: Manual smoke test**
 
 ```bash
 # 启动服务（auth disabled）
@@ -1225,4 +1225,4 @@ curl -X POST http://localhost:8080/v1/memories \
 curl http://localhost:8080/v1/memories
 ```
 
-- [ ] **Step 5: Final commit if any cleanup needed**
+- [x] **Step 5: Final commit if any cleanup needed**
