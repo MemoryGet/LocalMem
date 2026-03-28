@@ -14,7 +14,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 7
+const latestVersion = 8
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -105,6 +105,14 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 			return fmt.Errorf("migrate V6→V7: %w", err)
 		}
 		version = 7
+	}
+
+	// V7→V8: 异步任务队列表 / Async task queue table
+	if version < 8 {
+		if err := migrateV7ToV8(db); err != nil {
+			return fmt.Errorf("migrate V7→V8: %w", err)
+		}
+		version = 8
 	}
 
 	// 性能索引（幂等，CREATE IF NOT EXISTS）
@@ -679,6 +687,45 @@ func migrateV6ToV7(db *sql.DB) error {
 	}
 
 	logger.Info("migration V6→V7 completed successfully")
+	return tx.Commit()
+}
+
+// migrateV7ToV8 创建异步任务队列表 / Create async task queue table
+func migrateV7ToV8(db *sql.DB) error {
+	logger.Info("executing migration V7→V8")
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin V7→V8: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS async_tasks (
+			id           TEXT PRIMARY KEY,
+			type         TEXT NOT NULL,
+			payload      TEXT NOT NULL DEFAULT '{}',
+			status       TEXT NOT NULL DEFAULT 'pending',
+			retry_count  INTEGER NOT NULL DEFAULT 0,
+			max_retries  INTEGER NOT NULL DEFAULT 3,
+			error_msg    TEXT NOT NULL DEFAULT '',
+			created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+			updated_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+			scheduled_at DATETIME,
+			completed_at DATETIME
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_async_tasks_status_created ON async_tasks(status, created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_async_tasks_scheduled_at ON async_tasks(scheduled_at) WHERE scheduled_at IS NOT NULL`,
+		`INSERT OR IGNORE INTO schema_version(version) VALUES(8)`,
+	}
+
+	for _, stmt := range stmts {
+		if _, err := tx.Exec(stmt); err != nil {
+			return fmt.Errorf("V7→V8 exec %q: %w", stmt, err)
+		}
+	}
+
+	logger.Info("migration V7→V8 completed successfully")
 	return tx.Commit()
 }
 
