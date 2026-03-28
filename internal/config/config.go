@@ -101,11 +101,24 @@ type PartitionConfig struct {
 
 // LLMConfig LLM 及 Embedding 配置 / LLM and embedding configuration
 type LLMConfig struct {
-	DefaultProvider string          `mapstructure:"default_provider"`
-	OpenAI          OpenAIConfig    `mapstructure:"openai"`
-	Claude          ClaudeConfig    `mapstructure:"claude"`
-	Ollama          OllamaConfig    `mapstructure:"ollama"`
-	Embedding       EmbeddingConfig `mapstructure:"embedding"`
+	DefaultProvider string              `mapstructure:"default_provider"`
+	OpenAI          OpenAIConfig        `mapstructure:"openai"`
+	Claude          ClaudeConfig        `mapstructure:"claude"`
+	Ollama          OllamaConfig        `mapstructure:"ollama"`
+	Embedding       EmbeddingConfig     `mapstructure:"embedding"`
+	Fallback        []FallbackLLMConfig `mapstructure:"fallback"`
+}
+
+// FallbackLLMConfig 备用 LLM 提供者配置项 / Fallback LLM provider configuration entry
+type FallbackLLMConfig struct {
+	// Name 提供者可读名称，用于日志 / Human-readable provider name for logging
+	Name string `mapstructure:"name"`
+	// BaseURL OpenAI 兼容 API 基础地址 / OpenAI-compatible API base URL
+	BaseURL string `mapstructure:"base_url"`
+	// APIKey 鉴权密钥，可为空（如本地 Ollama）/ Auth key, may be empty (e.g. local Ollama)
+	APIKey string `mapstructure:"api_key"`
+	// Model 模型标识符 / Model identifier
+	Model string `mapstructure:"model"`
 }
 
 // EmbeddingConfig 向量嵌入配置 / Embedding configuration

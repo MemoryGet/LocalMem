@@ -88,6 +88,27 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		logger.Info("llm provider initialized", zap.String("provider", "ollama"))
 	}
 
+	// 如果配置了备用提供者，构建降级链 / Wrap with fallback chain if fallback providers are configured
+	if llmProvider != nil && len(cfg.LLM.Fallback) > 0 {
+		providers := []llm.Provider{llmProvider}
+		names := []string{"primary"}
+		for _, fb := range cfg.LLM.Fallback {
+			if fb.BaseURL == "" {
+				continue
+			}
+			providers = append(providers, llm.NewOpenAIProvider(fb.BaseURL, fb.APIKey, fb.Model))
+			name := fb.Name
+			if name == "" {
+				name = fb.BaseURL
+			}
+			names = append(names, name)
+		}
+		if len(providers) > 1 {
+			llmProvider = llm.NewFallbackProvider(providers, names)
+			logger.Info("llm fallback chain configured", zap.Int("providers", len(providers)))
+		}
+	}
+
 	// Graph Manager
 	var graphManager *memory.GraphManager
 	if stores.GraphStore != nil {
