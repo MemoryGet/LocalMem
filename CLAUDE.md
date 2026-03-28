@@ -12,7 +12,8 @@ IClude is a local-first, hybrid storage enterprise memory system for AI applicat
 
 ```bash
 go mod download              # install dependencies
-go run ./cmd/server/         # run the API service
+go run ./cmd/server/         # run the API service (port 8080)
+go run ./cmd/mcp/            # run the MCP server (port 8081, SSE transport)
 go fmt ./...                 # format code
 go vet ./...                 # static analysis
 go test ./testing/...        # run all tests
@@ -55,6 +56,8 @@ pkg/testreport/                → Test report recorder + HTML generator (embed 
 ```
 
 **Dependency flow** (acyclic): `cmd/server → api → reflect, memory, search, document → store(interfaces) → model, pkg/*`
+
+**MCP server** (`cmd/mcp/`) is an independent binary. It exposes the same memory system over Model Context Protocol (SSE transport): `GET /sse` opens the event stream, `POST /messages` sends tool calls. Tools: `recall_memories`, `save_memory`, `reflect`, `ingest_conversation`, `timeline`. Prompts: `memory_context`. Configured via `mcp` section in `config.yaml` (`port`, `api_token`, `cors_allowed_origin`).
 
 **LLM dependency**: `llm.Provider` is consumed by reflect, memory (Extractor), and search (graph fallback). It is initialized early in `main.go` and injected into all consumers.
 
@@ -100,7 +103,7 @@ Multi-round LLM reasoning over retrieved memories. Configured via `reflect` conf
 
 ### Database schema
 
-SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 31 columns. Migrations are versioned (V0→V1→V2→V3) in `sqlite_migration.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=25, MaxIdle=5, ConnMaxLifetime=5min.
+SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 31 columns. Migrations are versioned (V0→V1→V2→V3) in `sqlite_migration.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
 
 ### Config loading priority
 
