@@ -24,15 +24,15 @@ func TestMigrate_FreshDB(t *testing.T) {
 	err = s.Init(context.Background())
 	require.NoError(t, err)
 
-	// 验证 schema_version 为 7
+	// 验证 schema_version 为 8（V7→V8 新增 async_tasks 表）
 	db := s.DB().(*sql.DB)
 	var version int
 	err = db.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 7, version)
+	assert.Equal(t, 8, version)
 
 	// 验证新表存在
-	tables := []string{"memories", "contexts", "tags", "memory_tags", "entities", "entity_relations", "memory_entities", "documents"}
+	tables := []string{"memories", "contexts", "tags", "memory_tags", "entities", "entity_relations", "memory_entities", "documents", "async_tasks"}
 	for _, tbl := range tables {
 		var count int
 		err = db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", tbl).Scan(&count)
@@ -143,11 +143,11 @@ func TestMigrate_V2ToV3(t *testing.T) {
 
 	rawDB := s.DB().(*sql.DB)
 
-	// 验证 schema_version 为 7
+	// 验证 schema_version 为 8（V7→V8 新增 async_tasks 表）
 	var version int
 	err = rawDB.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 7, version)
+	assert.Equal(t, 8, version)
 
 	// 验证 V3 新增列存在
 	v3Columns := []string{"retention_tier", "message_role", "turn_number"}

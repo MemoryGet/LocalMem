@@ -248,6 +248,11 @@ func TestTokenizer_FTS5_BM25Weighting(t *testing.T) {
 // ---- gse 分词器测试 (P0 新增) ----
 
 func TestTokenizer_GseTokenizer_BasicChinese(t *testing.T) {
+	// GSE 词典加载约 10s，-race 模式下会超过 300s 全局超时，跳过
+	// GSE dictionary loading takes ~10s and exceeds the 300s race-mode timeout — skip under race detector
+	if isRaceEnabled() {
+		t.Skip("skipping GSE tokenizer test under race detector: dictionary load too slow")
+	}
 	tc := testreport.NewCase(t, suiteTokenizer, suiteTokenizerIcon, suiteTokenizerDesc,
 		"GseTokenizer 中文词语级分词")
 	defer tc.Done()

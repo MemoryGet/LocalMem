@@ -88,11 +88,15 @@ func TestManagerCreate_AutoExtractTrue(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, mem.ID)
 
-	// 验证实体被创建 / Verify entity was created
-	entities, err := stores.GraphStore.ListEntities(context.Background(), "test", "person", 10)
-	require.NoError(t, err)
-	assert.Len(t, entities, 1)
-	assert.Equal(t, "Alice", entities[0].Name)
+	// 自动提取在后台 goroutine 中异步执行，轮询等待结果
+	// Auto-extract runs asynchronously in a goroutine; poll until the entity appears
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		entities, err := stores.GraphStore.ListEntities(context.Background(), "test", "person", 10)
+		assert.NoError(c, err)
+		if assert.Len(c, entities, 1) {
+			assert.Equal(c, "Alice", entities[0].Name)
+		}
+	}, 5*time.Second, 20*time.Millisecond)
 }
 
 func TestManagerCreate_AutoExtractFalse(t *testing.T) {
