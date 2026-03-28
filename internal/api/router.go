@@ -54,6 +54,10 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 		v1.POST("/memories/:id/restore", memHandler.Restore)
 		v1.POST("/memories/:id/reinforce", memHandler.Reinforce)
 
+		// Batch operations
+		batchHandler := NewBatchHandler(deps.MemManager)
+		v1.POST("/memories/batch", batchHandler.BatchGet)
+
 		// Maintenance
 		v1.POST("/maintenance/cleanup", memHandler.Cleanup)
 

@@ -54,6 +54,18 @@ func (a *memoryCreatorAdapter) Create(ctx context.Context, mem *model.Memory) (*
 	return a.manager.Create(ctx, req)
 }
 
+// memoryGetterAdapter 将 *memory.Manager.Get 适配为 MemoryGetter 接口 / Adapts Manager.Get to tools.MemoryGetter interface
+type memoryGetterAdapter struct {
+	manager interface {
+		Get(ctx context.Context, id string) (*model.Memory, error)
+	}
+}
+
+// Get 委托底层 Manager 按 ID 获取记忆 / Delegate to Manager.Get by ID
+func (a *memoryGetterAdapter) Get(ctx context.Context, id string) (*model.Memory, error) {
+	return a.manager.Get(ctx, id)
+}
+
 // memoryRetrieverAdapter 将 *search.Retriever 适配为 tools/prompts 的 MemoryRetriever 接口 / Adapter for search.Retriever
 type memoryRetrieverAdapter struct {
 	retriever interface {
@@ -89,6 +101,7 @@ func main() {
 	// 构建适配器，桥接 Manager/Retriever 与 MCP 工具接口 / Build adapters bridging Manager/Retriever to MCP tool interfaces
 	creatorAdapter := &memoryCreatorAdapter{manager: deps.MemManager}
 	retrieverAdapter := &memoryRetrieverAdapter{retriever: deps.Retriever}
+	getterAdapter := &memoryGetterAdapter{manager: deps.MemManager}
 
 	reg := mcp.NewRegistry()
 
@@ -101,6 +114,7 @@ func main() {
 	reg.RegisterTool(tools.NewIngestConversationTool(deps.MemManager))
 	reg.RegisterTool(tools.NewTimelineTool(deps.Retriever))
 	reg.RegisterTool(tools.NewScanTool(retrieverAdapter))
+	reg.RegisterTool(tools.NewFetchTool(getterAdapter))
 
 	// 注册资源 / Register resources
 	reg.RegisterResource(resources.NewRecentResource(deps.Retriever, 20))
