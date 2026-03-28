@@ -3,6 +3,7 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -14,6 +15,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// TaskEnqueuer 任务入队接口（与 queue 包解耦）/ Task enqueue interface (decoupled from queue package)
+type TaskEnqueuer interface {
+	Enqueue(ctx context.Context, taskType string, payload json.RawMessage) (string, error)
+}
+
 // Manager 记忆管理器，负责 CRUD 和双后端写入 / Memory manager handling CRUD with dual-backend writes
 type Manager struct {
 	memStore     store.MemoryStore
@@ -22,12 +28,13 @@ type Manager struct {
 	tagStore     store.TagStore     // 可为 nil / may be nil
 	contextStore store.ContextStore // 可为 nil / may be nil
 	extractor    *Extractor         // 可为 nil / may be nil
+	taskQueue    TaskEnqueuer       // 可为 nil / may be nil
 }
 
 // NewManager 创建记忆管理器 / Create a new memory manager
 // vecStore、embedder、tagStore、contextStore、extractor 均为可选，传 nil 表示未启用
-func NewManager(memStore store.MemoryStore, vecStore store.VectorStore, embedder store.Embedder, tagStore store.TagStore, contextStore store.ContextStore, extractor *Extractor) *Manager {
-	return &Manager{
+func NewManager(memStore store.MemoryStore, vecStore store.VectorStore, embedder store.Embedder, tagStore store.TagStore, contextStore store.ContextStore, extractor *Extractor, taskQueue ...TaskEnqueuer) *Manager {
+	m := &Manager{
 		memStore:     memStore,
 		vecStore:     vecStore,
 		embedder:     embedder,
@@ -35,6 +42,15 @@ func NewManager(memStore store.MemoryStore, vecStore store.VectorStore, embedder
 		contextStore: contextStore,
 		extractor:    extractor,
 	}
+	if len(taskQueue) > 0 {
+		m.taskQueue = taskQueue[0]
+	}
+	return m
+}
+
+// SetQueue 设置任务队列（支持延迟注入）/ Set task queue (supports deferred injection)
+func (m *Manager) SetQueue(q TaskEnqueuer) {
+	m.taskQueue = q
 }
 
 // Create 创建记忆 / Create a new memory
@@ -158,7 +174,7 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		}
 	}
 
-	// 自动实体抽取（异步，最佳努力）/ Auto entity extraction (async goroutine, best-effort)
+	// 自动实体抽取（异步，优先队列，回退 goroutine）/ Auto entity extraction (prefer queue, fallback goroutine)
 	if req.AutoExtract && m.extractor != nil {
 		extractReq := &model.ExtractRequest{
 			MemoryID: mem.ID,
@@ -166,24 +182,39 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 			Scope:    mem.Scope,
 			TeamID:   mem.TeamID,
 		}
-		extractTimeout := config.GetConfig().Extract.Timeout
-		if extractTimeout <= 0 {
-			extractTimeout = 30 * time.Second
-		}
-		go func() {
-			// 独立超时防止 LLM 挂起导致 goroutine 永久泄漏 / Timeout prevents goroutine leak on LLM hang
-			ctx, cancel := context.WithTimeout(context.Background(), extractTimeout)
-			defer cancel()
-			if _, err := m.extractor.Extract(ctx, extractReq); err != nil {
-				logger.Warn("auto extract failed",
-					zap.String("memory_id", extractReq.MemoryID),
+		if m.taskQueue != nil {
+			payload, _ := json.Marshal(extractReq)
+			if _, err := m.taskQueue.Enqueue(ctx, "entity_extract", payload); err != nil {
+				logger.Warn("failed to enqueue extract task, falling back to goroutine",
+					zap.String("memory_id", mem.ID),
 					zap.Error(err),
 				)
+				m.asyncExtract(extractReq)
 			}
-		}()
+		} else {
+			m.asyncExtract(extractReq)
+		}
 	}
 
 	return mem, nil
+}
+
+// asyncExtract 回退的异步 goroutine 抽取 / Fallback async goroutine extraction
+func (m *Manager) asyncExtract(req *model.ExtractRequest) {
+	extractTimeout := config.GetConfig().Extract.Timeout
+	if extractTimeout <= 0 {
+		extractTimeout = 30 * time.Second
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), extractTimeout)
+		defer cancel()
+		if _, err := m.extractor.Extract(ctx, req); err != nil {
+			logger.Warn("auto extract failed",
+				zap.String("memory_id", req.MemoryID),
+				zap.Error(err),
+			)
+		}
+	}()
 }
 
 // Get 获取单条记忆 / Get a memory by ID

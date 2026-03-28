@@ -189,6 +189,9 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 			}
 		}
 	}
+	if taskQueue != nil {
+		memManager.SetQueue(taskQueue)
+	}
 
 	// Scheduler
 	sched := scheduler.New()
