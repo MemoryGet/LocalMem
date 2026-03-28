@@ -13,6 +13,9 @@ import (
 // ErrAllProvidersFailed 所有 LLM 提供者均失败时返回 / Returned when all LLM providers in the chain have failed
 var ErrAllProvidersFailed = errors.New("all llm providers failed")
 
+// compile-time assertion that FallbackProvider implements Provider
+var _ Provider = (*FallbackProvider)(nil)
+
 // FallbackProvider 顺序尝试多个 LLM 提供者的链式 provider / Chain provider that tries multiple LLM providers in order
 type FallbackProvider struct {
 	providers []Provider
@@ -21,6 +24,12 @@ type FallbackProvider struct {
 
 // NewFallbackProvider 创建多提供者降级链 / Create a multi-provider fallback chain
 func NewFallbackProvider(providers []Provider, names []string) *FallbackProvider {
+	if len(providers) != len(names) {
+		panic("FallbackProvider: providers and names must have same length")
+	}
+	if len(providers) == 0 {
+		panic("FallbackProvider: at least one provider required")
+	}
 	return &FallbackProvider{
 		providers: providers,
 		names:     names,
@@ -31,6 +40,9 @@ func NewFallbackProvider(providers []Provider, names []string) *FallbackProvider
 func (f *FallbackProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	var lastErr error
 	for i, p := range f.providers {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("%w: context cancelled: %v", ErrAllProvidersFailed, ctx.Err())
+		}
 		name := f.providerName(i)
 		resp, err := p.Chat(ctx, req)
 		if err == nil {
