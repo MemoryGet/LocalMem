@@ -29,6 +29,7 @@ type Config struct {
 	Consolidation   ConsolidationConfig   `mapstructure:"consolidation"`
 	Heartbeat       HeartbeatConfig       `mapstructure:"heartbeat"`
 	MCP             MCPConfig             `mapstructure:"mcp"`
+	Queue           QueueConfig           `mapstructure:"queue"`
 }
 
 // StorageConfig 存储配置 / Storage configuration
@@ -219,6 +220,14 @@ type MCPConfig struct {
 	APIToken          string `mapstructure:"api_token"`
 }
 
+// QueueConfig 异步任务队列配置 / Async task queue configuration
+type QueueConfig struct {
+	Enabled      bool          `mapstructure:"enabled"`
+	PollInterval time.Duration `mapstructure:"poll_interval"`
+	MaxRetries   int           `mapstructure:"max_retries"`
+	StaleTimeout time.Duration `mapstructure:"stale_timeout"`
+}
+
 // SchedulerConfig 后台调度器配置 / Background scheduler configuration
 type SchedulerConfig struct {
 	Enabled               bool          `mapstructure:"enabled"`
@@ -333,6 +342,11 @@ func LoadConfig() error {
 	viper.SetDefault("mcp.default_owner_id", "mcp-user")
 	viper.SetDefault("mcp.cors_allowed_origin", "*")
 	viper.SetDefault("mcp.api_token", "")
+	// Queue 默认值 / Queue defaults
+	viper.SetDefault("queue.enabled", true)
+	viper.SetDefault("queue.poll_interval", "10s")
+	viper.SetDefault("queue.max_retries", 3)
+	viper.SetDefault("queue.stale_timeout", "5m")
 	// Auth 默认值 / Auth defaults
 	viper.SetDefault("auth.enabled", true)
 	viper.SetDefault("auth.cors_allowed_origins", []string{"*"})

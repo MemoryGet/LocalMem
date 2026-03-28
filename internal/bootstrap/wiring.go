@@ -3,6 +3,9 @@ package bootstrap
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,6 +16,8 @@ import (
 	"iclude/internal/llm"
 	"iclude/internal/logger"
 	"iclude/internal/memory"
+	"iclude/internal/model"
+	"iclude/internal/queue"
 	reflectpkg "iclude/internal/reflect"
 	"iclude/internal/scheduler"
 	"iclude/internal/search"
@@ -33,7 +38,23 @@ type Deps struct {
 	Extractor      *memory.Extractor         // nil if LLM or GraphStore unavailable
 	Scheduler      *scheduler.Scheduler
 	SchedCancel    context.CancelFunc
+	Queue          *queue.Queue // nil if queue disabled or SQLite unavailable
 	Config         config.Config
+}
+
+// extractHandler 将实体抽取任务委托给 Extractor / Delegates entity extraction tasks to Extractor.
+type extractHandler struct {
+	extractor *memory.Extractor
+}
+
+// Handle 解包 payload 并调用 Extractor / Unmarshal payload and invoke Extractor.
+func (h *extractHandler) Handle(ctx context.Context, payload json.RawMessage) error {
+	var req model.ExtractRequest
+	if err := json.Unmarshal(payload, &req); err != nil {
+		return fmt.Errorf("unmarshal extract payload: %w", err)
+	}
+	_, err := h.extractor.Extract(ctx, &req)
+	return err
 }
 
 // Init 根据配置初始化所有业务组件 / Initialize all business components from config
@@ -155,6 +176,20 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		reflectEngine = reflectpkg.NewReflectEngine(ret, memManager, llmProvider, cfg.Reflect)
 	}
 
+	// Async task queue — created outside scheduler block so Manager can use it
+	// 异步任务队列（在 scheduler 块之外创建，Manager 可直接引用）
+	var taskQueue *queue.Queue
+	if cfg.Queue.Enabled {
+		if sqlDB, ok := stores.MemoryStore.DB().(*sql.DB); ok {
+			if err := queue.CreateTable(sqlDB); err != nil {
+				logger.Warn("failed to create async_tasks table", zap.Error(err))
+			} else {
+				taskQueue = queue.New(sqlDB)
+				logger.Info("async task queue initialized")
+			}
+		}
+	}
+
 	// Scheduler
 	sched := scheduler.New()
 	schedCtx, schedCancel := context.WithCancel(ctx)
@@ -176,6 +211,15 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 			hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, llmProvider)
 			sched.Register("heartbeat", cfg.Heartbeat.Interval, hbEngine.Run)
 		}
+		// Register queue worker inside scheduler block
+		// 在 scheduler 块内注册队列 worker
+		if taskQueue != nil {
+			worker := queue.NewWorker(taskQueue, cfg.Queue.StaleTimeout)
+			if extractor != nil {
+				worker.RegisterHandler("entity_extract", &extractHandler{extractor: extractor})
+			}
+			sched.Register("queue-worker", cfg.Queue.PollInterval, worker.Run)
+		}
 		go sched.Run(schedCtx)
 	}
 
@@ -190,6 +234,7 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		Extractor:      extractor,
 		Scheduler:      sched,
 		SchedCancel:    schedCancel,
+		Queue:          taskQueue,
 		Config:         cfg,
 	}
 
