@@ -6,10 +6,18 @@ import (
 	"encoding/json"
 	"time"
 
+	"iclude/internal/logger"
 	"iclude/internal/mcp"
 	"iclude/internal/model"
 	"iclude/internal/search"
+
+	"go.uber.org/zap"
 )
+
+// TagStoreReader scan 工具需要的标签查询接口 / Tag query interface for scan tool
+type TagStoreReader interface {
+	GetTagNamesByMemoryIDs(ctx context.Context, ids []string) (map[string][]string, error)
+}
 
 // ScanResultItem 轻量扫描结果条目（仅含索引信息）/ Compact scan result item (index metadata only)
 type ScanResultItem struct {
@@ -18,16 +26,21 @@ type ScanResultItem struct {
 	Score         float64    `json:"score"`
 	Source        string     `json:"source"`
 	Kind          string     `json:"kind,omitempty"`
+	Scope         string     `json:"scope,omitempty"`
+	Tags          []string   `json:"tags,omitempty"`
 	HappenedAt    *time.Time `json:"happened_at,omitempty"`
 	TokenEstimate int        `json:"token_estimate"`
 }
 
 // ScanTool iclude_scan 工具 / iclude_scan MCP tool
-type ScanTool struct{ retriever MemoryRetriever }
+type ScanTool struct {
+	retriever MemoryRetriever
+	tagStore  TagStoreReader // 可为 nil / may be nil
+}
 
 // NewScanTool 创建 ScanTool 实例 / Create a new ScanTool instance
-func NewScanTool(retriever MemoryRetriever) *ScanTool {
-	return &ScanTool{retriever: retriever}
+func NewScanTool(retriever MemoryRetriever, tagStore TagStoreReader) *ScanTool {
+	return &ScanTool{retriever: retriever, tagStore: tagStore}
 }
 
 // scanArgs iclude_scan 工具参数 / iclude_scan tool arguments
@@ -121,9 +134,28 @@ func (t *ScanTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp
 			Score:         r.Score,
 			Source:        r.Source,
 			Kind:          r.Memory.Kind,
+			Scope:         r.Memory.Scope,
 			HappenedAt:    r.Memory.HappenedAt,
 			TokenEstimate: search.EstimateTokens(r.Memory.Content),
 		})
+	}
+
+	// 批量查询标签 / Batch query tags
+	if t.tagStore != nil && len(items) > 0 {
+		ids := make([]string, len(items))
+		for i, item := range items {
+			ids[i] = item.ID
+		}
+		tagMap, err := t.tagStore.GetTagNamesByMemoryIDs(ctx, ids)
+		if err != nil {
+			logger.Warn("scan: failed to batch get tags", zap.Error(err))
+		} else {
+			for i, item := range items {
+				if tags, ok := tagMap[item.ID]; ok {
+					items[i].Tags = tags
+				}
+			}
+		}
 	}
 
 	out, _ := json.Marshal(items)

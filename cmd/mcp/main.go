@@ -54,16 +54,16 @@ func (a *memoryCreatorAdapter) Create(ctx context.Context, mem *model.Memory) (*
 	return a.manager.Create(ctx, req)
 }
 
-// memoryGetterAdapter 将 *memory.Manager.Get 适配为 MemoryGetter 接口 / Adapts Manager.Get to tools.MemoryGetter interface
+// memoryGetterAdapter 将 *memory.Manager.GetVisible 适配为 MemoryGetter 接口 / Adapts Manager.GetVisible to tools.MemoryGetter interface
 type memoryGetterAdapter struct {
 	manager interface {
-		Get(ctx context.Context, id string) (*model.Memory, error)
+		GetVisible(ctx context.Context, id string, identity *model.Identity) (*model.Memory, error)
 	}
 }
 
-// Get 委托底层 Manager 按 ID 获取记忆 / Delegate to Manager.Get by ID
-func (a *memoryGetterAdapter) Get(ctx context.Context, id string) (*model.Memory, error) {
-	return a.manager.Get(ctx, id)
+// GetVisible 委托底层 Manager 按 ID + 可见性获取记忆 / Delegate to Manager.GetVisible by ID with visibility check
+func (a *memoryGetterAdapter) GetVisible(ctx context.Context, id string, identity *model.Identity) (*model.Memory, error) {
+	return a.manager.GetVisible(ctx, id, identity)
 }
 
 // memoryRetrieverAdapter 将 *search.Retriever 适配为 tools/prompts 的 MemoryRetriever 接口 / Adapter for search.Retriever
@@ -113,7 +113,7 @@ func main() {
 	}
 	reg.RegisterTool(tools.NewIngestConversationTool(deps.MemManager))
 	reg.RegisterTool(tools.NewTimelineTool(deps.Retriever))
-	reg.RegisterTool(tools.NewScanTool(retrieverAdapter))
+	reg.RegisterTool(tools.NewScanTool(retrieverAdapter, deps.Stores.TagStore))
 	reg.RegisterTool(tools.NewFetchTool(getterAdapter))
 
 	// 注册资源 / Register resources

@@ -16,7 +16,7 @@ import (
 
 // TestScanTool_Definition 验证工具名称为 iclude_scan / Verify tool name is iclude_scan
 func TestScanTool_Definition(t *testing.T) {
-	tool := tools.NewScanTool(&mockMemoryRetriever{})
+	tool := tools.NewScanTool(&mockMemoryRetriever{}, nil)
 	def := tool.Definition()
 	assert.Equal(t, "iclude_scan", def.Name)
 	assert.NotEmpty(t, def.Description)
@@ -57,7 +57,7 @@ func TestScanTool_Execute_ReturnsCompactIndex(t *testing.T) {
 		},
 	}
 
-	tool := tools.NewScanTool(ret)
+	tool := tools.NewScanTool(ret, nil)
 	args, _ := json.Marshal(map[string]any{"query": "search query", "limit": 5})
 	result, err := tool.Execute(context.Background(), args)
 	require.NoError(t, err)
@@ -113,7 +113,7 @@ func TestScanTool_Execute_TruncatesLongContent(t *testing.T) {
 		},
 	}
 
-	tool := tools.NewScanTool(ret)
+	tool := tools.NewScanTool(ret, nil)
 	args, _ := json.Marshal(map[string]any{"query": "long content"})
 	result, err := tool.Execute(context.Background(), args)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestScanTool_Execute_TruncatesLongContent(t *testing.T) {
 
 // TestScanTool_Execute_EmptyQuery 空查询应返回错误结果 / Empty query should return error result
 func TestScanTool_Execute_EmptyQuery(t *testing.T) {
-	tool := tools.NewScanTool(&mockMemoryRetriever{})
+	tool := tools.NewScanTool(&mockMemoryRetriever{}, nil)
 	result, err := tool.Execute(context.Background(), json.RawMessage(`{}`))
 	require.NoError(t, err)
 	assert.True(t, result.IsError)
@@ -139,7 +139,7 @@ func TestScanTool_Execute_EmptyQuery(t *testing.T) {
 
 // TestScanTool_Execute_InvalidJSON 无效 JSON 参数应返回错误 / Invalid JSON should return error
 func TestScanTool_Execute_InvalidJSON(t *testing.T) {
-	tool := tools.NewScanTool(&mockMemoryRetriever{})
+	tool := tools.NewScanTool(&mockMemoryRetriever{}, nil)
 	result, err := tool.Execute(context.Background(), json.RawMessage(`not-json`))
 	require.NoError(t, err)
 	assert.True(t, result.IsError)
@@ -149,7 +149,7 @@ func TestScanTool_Execute_InvalidJSON(t *testing.T) {
 // TestScanTool_Execute_RetrieverError 检索器错误时应返回错误结果 / Should return error when retriever fails
 func TestScanTool_Execute_RetrieverError(t *testing.T) {
 	ret := &mockMemoryRetriever{err: assert.AnError}
-	tool := tools.NewScanTool(ret)
+	tool := tools.NewScanTool(ret, nil)
 	args, _ := json.Marshal(map[string]any{"query": "test"})
 	result, err := tool.Execute(context.Background(), args)
 	require.NoError(t, err)
