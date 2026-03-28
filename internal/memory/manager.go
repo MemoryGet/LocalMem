@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"iclude/internal/config"
+	"iclude/internal/llm"
 	"iclude/internal/logger"
 	"iclude/internal/model"
 	"iclude/internal/store"
@@ -20,6 +22,13 @@ type TaskEnqueuer interface {
 	Enqueue(ctx context.Context, taskType string, payload json.RawMessage) (string, error)
 }
 
+// ManagerConfig 管理器配置（通过构造函数注入，替代全局单例）/ Manager config injected via constructor
+type ManagerConfig struct {
+	Dedup           config.DedupConfig
+	Extract         config.ExtractConfig
+	Crystallization config.CrystallizationConfig
+}
+
 // Manager 记忆管理器，负责 CRUD 和双后端写入 / Memory manager handling CRUD with dual-backend writes
 type Manager struct {
 	memStore     store.MemoryStore
@@ -28,12 +37,14 @@ type Manager struct {
 	tagStore     store.TagStore     // 可为 nil / may be nil
 	contextStore store.ContextStore // 可为 nil / may be nil
 	extractor    *Extractor         // 可为 nil / may be nil
+	llm          llm.Provider       // 可为 nil / may be nil (used for abstract generation)
 	taskQueue    TaskEnqueuer       // 可为 nil / may be nil
+	cfg          ManagerConfig
 }
 
 // NewManager 创建记忆管理器 / Create a new memory manager
 // vecStore、embedder、tagStore、contextStore、extractor 均为可选，传 nil 表示未启用
-func NewManager(memStore store.MemoryStore, vecStore store.VectorStore, embedder store.Embedder, tagStore store.TagStore, contextStore store.ContextStore, extractor *Extractor, taskQueue ...TaskEnqueuer) *Manager {
+func NewManager(memStore store.MemoryStore, vecStore store.VectorStore, embedder store.Embedder, tagStore store.TagStore, contextStore store.ContextStore, extractor *Extractor, llmProvider llm.Provider, cfg ManagerConfig, taskQueue ...TaskEnqueuer) *Manager {
 	m := &Manager{
 		memStore:     memStore,
 		vecStore:     vecStore,
@@ -41,6 +52,8 @@ func NewManager(memStore store.MemoryStore, vecStore store.VectorStore, embedder
 		tagStore:     tagStore,
 		contextStore: contextStore,
 		extractor:    extractor,
+		llm:          llmProvider,
+		cfg:          cfg,
 	}
 	if len(taskQueue) > 0 {
 		m.taskQueue = taskQueue[0]
@@ -91,7 +104,7 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 	}
 
 	// 余弦相似度去重 / Cosine similarity dedup
-	dedupCfg := config.GetConfig().Dedup
+	dedupCfg := m.cfg.Dedup
 	if embedding != nil {
 		vecDedup, err := checkVectorDedup(ctx, embedding, m.vecStore, dedupCfg)
 		if err != nil {
@@ -174,6 +187,16 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		}
 	}
 
+	// 异步生成摘要（content 短则直接用 content，否则调 LLM）/ Async abstract generation
+	if mem.Abstract == "" && m.llm != nil {
+		if len([]rune(mem.Content)) <= 50 {
+			mem.Abstract = mem.Content
+			_ = m.memStore.Update(ctx, mem)
+		} else {
+			m.asyncGenerateAbstract(mem.ID, mem.Content)
+		}
+	}
+
 	// 自动实体抽取（异步，优先队列，回退 goroutine）/ Auto entity extraction (prefer queue, fallback goroutine)
 	if req.AutoExtract && m.extractor != nil {
 		extractReq := &model.ExtractRequest{
@@ -201,7 +224,7 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 
 // asyncExtract 回退的异步 goroutine 抽取 / Fallback async goroutine extraction
 func (m *Manager) asyncExtract(req *model.ExtractRequest) {
-	extractTimeout := config.GetConfig().Extract.Timeout
+	extractTimeout := m.cfg.Extract.Timeout
 	if extractTimeout <= 0 {
 		extractTimeout = 30 * time.Second
 	}
@@ -217,12 +240,71 @@ func (m *Manager) asyncExtract(req *model.ExtractRequest) {
 	}()
 }
 
+// asyncGenerateAbstract 异步生成记忆摘要 / Async generate memory abstract via LLM
+func (m *Manager) asyncGenerateAbstract(memoryID, content string) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		abstract, err := m.generateAbstract(ctx, content)
+		if err != nil {
+			logger.Warn("async abstract generation failed",
+				zap.String("memory_id", memoryID),
+				zap.Error(err),
+			)
+			return
+		}
+
+		mem, err := m.memStore.Get(ctx, memoryID)
+		if err != nil {
+			logger.Warn("failed to get memory for abstract update",
+				zap.String("memory_id", memoryID),
+				zap.Error(err),
+			)
+			return
+		}
+		mem.Abstract = abstract
+		if err := m.memStore.Update(ctx, mem); err != nil {
+			logger.Warn("failed to update memory abstract",
+				zap.String("memory_id", memoryID),
+				zap.Error(err),
+			)
+		}
+	}()
+}
+
+// generateAbstract 调用 LLM 生成一句话摘要 / Call LLM to generate one-line abstract
+func (m *Manager) generateAbstract(ctx context.Context, content string) (string, error) {
+	temp := 0.1
+	resp, err := m.llm.Chat(ctx, &llm.ChatRequest{
+		Messages: []llm.ChatMessage{
+			{Role: "system", Content: "用一句话（≤100字）概括以下内容的核心信息，直接输出摘要，不加前缀。"},
+			{Role: "user", Content: content},
+		},
+		Temperature: &temp,
+	})
+	if err != nil {
+		return "", fmt.Errorf("llm chat failed: %w", err)
+	}
+	abstract := strings.TrimSpace(resp.Content)
+	if len([]rune(abstract)) > 150 {
+		abstract = string([]rune(abstract)[:150])
+	}
+	return abstract, nil
+}
+
 // Get 获取单条记忆 / Get a memory by ID
 func (m *Manager) Get(ctx context.Context, id string) (*model.Memory, error) {
 	if id == "" {
 		return nil, fmt.Errorf("id is required: %w", model.ErrInvalidInput)
 	}
-	return m.memStore.Get(ctx, id)
+	mem, err := m.memStore.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// 递增访问计数（best-effort）/ Increment access count (best-effort)
+	_ = m.memStore.IncrementAccessCount(ctx, id, 1)
+	return mem, nil
 }
 
 // GetVisible 带可见性校验获取记忆 / Get a memory with visibility check
@@ -230,7 +312,13 @@ func (m *Manager) GetVisible(ctx context.Context, id string, identity *model.Ide
 	if id == "" {
 		return nil, fmt.Errorf("id is required: %w", model.ErrInvalidInput)
 	}
-	return m.memStore.GetVisible(ctx, id, identity)
+	mem, err := m.memStore.GetVisible(ctx, id, identity)
+	if err != nil {
+		return nil, err
+	}
+	// 递增访问计数（best-effort）/ Increment access count (best-effort)
+	_ = m.memStore.IncrementAccessCount(ctx, id, 1)
+	return mem, nil
 }
 
 // Update 更新记忆 / Update a memory
@@ -407,6 +495,22 @@ func (m *Manager) Restore(ctx context.Context, id string) error {
 	return m.memStore.Restore(ctx, id)
 }
 
+// RestoreWithIdentity 带归属检查的恢复 / Restore with owner identity check
+func (m *Manager) RestoreWithIdentity(ctx context.Context, id string, identity *model.Identity) error {
+	if id == "" {
+		return fmt.Errorf("id is required: %w", model.ErrInvalidInput)
+	}
+	// 查询 owner_id（含 soft-deleted 记忆）/ Query owner_id including soft-deleted
+	ownerID, err := m.memStore.GetOwnerID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if ownerID != "" && ownerID != identity.OwnerID && identity.OwnerID != model.SystemOwnerID {
+		return fmt.Errorf("only the owner can restore this memory: %w", model.ErrForbidden)
+	}
+	return m.memStore.Restore(ctx, id)
+}
+
 // Reinforce 强化记忆 / Reinforce a memory (increase strength and reinforced_count)
 func (m *Manager) Reinforce(ctx context.Context, id string) error {
 	if id == "" {
@@ -417,7 +521,7 @@ func (m *Manager) Reinforce(ctx context.Context, id string) error {
 	}
 
 	// 自动晶化检查 / Auto-crystallization check
-	cfg := config.GetConfig().Crystallization
+	cfg := m.cfg.Crystallization
 	if cfg.Enabled {
 		mem, err := m.memStore.Get(ctx, id)
 		if err != nil {
@@ -509,16 +613,14 @@ func (m *Manager) IngestConversation(ctx context.Context, req *model.IngestConve
 		return "", nil, fmt.Errorf("failed to batch insert conversation memories: %w", err)
 	}
 
-	// 递增上下文记忆计数（best-effort）/ Increment context memory count
-	if m.contextStore != nil && contextID != "" {
-		for range memories {
-			if err := m.contextStore.IncrementMemoryCount(ctx, contextID); err != nil {
-				logger.Warn("failed to increment context memory count",
-					zap.String("context_id", contextID),
-					zap.Error(err),
-				)
-				break
-			}
+	// 批量递增上下文记忆计数（best-effort）/ Batch increment context memory count
+	if m.contextStore != nil && contextID != "" && len(memories) > 0 {
+		if err := m.contextStore.IncrementMemoryCountBy(ctx, contextID, len(memories)); err != nil {
+			logger.Warn("failed to increment context memory count",
+				zap.String("context_id", contextID),
+				zap.Int("delta", len(memories)),
+				zap.Error(err),
+			)
 		}
 	}
 

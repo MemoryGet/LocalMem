@@ -40,7 +40,7 @@ func setupFullRouter(t *testing.T) (http.Handler, func()) {
 	graphStore := store.NewSQLiteGraphStore(db)
 	docStore := store.NewSQLiteDocumentStore(db)
 
-	mgr := memory.NewManager(s, nil, nil, tagStore, ctxStore, nil)
+	mgr := memory.NewManager(s, nil, nil, tagStore, ctxStore, nil, nil, memory.ManagerConfig{})
 	ret := search.NewRetriever(s, nil, nil, nil, nil, config.RetrievalConfig{}, nil, nil)
 	ctxMgr := memory.NewContextManager(ctxStore)
 	graphMgr := memory.NewGraphManager(graphStore)

@@ -92,7 +92,7 @@ func setupTestEngine(t *testing.T, mockLLM *mockLLMProvider) (*reflectpkg.Reflec
 		os.RemoveAll(dir)
 	})
 
-	mgr := memory.NewManager(stores.MemoryStore, nil, nil, nil, nil, nil)
+	mgr := memory.NewManager(stores.MemoryStore, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
 	retriever := search.NewRetriever(stores.MemoryStore, nil, nil, nil, nil, config.RetrievalConfig{}, nil, nil)
 	engine := reflectpkg.NewReflectEngine(retriever, mgr, mockLLM, cfg.Reflect)
 

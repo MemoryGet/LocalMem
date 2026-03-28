@@ -71,7 +71,7 @@ func setupGraphRetriever(t *testing.T, mockLLM llm.Provider, cfg config.Retrieva
 	})
 
 	graphManager := memory.NewGraphManager(stores.GraphStore)
-	mgr := memory.NewManager(stores.MemoryStore, nil, nil, nil, nil, nil)
+	mgr := memory.NewManager(stores.MemoryStore, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
 	ret := search.NewRetriever(stores.MemoryStore, nil, nil, stores.GraphStore, mockLLM, cfg, nil, nil)
 
 	return ret, mgr, graphManager, stores
@@ -226,7 +226,7 @@ func TestGraphRetrieval_GraphStoreNil(t *testing.T) {
 
 	// 传 nil graphStore / Pass nil graphStore
 	ret := search.NewRetriever(stores.MemoryStore, nil, nil, nil, nil, cfg, nil, nil)
-	mgr := memory.NewManager(stores.MemoryStore, nil, nil, nil, nil, nil)
+	mgr := memory.NewManager(stores.MemoryStore, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
 	_, err = mgr.Create(context.Background(), &model.CreateMemoryRequest{Content: "test content", Scope: "test"})
 	require.NoError(t, err)
 

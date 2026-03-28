@@ -161,6 +161,6 @@ func TestDedup_ContentHashComputed(t *testing.T) {
 func setupReportManager(t *testing.T) (*memory.Manager, func()) {
 	t.Helper()
 	s := newTestStore(t, tokenizer.NewSimpleTokenizer())
-	mgr := memory.NewManager(s.(*store.SQLiteMemoryStore), nil, nil, nil, nil, nil)
+	mgr := memory.NewManager(s.(*store.SQLiteMemoryStore), nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
 	return mgr, func() { s.Close() }
 }

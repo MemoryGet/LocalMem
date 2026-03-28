@@ -154,11 +154,16 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 	// Consolidator
 	var consolidator *memory.Consolidator
 	if stores.VectorStore != nil && llmProvider != nil && cfg.Consolidation.Enabled {
-		consolidator = memory.NewConsolidator(stores.MemoryStore, stores.VectorStore, llmProvider)
+		consolidator = memory.NewConsolidator(stores.MemoryStore, stores.VectorStore, llmProvider, cfg.Consolidation)
 	}
 
 	// Business managers
-	memManager := memory.NewManager(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.TagStore, stores.ContextStore, extractor)
+	mgrCfg := memory.ManagerConfig{
+		Dedup:           cfg.Dedup,
+		Extract:         cfg.Extract,
+		Crystallization: cfg.Crystallization,
+	}
+	memManager := memory.NewManager(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.TagStore, stores.ContextStore, extractor, llmProvider, mgrCfg)
 	ret := search.NewRetriever(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.GraphStore, llmProvider, cfg.Retrieval, preprocessor, accessTracker)
 
 	var ctxManager *memory.ContextManager
@@ -211,7 +216,7 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 			sched.Register("consolidation", cfg.Scheduler.ConsolidationInterval, consolidator.Run)
 		}
 		if cfg.Heartbeat.Enabled {
-			hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, llmProvider)
+			hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, llmProvider, cfg.Heartbeat)
 			sched.Register("heartbeat", cfg.Heartbeat.Interval, hbEngine.Run)
 		}
 		// Register queue worker inside scheduler block
