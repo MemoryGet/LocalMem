@@ -35,7 +35,7 @@ type recallArgs struct {
 func (t *RecallTool) Definition() mcp.ToolDefinition {
 	return mcp.ToolDefinition{
 		Name:        "iclude_recall",
-		Description: "Retrieve memories from IClude using semantic + full-text search. Call at the start of each turn with the user's message to load relevant context.",
+		Description: "Retrieve full memory content via semantic + full-text search. **High token cost** — prefer iclude_scan + iclude_fetch for MCP workflows. Use only when you need all results with full content in one call.",
 		InputSchema: json.RawMessage(`{
             "type":"object",
             "properties":{

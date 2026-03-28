@@ -13,9 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// MemoryGetter 按 ID 获取记忆接口 / Interface for getting memories by ID
+// MemoryGetter 按 ID 获取记忆接口（带可见性校验）/ Interface for getting memories by ID with visibility check
 type MemoryGetter interface {
-	Get(ctx context.Context, id string) (*model.Memory, error)
+	GetVisible(ctx context.Context, id string, identity *model.Identity) (*model.Memory, error)
 }
 
 // FetchResultItem 批量获取结果项 / Batch fetch result item
@@ -40,7 +40,7 @@ type fetchArgs struct {
 func (t *FetchTool) Definition() mcp.ToolDefinition {
 	return mcp.ToolDefinition{
 		Name:        "iclude_fetch",
-		Description: "Fetch full memory content by IDs. Use after iclude_scan to get details for selected items only.",
+		Description: "Fetch full memory content by IDs. Use after iclude_scan to get details for selected items only. Accepts up to 20 IDs per call.",
 		InputSchema: json.RawMessage(`{
             "type":"object",
             "properties":{
@@ -64,9 +64,12 @@ func (t *FetchTool) Execute(ctx context.Context, arguments json.RawMessage) (*mc
 		return mcp.ErrorResult("maximum 20 ids per request"), nil
 	}
 
+	// 从 context 获取身份（由 MCP session 注入）/ Get identity from context (injected by MCP session)
+	identity := mcp.IdentityFromContext(ctx)
+
 	items := make([]FetchResultItem, 0, len(args.IDs))
 	for _, id := range args.IDs {
-		mem, err := t.getter.Get(ctx, id)
+		mem, err := t.getter.GetVisible(ctx, id, identity)
 		if err != nil {
 			if errors.Is(err, model.ErrMemoryNotFound) {
 				logger.Debug("iclude_fetch: memory not found, skipping", zap.String("id", id))

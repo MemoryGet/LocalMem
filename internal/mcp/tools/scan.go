@@ -55,7 +55,7 @@ type scanArgs struct {
 func (t *ScanTool) Definition() mcp.ToolDefinition {
 	return mcp.ToolDefinition{
 		Name:        "iclude_scan",
-		Description: "Lightweight memory scan returning compact index (ID + title + score + token estimate). Use this first, then iclude_fetch for full details on selected items. Saves ~10x tokens vs iclude_recall.",
+		Description: "**Primary search tool.** Returns compact index (ID, title, score, tags, scope, token estimate) for efficient browsing. Use this FIRST, then iclude_fetch for full content on selected items. Saves ~10x tokens vs iclude_recall.",
 		InputSchema: json.RawMessage(`{
             "type":"object",
             "properties":{
