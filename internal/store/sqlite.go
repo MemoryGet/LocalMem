@@ -99,6 +99,28 @@ func (s *SQLiteMemoryStore) Close() error {
 	return nil
 }
 
+// sanitizeFTS5Query 清除 FTS5 操作符，每个词独立包裹为短语 / Strip FTS5 operators, wrap each token as phrase
+func sanitizeFTS5Query(query string) string {
+	if query == "" {
+		return query
+	}
+	// 移除 FTS5 特殊字符和操作符 / Remove FTS5 special chars
+	replacer := strings.NewReplacer(
+		`"`, ``, `*`, ``, `(`, ``, `)`, ``, `^`, ``, `-`, ` `, `+`, ` `,
+	)
+	cleaned := replacer.Replace(query)
+
+	// 将每个词包裹为短语防止被解释为操作符 / Wrap each token as phrase to prevent operator interpretation
+	words := strings.Fields(cleaned)
+	for i, w := range words {
+		upper := strings.ToUpper(w)
+		if upper == "AND" || upper == "OR" || upper == "NOT" || upper == "NEAR" {
+			words[i] = `"` + w + `"`
+		}
+	}
+	return strings.Join(words, " ")
+}
+
 // visibilityCondition 返回可见性 WHERE 子句和参数 / Return visibility WHERE clause and args
 // 兼容旧数据: owner_id 为空时视为无主记忆，同 team 即可见 / Legacy compat: empty owner_id is visible to same team
 // TeamID 为空时跳过 team 匹配（向后兼容）/ Empty TeamID bypasses team matching for backward compatibility
@@ -276,7 +298,8 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 	return nil
 }
 
-// Get 获取单条记忆 / Get a memory by ID
+// Get 获取单条记忆（纯读，不修改访问计数）/ Get a memory by ID (read-only, does not update access count)
+// 调用方如需记录访问，请显式调用 IncrementAccessCount / Callers should use IncrementAccessCount explicitly
 func (s *SQLiteMemoryStore) Get(ctx context.Context, id string) (*model.Memory, error) {
 	query := `SELECT ` + memoryColumns + ` FROM memories WHERE id = ? AND deleted_at IS NULL`
 
@@ -287,14 +310,6 @@ func (s *SQLiteMemoryStore) Get(ctx context.Context, id string) (*model.Memory, 
 		}
 		return nil, fmt.Errorf("failed to get memory: %w", err)
 	}
-
-	// 递增访问计数 + 更新 last_accessed_at
-	now := time.Now().UTC()
-	if _, err := s.db.ExecContext(ctx, `UPDATE memories SET access_count = access_count + 1, last_accessed_at = ? WHERE id = ?`, now, id); err != nil {
-		return nil, fmt.Errorf("failed to increment access count: %w", err)
-	}
-	mem.AccessCount++
-	mem.LastAccessedAt = &now
 
 	return mem, nil
 }
@@ -392,22 +407,28 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 
 // Delete 删除记忆（硬删除）/ Delete a memory by ID (hard delete)
 func (s *SQLiteMemoryStore) Delete(ctx context.Context, id string) error {
-	// 先获取 rowid 用于 FTS5 清理
-	var rowid int64
-	err := s.db.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, id).Scan(&rowid)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		return fmt.Errorf("begin delete tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 获取 rowid 用于 FTS5 清理
+	var rowid int64
+	if err := tx.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, id).Scan(&rowid); err != nil {
 		if err == sql.ErrNoRows {
 			return model.ErrMemoryNotFound
 		}
 		return fmt.Errorf("failed to get rowid for delete: %w", err)
 	}
 
-	// 删除 FTS5 条目
-	if err := s.deleteFTS5ByRowID(ctx, rowid); err != nil {
+	// 在同一事务内删除 FTS5 条目
+	if err := s.deleteFTS5ByRowIDTx(ctx, tx, rowid); err != nil {
 		return fmt.Errorf("failed to delete FTS5 entry: %w", err)
 	}
 
-	result, err := s.db.ExecContext(ctx, `DELETE FROM memories WHERE id = ?`, id)
+	// 删除主表记录
+	result, err := tx.ExecContext(ctx, `DELETE FROM memories WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete memory: %w", err)
 	}
@@ -418,6 +439,10 @@ func (s *SQLiteMemoryStore) Delete(ctx context.Context, id string) error {
 	}
 	if rows == 0 {
 		return model.ErrMemoryNotFound
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete tx: %w", err)
 	}
 
 	return nil
@@ -459,6 +484,8 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 	if err != nil {
 		tokenizedQuery = query // 分词失败回退原文
 	}
+	// FTS5 语法净化：包裹为短语查询防止操作符注入 / Sanitize for FTS5 syntax injection
+	tokenizedQuery = sanitizeFTS5Query(tokenizedQuery)
 
 	visCond, visArgs := visibilityCondition("m.", identity)
 	w := s.bm25Weights
@@ -563,6 +590,8 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 	if err != nil {
 		tokenizedQuery = query
 	}
+	// FTS5 语法净化 / Sanitize for FTS5 syntax injection
+	tokenizedQuery = sanitizeFTS5Query(tokenizedQuery)
 
 	// 使用 sqlbuilder 构建 WHERE 子句
 	wb := sqlbuilder.NewWhere()
@@ -672,7 +701,14 @@ func (s *SQLiteMemoryStore) ListTimeline(ctx context.Context, req *model.Timelin
 // SoftDelete 软删除记忆 / Soft delete a memory
 func (s *SQLiteMemoryStore) SoftDelete(ctx context.Context, id string) error {
 	now := time.Now().UTC()
-	result, err := s.db.ExecContext(ctx, `UPDATE memories SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`, now, now, id)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin soft delete tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, `UPDATE memories SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`, now, now, id)
 	if err != nil {
 		return fmt.Errorf("failed to soft delete memory: %w", err)
 	}
@@ -685,10 +721,16 @@ func (s *SQLiteMemoryStore) SoftDelete(ctx context.Context, id string) error {
 		return model.ErrMemoryNotFound
 	}
 
-	// 清理 FTS5 索引，防止软删记忆污染 BM25 评分 / Remove from FTS5 index to prevent soft-deleted memories from polluting BM25 scores
+	// 在同一事务内清理 FTS5 索引 / Remove FTS5 index within the same transaction
 	var rowid int64
-	if err := s.db.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, id).Scan(&rowid); err == nil {
-		_ = s.deleteFTS5ByRowID(ctx, rowid)
+	if err := tx.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, id).Scan(&rowid); err == nil {
+		if ftsErr := s.deleteFTS5ByRowIDTx(ctx, tx, rowid); ftsErr != nil {
+			logger.Warn("soft delete: FTS5 cleanup failed", zap.String("id", id), zap.Error(ftsErr))
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit soft delete tx: %w", err)
 	}
 
 	return nil
@@ -697,7 +739,14 @@ func (s *SQLiteMemoryStore) SoftDelete(ctx context.Context, id string) error {
 // Restore 恢复软删除的记忆 / Restore a soft-deleted memory
 func (s *SQLiteMemoryStore) Restore(ctx context.Context, id string) error {
 	now := time.Now().UTC()
-	result, err := s.db.ExecContext(ctx, `UPDATE memories SET deleted_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NOT NULL`, now, id)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin restore tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, `UPDATE memories SET deleted_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NOT NULL`, now, id)
 	if err != nil {
 		return fmt.Errorf("failed to restore memory: %w", err)
 	}
@@ -708,6 +757,18 @@ func (s *SQLiteMemoryStore) Restore(ctx context.Context, id string) error {
 	}
 	if rows == 0 {
 		return model.ErrMemoryNotFound
+	}
+
+	// 重建 FTS5 索引（SoftDelete 时已清除）/ Rebuild FTS5 index (cleared during SoftDelete)
+	var mem model.Memory
+	if err := tx.QueryRowContext(ctx, `SELECT id, content, COALESCE(abstract, ''), COALESCE(summary, '') FROM memories WHERE id = ?`, id).Scan(&mem.ID, &mem.Content, &mem.Abstract, &mem.Summary); err == nil {
+		if syncErr := s.syncFTS5Tx(ctx, tx, &mem); syncErr != nil {
+			logger.Warn("failed to rebuild FTS5 on restore", zap.String("id", id), zap.Error(syncErr))
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit restore tx: %w", err)
 	}
 
 	return nil
@@ -736,6 +797,22 @@ func (s *SQLiteMemoryStore) Reinforce(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+// GetOwnerID 获取记忆的 owner_id（含 soft-deleted）/ Get owner_id including soft-deleted memories
+func (s *SQLiteMemoryStore) GetOwnerID(ctx context.Context, id string) (string, error) {
+	var ownerID sql.NullString
+	err := s.db.QueryRowContext(ctx, `SELECT owner_id FROM memories WHERE id = ?`, id).Scan(&ownerID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", model.ErrMemoryNotFound
+		}
+		return "", fmt.Errorf("failed to get owner_id: %w", err)
+	}
+	if ownerID.Valid {
+		return ownerID.String, nil
+	}
+	return "", nil
 }
 
 // IncrementAccessCount 递增访问计数 / Increment access count by delta
@@ -1038,10 +1115,40 @@ func applyV3Nullables(mem *model.Memory, retentionTier, messageRole sql.NullStri
 	}
 }
 
-// CleanupExpired 软删除已过期记忆 / Soft delete expired memories
+// CleanupExpired 软删除已过期记忆（单事务，消除 TOCTOU）/ Soft delete expired memories in a single transaction
 func (s *SQLiteMemoryStore) CleanupExpired(ctx context.Context) (int, error) {
 	now := time.Now().UTC()
-	result, err := s.db.ExecContext(ctx,
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin cleanup expired tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 在事务内查出即将软删除的行的 rowid / Collect rowids within transaction
+	expiredRows, err := tx.QueryContext(ctx,
+		`SELECT rowid FROM memories WHERE expires_at IS NOT NULL AND expires_at <= ? AND deleted_at IS NULL`, now)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query expired rowids: %w", err)
+	}
+	var rowids []int64
+	for expiredRows.Next() {
+		var rowid int64
+		if err := expiredRows.Scan(&rowid); err != nil {
+			expiredRows.Close()
+			return 0, fmt.Errorf("failed to scan expired rowid: %w", err)
+		}
+		rowids = append(rowids, rowid)
+	}
+	expiredRows.Close()
+
+	// 在事务内清理 FTS5 索引 / Clean FTS5 within transaction
+	for _, rowid := range rowids {
+		_ = s.deleteFTS5ByRowIDTx(ctx, tx, rowid)
+	}
+
+	// 在事务内执行软删除 / Soft delete within transaction
+	result, err := tx.ExecContext(ctx,
 		`UPDATE memories SET deleted_at = ?, updated_at = ?
 		WHERE expires_at IS NOT NULL AND expires_at <= ? AND deleted_at IS NULL`,
 		now, now, now)
@@ -1052,6 +1159,11 @@ func (s *SQLiteMemoryStore) CleanupExpired(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to get rows affected: %w", err)
 	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit cleanup expired tx: %w", err)
+	}
+
 	return int(rows), nil
 }
 
@@ -1078,19 +1190,19 @@ func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Dur
 	}
 	rows.Close()
 
-	// 删除 FTS5 条目（best-effort，事务外）
-	for _, rowid := range rowids {
-		if err := s.deleteFTS5ByRowID(ctx, rowid); err != nil {
-			// best-effort FTS5 清理
-		}
-	}
-
-	// 原子删除关联表记录和主记录 / Atomically delete association records and main records
+	// 原子删除：FTS5 + 关联表 + 主记录全在事务内 / Atomic purge: FTS5 + associations + main records in one tx
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin purge tx: %w", err)
 	}
 	defer tx.Rollback()
+
+	// 在事务内清理 FTS5 条目 / Clean FTS5 within transaction
+	for _, rowid := range rowids {
+		if ftsErr := s.deleteFTS5ByRowIDTx(ctx, tx, rowid); ftsErr != nil {
+			logger.Warn("purge: FTS5 cleanup failed", zap.Int64("rowid", rowid), zap.Error(ftsErr))
+		}
+	}
 
 	if len(memoryIDs) > 0 {
 		placeholders := strings.Repeat("?,", len(memoryIDs))
@@ -1273,4 +1385,27 @@ func timeToNull(t *time.Time) interface{} {
 		return nil
 	}
 	return *t
+}
+
+// ListMissingAbstract 列出缺少摘要的记忆 / List memories missing abstract
+func (s *SQLiteMemoryStore) ListMissingAbstract(ctx context.Context, limit int) ([]*model.Memory, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	query := `SELECT ` + memoryColumns + ` FROM memories WHERE (abstract = '' OR abstract IS NULL) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list missing abstract: %w", err)
+	}
+	defer rows.Close()
+
+	var memories []*model.Memory
+	for rows.Next() {
+		mem, err := s.scanMemoryFromRows(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan memory row: %w", err)
+		}
+		memories = append(memories, mem)
+	}
+	return memories, rows.Err()
 }

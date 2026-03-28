@@ -85,6 +85,12 @@ type MemoryStore interface {
 
 	// IncrementAccessCount 批量递增访问计数 / Increment access count by delta
 	IncrementAccessCount(ctx context.Context, id string, delta int) error
+
+	// GetOwnerID 获取记忆的 owner_id（含 soft-deleted）/ Get owner_id including soft-deleted memories
+	GetOwnerID(ctx context.Context, id string) (string, error)
+
+	// ListMissingAbstract 列出缺少摘要的记忆（排除软删除）/ List memories missing abstract (excluding soft-deleted)
+	ListMissingAbstract(ctx context.Context, limit int) ([]*model.Memory, error)
 }
 
 // VectorStore 向量存储接口 / Vector storage interface (Qdrant)
@@ -146,8 +152,11 @@ type ContextStore interface {
 	// Move 移动上下文 / Move context to new parent
 	Move(ctx context.Context, id string, newParentID string) error
 
-	// IncrementMemoryCount 递增记忆计数 / Increment memory count
+	// IncrementMemoryCount 递增记忆计数 / Increment memory count by 1
 	IncrementMemoryCount(ctx context.Context, id string) error
+
+	// IncrementMemoryCountBy 递增记忆计数（指定增量）/ Increment memory count by delta
+	IncrementMemoryCountBy(ctx context.Context, id string, delta int) error
 
 	// DecrementMemoryCount 递减记忆计数 / Decrement memory count
 	DecrementMemoryCount(ctx context.Context, id string) error
@@ -178,6 +187,9 @@ type TagStore interface {
 
 	// GetMemoriesByTag 获取标签下的所有记忆 / Get all memories with a specific tag
 	GetMemoriesByTag(ctx context.Context, tagID string, limit int) ([]*model.Memory, error)
+
+	// GetTagNamesByMemoryIDs 批量获取多条记忆的标签名 / Batch get tag names for multiple memories
+	GetTagNamesByMemoryIDs(ctx context.Context, ids []string) (map[string][]string, error)
 }
 
 // GraphStore 知识图谱存储接口 / Knowledge graph storage interface
@@ -217,6 +229,9 @@ type GraphStore interface {
 
 	// GetMemoryEntities 获取记忆关联的实体 / Get entities associated with a memory
 	GetMemoryEntities(ctx context.Context, memoryID string) ([]*model.Entity, error)
+
+	// FindEntitiesByName 按名称模糊匹配实体（索引查询，替代 ListEntities 全量扫描）/ Find entities by name (indexed query)
+	FindEntitiesByName(ctx context.Context, name string, scope string, limit int) ([]*model.Entity, error)
 }
 
 // DocumentStore 文档存储接口 / Document storage interface

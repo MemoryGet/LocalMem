@@ -123,7 +123,7 @@ func TestSQLiteMemoryStore_Get(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Equal(t, id, mem.ID)
-			assert.Equal(t, 1, mem.AccessCount) // 首次 Get 递增
+			assert.Equal(t, 0, mem.AccessCount) // Get 为纯读，不递增访问计数
 		})
 	}
 }
@@ -486,6 +486,103 @@ func TestSQLiteMemoryStore_SearchText(t *testing.T) {
 			for _, r := range results {
 				assert.Equal(t, "sqlite", r.Source)
 				assert.Greater(t, r.Score, float64(0))
+			}
+		})
+	}
+}
+
+func TestListMissingAbstract(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func(s store.MemoryStore) []string // returns IDs of memories without abstract
+		limit     int
+		wantCount int
+	}{
+		{
+			name: "returns memories with empty abstract",
+			setup: func(s store.MemoryStore) []string {
+				mem1 := &model.Memory{Content: "no abstract here"}
+				mem2 := &model.Memory{Content: "also no abstract"}
+				require.NoError(t, s.Create(context.Background(), mem1))
+				require.NoError(t, s.Create(context.Background(), mem2))
+				return []string{mem1.ID, mem2.ID}
+			},
+			limit:     10,
+			wantCount: 2,
+		},
+		{
+			name: "does not return memories with abstract set",
+			setup: func(s store.MemoryStore) []string {
+				memWithAbstract := &model.Memory{Content: "has abstract", Abstract: "this is an abstract"}
+				memNoAbstract := &model.Memory{Content: "no abstract"}
+				require.NoError(t, s.Create(context.Background(), memWithAbstract))
+				require.NoError(t, s.Create(context.Background(), memNoAbstract))
+				return []string{memNoAbstract.ID}
+			},
+			limit:     10,
+			wantCount: 1,
+		},
+		{
+			name: "does not return soft-deleted memories",
+			setup: func(s store.MemoryStore) []string {
+				memDeleted := &model.Memory{Content: "soft deleted no abstract"}
+				memActive := &model.Memory{Content: "active no abstract"}
+				require.NoError(t, s.Create(context.Background(), memDeleted))
+				require.NoError(t, s.Create(context.Background(), memActive))
+				require.NoError(t, s.SoftDelete(context.Background(), memDeleted.ID))
+				return []string{memActive.ID}
+			},
+			limit:     10,
+			wantCount: 1,
+		},
+		{
+			name: "respects limit parameter",
+			setup: func(s store.MemoryStore) []string {
+				ids := make([]string, 5)
+				for i := 0; i < 5; i++ {
+					mem := &model.Memory{Content: "no abstract item"}
+					require.NoError(t, s.Create(context.Background(), mem))
+					ids[i] = mem.ID
+				}
+				return ids
+			},
+			limit:     3,
+			wantCount: 3,
+		},
+		{
+			name: "zero limit defaults to 20",
+			setup: func(s store.MemoryStore) []string {
+				ids := make([]string, 5)
+				for i := 0; i < 5; i++ {
+					mem := &model.Memory{Content: "no abstract default limit"}
+					require.NoError(t, s.Create(context.Background(), mem))
+					ids[i] = mem.ID
+				}
+				return ids
+			},
+			limit:     0,
+			wantCount: 5,
+		},
+		{
+			name:      "empty store returns empty slice",
+			setup:     func(s store.MemoryStore) []string { return nil },
+			limit:     10,
+			wantCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, cleanup := setupTestStore(t)
+			defer cleanup()
+
+			tt.setup(s)
+			results, err := s.ListMissingAbstract(context.Background(), tt.limit)
+			require.NoError(t, err)
+			assert.Len(t, results, tt.wantCount)
+			for _, mem := range results {
+				assert.Empty(t, mem.Abstract, "all returned memories should have empty abstract")
+				assert.Nil(t, mem.DeletedAt, "all returned memories should not be soft-deleted")
 			}
 		})
 	}
