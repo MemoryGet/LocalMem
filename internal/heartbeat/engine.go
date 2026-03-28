@@ -4,6 +4,9 @@ package heartbeat
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
 
 	"iclude/internal/config"
 	"iclude/internal/llm"
@@ -19,21 +22,23 @@ type Engine struct {
 	graphStore store.GraphStore  // 可为 nil / may be nil
 	vecStore   store.VectorStore // 可为 nil / may be nil
 	llm        llm.Provider     // 可为 nil / may be nil
+	hbCfg      config.HeartbeatConfig // 注入配置 / injected config
 }
 
 // NewEngine 创建巡检引擎 / Create a new heartbeat engine
-func NewEngine(memStore store.MemoryStore, graphStore store.GraphStore, vecStore store.VectorStore, llmProvider llm.Provider) *Engine {
+func NewEngine(memStore store.MemoryStore, graphStore store.GraphStore, vecStore store.VectorStore, llmProvider llm.Provider, hbCfg config.HeartbeatConfig) *Engine {
 	return &Engine{
 		memStore:   memStore,
 		graphStore: graphStore,
 		vecStore:   vecStore,
 		llm:        llmProvider,
+		hbCfg:      hbCfg,
 	}
 }
 
 // Run 执行一轮巡检（由调度器调用）/ Execute one inspection round
 func (e *Engine) Run(ctx context.Context) error {
-	cfg := config.GetConfig().Heartbeat
+	cfg := e.hbCfg
 	if !cfg.Enabled {
 		return nil
 	}
@@ -59,6 +64,83 @@ func (e *Engine) Run(ctx context.Context) error {
 		}
 	}
 
+	// 4. 摘要补漏（需要 LLM）/ Abstract backfill (requires LLM)
+	if e.llm != nil {
+		if err := e.runAbstractBackfill(ctx); err != nil {
+			logger.Warn("heartbeat: abstract backfill failed", zap.Error(err))
+		}
+	}
+
 	logger.Info("heartbeat: inspection round completed")
 	return nil
+}
+
+// runAbstractBackfill 补充缺少摘要的记忆 / Backfill memories missing abstract
+func (e *Engine) runAbstractBackfill(ctx context.Context) error {
+	if e.llm == nil {
+		return nil
+	}
+
+	const batchLimit = 20
+	memories, err := e.memStore.ListMissingAbstract(ctx, batchLimit)
+	if err != nil {
+		return fmt.Errorf("list missing abstract: %w", err)
+	}
+	if len(memories) == 0 {
+		return nil
+	}
+
+	logger.Info("heartbeat: backfilling abstracts", zap.Int("count", len(memories)))
+
+	filled := 0
+	for _, mem := range memories {
+		if len([]rune(mem.Content)) <= 50 {
+			mem.Abstract = mem.Content
+		} else {
+			abstract, err := e.generateAbstract(ctx, mem.Content)
+			if err != nil {
+				logger.Warn("heartbeat: abstract generation failed, skipping",
+					zap.String("memory_id", mem.ID),
+					zap.Error(err),
+				)
+				continue
+			}
+			mem.Abstract = abstract
+		}
+
+		if err := e.memStore.Update(ctx, mem); err != nil {
+			logger.Warn("heartbeat: abstract update failed",
+				zap.String("memory_id", mem.ID),
+				zap.Error(err),
+			)
+			continue
+		}
+		filled++
+	}
+
+	logger.Info("heartbeat: abstract backfill completed", zap.Int("filled", filled))
+	return nil
+}
+
+// generateAbstract 调用 LLM 生成摘要 / Generate abstract via LLM
+func (e *Engine) generateAbstract(ctx context.Context, content string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	temp := 0.1
+	resp, err := e.llm.Chat(ctx, &llm.ChatRequest{
+		Messages: []llm.ChatMessage{
+			{Role: "system", Content: "用一句话（≤100字）概括以下内容的核心信息，直接输出摘要，不加前缀。"},
+			{Role: "user", Content: content},
+		},
+		Temperature: &temp,
+	})
+	if err != nil {
+		return "", fmt.Errorf("llm chat failed: %w", err)
+	}
+	abstract := strings.TrimSpace(resp.Content)
+	if len([]rune(abstract)) > 150 {
+		abstract = string([]rune(abstract)[:150])
+	}
+	return abstract, nil
 }
