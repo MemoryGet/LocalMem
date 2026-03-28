@@ -100,6 +100,7 @@ func main() {
 	}
 	reg.RegisterTool(tools.NewIngestConversationTool(deps.MemManager))
 	reg.RegisterTool(tools.NewTimelineTool(deps.Retriever))
+	reg.RegisterTool(tools.NewScanTool(retrieverAdapter))
 
 	// 注册资源 / Register resources
 	reg.RegisterResource(resources.NewRecentResource(deps.Retriever, 20))
