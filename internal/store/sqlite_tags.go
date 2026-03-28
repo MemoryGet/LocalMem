@@ -88,14 +88,20 @@ func (s *SQLiteTagStore) ListTags(ctx context.Context, scope string) ([]*model.T
 	return tags, nil
 }
 
-// DeleteTag 删除标签及其关联 / Delete a tag and its memory associations
+// DeleteTag 删除标签及其关联（原子操作）/ Delete a tag and its memory associations (atomic)
 func (s *SQLiteTagStore) DeleteTag(ctx context.Context, id string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete tag tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	// 先删除关联表记录
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM memory_tags WHERE tag_id = ?`, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM memory_tags WHERE tag_id = ?`, id); err != nil {
 		return fmt.Errorf("failed to delete memory_tags for tag: %w", err)
 	}
 
-	result, err := s.db.ExecContext(ctx, `DELETE FROM tags WHERE id = ?`, id)
+	result, err := tx.ExecContext(ctx, `DELETE FROM tags WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete tag: %w", err)
 	}
@@ -106,6 +112,10 @@ func (s *SQLiteTagStore) DeleteTag(ctx context.Context, id string) error {
 	}
 	if rows == 0 {
 		return model.ErrTagNotFound
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete tag tx: %w", err)
 	}
 
 	return nil
@@ -200,6 +210,41 @@ func (s *SQLiteTagStore) GetMemoriesByTag(ctx context.Context, tagID string, lim
 	}
 
 	return memories, nil
+}
+
+// GetTagNamesByMemoryIDs 批量获取多条记忆的标签名 / Batch get tag names for multiple memories
+func (s *SQLiteTagStore) GetTagNamesByMemoryIDs(ctx context.Context, ids []string) (map[string][]string, error) {
+	result := make(map[string][]string)
+	if len(ids) == 0 {
+		return result, nil
+	}
+
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(
+		`SELECT mt.memory_id, t.name FROM memory_tags mt JOIN tags t ON mt.tag_id = t.id WHERE mt.memory_id IN (%s) ORDER BY t.name`,
+		strings.Join(placeholders, ","),
+	)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get tag names: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var memID, tagName string
+		if err := rows.Scan(&memID, &tagName); err != nil {
+			return nil, fmt.Errorf("failed to scan tag name row: %w", err)
+		}
+		result[memID] = append(result[memID], tagName)
+	}
+	return result, rows.Err()
 }
 
 // scanMemoryRow 从结果集行扫描 Memory 对象（35 列），与 SQLiteMemoryStore.scanMemoryFromRows 相同

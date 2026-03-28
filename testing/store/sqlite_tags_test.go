@@ -124,3 +124,82 @@ func TestTagStore_DeleteTag(t *testing.T) {
 	_, err = ts.GetTag(context.Background(), tag.ID)
 	assert.ErrorIs(t, err, model.ErrTagNotFound)
 }
+
+func TestGetTagNamesByMemoryIDs(t *testing.T) {
+	ts, ms, cleanup := setupTagStore(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// 创建两条记忆
+	mem1 := &model.Memory{Content: "memory one"}
+	mem2 := &model.Memory{Content: "memory two"}
+	require.NoError(t, ms.Create(ctx, mem1))
+	require.NoError(t, ms.Create(ctx, mem2))
+
+	// 创建标签
+	tagA := &model.Tag{Name: "alpha", Scope: "default"}
+	tagB := &model.Tag{Name: "beta", Scope: "default"}
+	tagC := &model.Tag{Name: "gamma", Scope: "default"}
+	require.NoError(t, ts.CreateTag(ctx, tagA))
+	require.NoError(t, ts.CreateTag(ctx, tagB))
+	require.NoError(t, ts.CreateTag(ctx, tagC))
+
+	// mem1 → alpha, beta; mem2 → gamma
+	require.NoError(t, ts.TagMemory(ctx, mem1.ID, tagA.ID))
+	require.NoError(t, ts.TagMemory(ctx, mem1.ID, tagB.ID))
+	require.NoError(t, ts.TagMemory(ctx, mem2.ID, tagC.ID))
+
+	tests := []struct {
+		name      string
+		ids       []string
+		wantKeys  []string
+		wantTags  map[string][]string
+		wantEmpty bool
+	}{
+		{
+			name:    "both memories return correct tag names",
+			ids:     []string{mem1.ID, mem2.ID},
+			wantKeys: []string{mem1.ID, mem2.ID},
+			wantTags: map[string][]string{
+				mem1.ID: {"alpha", "beta"},
+				mem2.ID: {"gamma"},
+			},
+		},
+		{
+			name:    "single memory query",
+			ids:     []string{mem1.ID},
+			wantKeys: []string{mem1.ID},
+			wantTags: map[string][]string{
+				mem1.ID: {"alpha", "beta"},
+			},
+		},
+		{
+			name:      "empty ids returns empty map",
+			ids:       []string{},
+			wantEmpty: true,
+		},
+		{
+			name:      "non-existent id returns empty map",
+			ids:       []string{"does-not-exist"},
+			wantEmpty: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ts.GetTagNamesByMemoryIDs(ctx, tt.ids)
+			require.NoError(t, err)
+
+			if tt.wantEmpty {
+				assert.Empty(t, got)
+				return
+			}
+
+			assert.Len(t, got, len(tt.wantKeys))
+			for memID, expectedTags := range tt.wantTags {
+				assert.ElementsMatch(t, expectedTags, got[memID])
+			}
+		})
+	}
+}
