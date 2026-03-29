@@ -77,15 +77,6 @@ func (s *SQLiteDocumentStore) Create(ctx context.Context, doc *model.Document) e
 		doc.Status = "pending"
 	}
 
-	// 检查 content_hash 唯一性
-	if doc.ContentHash != "" {
-		var exists int
-		err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM documents WHERE content_hash = ?`, doc.ContentHash).Scan(&exists)
-		if err == nil && exists > 0 {
-			return fmt.Errorf("document with same content hash already exists: %w", model.ErrDuplicateDocument)
-		}
-	}
-
 	metadataVal, err := marshalMetadata(doc.Metadata)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
