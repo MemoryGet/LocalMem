@@ -41,7 +41,6 @@ func (r *ParseRouter) Parse(ctx context.Context, filePath string, docType string
 	if r.primary != nil && r.primary.Supports(docType) {
 		result, err := r.primary.Parse(ctx, filePath, docType)
 		if err == nil {
-			result.ParserName = "docling"
 			return result, nil
 		}
 		logger.Warn("primary parser failed, trying fallback",
@@ -53,7 +52,6 @@ func (r *ParseRouter) Parse(ctx context.Context, filePath string, docType string
 	if r.fallback != nil && r.fallback.Supports(docType) {
 		result, err := r.fallback.Parse(ctx, filePath, docType)
 		if err == nil {
-			result.ParserName = "tika"
 			return result, nil
 		}
 		return nil, fmt.Errorf("all parsers failed for %s: fallback: %w", docType, err)

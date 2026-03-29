@@ -12,6 +12,7 @@ import (
 	"iclude/internal/logger"
 	"iclude/internal/model"
 	"iclude/internal/store"
+	"iclude/pkg/mathutil"
 
 	"go.uber.org/zap"
 )
@@ -255,7 +256,7 @@ func agglomerativeClustering(memories []*model.Memory, vectors map[string][]floa
 				if len(vb) == 0 {
 					continue
 				}
-				total += 1.0 - cosineSimFloat32(va, vb)
+				total += 1.0 - mathutil.CosineSimilarity(va, vb)
 				count++
 			}
 		}
@@ -308,20 +309,3 @@ func agglomerativeClustering(memories []*model.Memory, vectors map[string][]floa
 	return result
 }
 
-// cosineSimFloat32 两个 float32 向量的余弦相似度
-func cosineSimFloat32(a, b []float32) float64 {
-	if len(a) != len(b) || len(a) == 0 {
-		return 0
-	}
-	var dot, na, nb float64
-	for i := range a {
-		dot += float64(a[i]) * float64(b[i])
-		na += float64(a[i]) * float64(a[i])
-		nb += float64(b[i]) * float64(b[i])
-	}
-	d := math.Sqrt(na) * math.Sqrt(nb)
-	if d == 0 {
-		return 0
-	}
-	return dot / d
-}

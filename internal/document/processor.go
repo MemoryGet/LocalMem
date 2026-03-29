@@ -119,6 +119,18 @@ func (p *Processor) Upload(ctx context.Context, name, docType, scope, contextID 
 // ProcessAsync 异步处理文档 / Asynchronously process a document
 func (p *Processor) ProcessAsync(docID string) {
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("document processing panicked",
+					zap.String("document_id", docID),
+					zap.Any("panic", r),
+				)
+				ctx := context.Background()
+				_ = p.docStore.UpdateStatus(ctx, docID, "failed")
+				_ = p.docStore.UpdateErrorMsg(ctx, docID, fmt.Sprintf("panic: %v", r))
+			}
+		}()
+
 		p.sem <- struct{}{}
 		defer func() { <-p.sem }()
 
