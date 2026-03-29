@@ -115,6 +115,9 @@ func main() {
 	reg.RegisterTool(tools.NewTimelineTool(deps.Retriever))
 	reg.RegisterTool(tools.NewScanTool(retrieverAdapter, deps.Stores.TagStore))
 	reg.RegisterTool(tools.NewFetchTool(getterAdapter))
+	if deps.ContextManager != nil {
+		reg.RegisterTool(tools.NewCreateSessionTool(deps.ContextManager))
+	}
 
 	// 注册资源 / Register resources
 	reg.RegisterResource(resources.NewRecentResource(deps.Retriever, 20))
