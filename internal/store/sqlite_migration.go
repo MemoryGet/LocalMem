@@ -835,11 +835,21 @@ func migrateV9ToV10(db *sql.DB) error {
 		}
 	}
 
+	// Add UNIQUE index on documents.content_hash (replaces non-unique index from V1) / 为 documents.content_hash 添加唯一索引
+	if _, err := tx.Exec(`DROP INDEX IF EXISTS idx_documents_content_hash`); err != nil {
+		// 索引可能不存在或文档表不存在，忽略错误 / Index may not exist or documents table may not exist, ignore error
+		logger.Debug("V9→V10: drop non-unique index skipped", zap.Error(err))
+	}
+	if _, err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_content_hash_unique ON documents(content_hash) WHERE content_hash != ''`); err != nil {
+		// documents 表可能不存在，忽略此错误 / Table may not exist in older databases, ignore
+		logger.Debug("V9→V10: create unique index skipped (table may not exist)", zap.Error(err))
+	}
+
 	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (10, datetime('now'))`); err != nil {
 		return fmt.Errorf("V9→V10 version write failed: %w", err)
 	}
 
-	logger.Info("migration V9→V10 completed: document extension fields")
+	logger.Info("migration V9→V10 completed: document extension fields + unique content_hash index")
 	return tx.Commit()
 }
 
