@@ -34,6 +34,7 @@ type Deps struct {
 	ContextManager *memory.ContextManager    // nil if ContextStore unavailable
 	GraphManager   *memory.GraphManager      // nil if GraphStore unavailable
 	DocProcessor   *document.Processor       // nil if DocumentStore unavailable
+	DocFileStore   document.FileStore        // nil if document pipeline disabled
 	ReflectEngine  *reflectpkg.ReflectEngine // nil if LLM unavailable
 	Extractor      *memory.Extractor         // nil if LLM or GraphStore unavailable
 	Scheduler      *scheduler.Scheduler
@@ -172,8 +173,16 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 	}
 
 	var docProcessor *document.Processor
+	var docFileStore document.FileStore
 	if stores.DocumentStore != nil {
-		docProcessor = document.NewProcessor(stores.DocumentStore, stores.MemoryStore, stores.Embedder, nil, nil, nil)
+		pipeline := document.InitDocumentPipeline(ctx, cfg.Document, stores.DocumentStore, stores.MemoryStore, stores.Embedder)
+		if pipeline != nil {
+			docProcessor = pipeline.Processor
+			docFileStore = pipeline.FileStore
+		} else {
+			// document.enabled=false 但 DocumentStore 可用时，保持基础功能
+			docProcessor = document.NewProcessor(stores.DocumentStore, stores.MemoryStore, stores.Embedder, nil, nil, nil)
+		}
 	}
 
 	var reflectEngine *reflectpkg.ReflectEngine
@@ -238,6 +247,7 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		ContextManager: ctxManager,
 		GraphManager:   graphManager,
 		DocProcessor:   docProcessor,
+		DocFileStore:   docFileStore,
 		ReflectEngine:  reflectEngine,
 		Extractor:      extractor,
 		Scheduler:      sched,

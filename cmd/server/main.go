@@ -41,6 +41,8 @@ func main() {
 		TagStore:           deps.Stores.TagStore,
 		ReflectEngine:      deps.ReflectEngine,
 		Extractor:          deps.Extractor,
+		FileStore:          deps.DocFileStore,
+		DocumentConfig:     cfg.Document,
 		AuthConfig:         cfg.Auth,
 		ReflectConfig:      cfg.Reflect,
 		CORSAllowedOrigins: cfg.Auth.CORSAllowedOrigins,
