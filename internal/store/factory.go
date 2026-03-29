@@ -22,6 +22,7 @@ type Stores struct {
 	GraphStore    GraphStore          // 可为 nil / may be nil
 	DocumentStore DocumentStore       // 可为 nil / may be nil
 	Tokenizer     tokenizer.Tokenizer // 可为 nil / may be nil (SQLite 未启用时)
+	RawDB         *sql.DB             // 底层 SQLite 连接（供 queue 等需要直接 DB 访问的组件使用）/ Raw SQLite connection for queue etc.
 }
 
 // InitStores 根据配置初始化存储后端 / Initialize storage backends based on config
@@ -56,6 +57,7 @@ func InitStores(ctx context.Context, cfg config.Config, embedder Embedder) (*Sto
 
 		// 从 MemoryStore 获取 *sql.DB，创建其他 store
 		if db, ok := ms.DB().(*sql.DB); ok {
+			stores.RawDB = db
 			stores.ContextStore = NewSQLiteContextStore(db)
 			stores.TagStore = NewSQLiteTagStore(db)
 			stores.GraphStore = NewSQLiteGraphStore(db)

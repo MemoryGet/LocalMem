@@ -3,7 +3,6 @@ package bootstrap
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -194,7 +193,8 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 	// 异步任务队列（在 scheduler 块之外创建，Manager 可直接引用）
 	var taskQueue *queue.Queue
 	if cfg.Queue.Enabled {
-		if sqlDB, ok := stores.MemoryStore.DB().(*sql.DB); ok {
+		if stores.RawDB != nil {
+			sqlDB := stores.RawDB
 			if err := queue.CreateTable(sqlDB); err != nil {
 				logger.Warn("failed to create async_tasks table", zap.Error(err))
 			} else {

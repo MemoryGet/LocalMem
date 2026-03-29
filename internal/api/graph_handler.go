@@ -223,6 +223,13 @@ func (h *GraphHandler) DeleteRelation(c *gin.Context) {
 	if identity == nil {
 		return
 	}
+	// TODO: GraphStore 尚无 GetRelation(id) 方法，无法在删除前验证关系归属的 scope。
+	// 当 GraphStore 接口增加 GetRelation 后，应先获取关系找到 source_entity，
+	// 再检查 entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem()。
+	// TODO: GraphStore has no GetRelation(id) method yet, so ownership cannot be verified
+	// before delete. Once GetRelation is added to the interface, fetch the relation to find
+	// its source entity and check entity.Scope against identity.OwnerID.
+	_ = identity
 
 	if err := h.manager.DeleteRelation(c.Request.Context(), c.Param("id")); err != nil {
 		Error(c, err)

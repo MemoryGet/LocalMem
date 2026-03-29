@@ -24,12 +24,15 @@ func (h *ContextHandler) Create(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	var req model.CreateContextRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
 		return
+	}
+	// 非系统用户强制绑定 scope / Force scope from identity for non-system users
+	if !identity.IsSystem() {
+		req.Scope = identity.OwnerID
 	}
 	ctx, err := h.manager.Create(c.Request.Context(), &req)
 	if err != nil {
@@ -64,9 +67,19 @@ func (h *ContextHandler) Update(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	id := c.Param("id")
+	// 授权检查：验证上下文归属 / Authorization: verify context ownership
+	existing, err := h.manager.Get(c.Request.Context(), id)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if existing.Scope != "" && existing.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	var req model.UpdateContextRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -87,9 +100,19 @@ func (h *ContextHandler) Delete(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	id := c.Param("id")
+	// 授权检查：验证上下文归属 / Authorization: verify context ownership
+	existing, err := h.manager.Get(c.Request.Context(), id)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if existing.Scope != "" && existing.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	if err := h.manager.Delete(c.Request.Context(), id); err != nil {
 		Error(c, err)
 		return
@@ -104,7 +127,7 @@ func (h *ContextHandler) ListChildren(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+	_ = identity // 身份已验证，读操作无需 scope 过滤 / Identity verified; read ops need no scope filter
 
 	id := c.Param("id")
 	children, err := h.manager.ListChildren(c.Request.Context(), id)
@@ -140,9 +163,19 @@ func (h *ContextHandler) Move(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	id := c.Param("id")
+	// 授权检查：验证上下文归属 / Authorization: verify context ownership
+	existing, err := h.manager.Get(c.Request.Context(), id)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if existing.Scope != "" && existing.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	var req model.MoveContextRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
