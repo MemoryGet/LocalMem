@@ -22,11 +22,14 @@ func NewRetainTool(manager MemoryCreator) *RetainTool { return &RetainTool{manag
 
 // retainArgs iclude_retain 工具参数 / iclude_retain tool arguments
 type retainArgs struct {
-	Content  string            `json:"content"`
-	Scope    string            `json:"scope,omitempty"`
-	Kind     string            `json:"kind,omitempty"`
-	Tags     []string          `json:"tags,omitempty"`
-	Metadata map[string]string `json:"metadata,omitempty"`
+	Content     string            `json:"content"`
+	Scope       string            `json:"scope,omitempty"`
+	Kind        string            `json:"kind,omitempty"`
+	Tags        []string          `json:"tags,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+	ContextID   string            `json:"context_id,omitempty"`
+	SourceType  string            `json:"source_type,omitempty"`
+	MessageRole string            `json:"message_role,omitempty"`
 }
 
 // Definition 返回工具元数据定义 / Return tool metadata definition
@@ -41,7 +44,10 @@ func (t *RetainTool) Definition() mcp.ToolDefinition {
                 "scope":{"type":"string","description":"Namespace scope for organization"},
                 "kind":{"type":"string","description":"Memory kind (fact, decision, preference, etc.)"},
                 "tags":{"type":"array","items":{"type":"string"},"description":"Optional tags"},
-                "metadata":{"type":"object","description":"Optional key-value metadata"}
+                "metadata":{"type":"object","description":"Optional key-value metadata"},
+                "context_id":{"type":"string","description":"Context ID to associate with (e.g. session context)"},
+                "source_type":{"type":"string","description":"Source type (manual, hook, conversation, api)"},
+                "message_role":{"type":"string","description":"Message role (user, assistant, tool, system)"}
             },
             "required":["content"]
         }`),
@@ -60,9 +66,12 @@ func (t *RetainTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 
 	id := mcp.IdentityFromContext(ctx)
 	mem := &model.Memory{
-		Content: args.Content,
-		Scope:   args.Scope,
-		Kind:    args.Kind,
+		Content:     args.Content,
+		Scope:       args.Scope,
+		Kind:        args.Kind,
+		ContextID:   args.ContextID,
+		SourceType:  args.SourceType,
+		MessageRole: args.MessageRole,
 	}
 	if id != nil {
 		mem.TeamID = id.TeamID
