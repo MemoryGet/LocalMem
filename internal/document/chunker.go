@@ -114,7 +114,8 @@ func (c *TextChunker) Chunk(content string, opts ChunkOptions) []Chunk {
 
 // recursiveSplit 递归分割文本 / Recursively split text by separators
 func recursiveSplit(text string, maxChars int) []string {
-	if len(text) <= maxChars {
+	runes := []rune(text)
+	if len(runes) <= maxChars {
 		return []string{text}
 	}
 
@@ -127,15 +128,21 @@ func recursiveSplit(text string, maxChars int) []string {
 
 		var result []string
 		var current strings.Builder
+		var currentRuneLen int
 		for _, part := range parts {
-			if current.Len() > 0 && current.Len()+len(sep)+len(part) > maxChars {
+			partRuneLen := len([]rune(part))
+			sepRuneLen := len([]rune(sep))
+			if currentRuneLen > 0 && currentRuneLen+sepRuneLen+partRuneLen > maxChars {
 				result = append(result, current.String())
 				current.Reset()
+				currentRuneLen = 0
 			}
-			if current.Len() > 0 {
+			if currentRuneLen > 0 {
 				current.WriteString(sep)
+				currentRuneLen += sepRuneLen
 			}
 			current.WriteString(part)
+			currentRuneLen += partRuneLen
 		}
 		if current.Len() > 0 {
 			result = append(result, current.String())
@@ -143,7 +150,7 @@ func recursiveSplit(text string, maxChars int) []string {
 
 		var final []string
 		for _, r := range result {
-			if len(r) > maxChars {
+			if len([]rune(r)) > maxChars {
 				final = append(final, recursiveSplit(r, maxChars)...)
 			} else {
 				final = append(final, r)
@@ -152,13 +159,14 @@ func recursiveSplit(text string, maxChars int) []string {
 		return final
 	}
 
+	// 硬切兜底（rune 安全）/ Hard cut fallback (rune-safe)
 	var result []string
-	for len(text) > maxChars {
-		result = append(result, text[:maxChars])
-		text = text[maxChars:]
+	for len(runes) > maxChars {
+		result = append(result, string(runes[:maxChars]))
+		runes = runes[maxChars:]
 	}
-	if len(text) > 0 {
-		result = append(result, text)
+	if len(runes) > 0 {
+		result = append(result, string(runes))
 	}
 	return result
 }
