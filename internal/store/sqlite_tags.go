@@ -64,10 +64,15 @@ func (s *SQLiteTagStore) GetTag(ctx context.Context, id string) (*model.Tag, err
 
 // ListTags 列出标签（可选 scope 过滤）/ List tags with optional scope filter
 func (s *SQLiteTagStore) ListTags(ctx context.Context, scope string) ([]*model.Tag, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, scope, created_at FROM tags WHERE (scope = ? OR ? = '') ORDER BY name`,
-		scope, scope,
-	)
+	var query string
+	var args []any
+	if scope == "" {
+		query = `SELECT id, name, scope, created_at FROM tags ORDER BY name`
+	} else {
+		query = `SELECT id, name, scope, created_at FROM tags WHERE scope = ? ORDER BY name`
+		args = append(args, scope)
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tags: %w", err)
 	}

@@ -14,7 +14,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 10
+const latestVersion = 11
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -129,6 +129,13 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 	if version < 10 {
 		if err := migrateV9ToV10(db); err != nil {
 			return fmt.Errorf("V9→V10 migration failed: %w", err)
+		}
+	}
+
+	// V10→V11: memory_tags 反向索引 + ConnMaxIdleTime 提示 / memory_tags reverse index
+	if version < 11 {
+		if err := migrateV10ToV11(db); err != nil {
+			return fmt.Errorf("V10→V11 migration failed: %w", err)
 		}
 	}
 
@@ -850,6 +857,58 @@ func migrateV9ToV10(db *sql.DB) error {
 	}
 
 	logger.Info("migration V9→V10 completed: document extension fields + unique content_hash index")
+	return tx.Commit()
+}
+
+// migrateV10ToV11 memory_tags 反向索引 + 文档索引 / memory_tags reverse index + document indexes
+func migrateV10ToV11(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 按表分组，仅当表存在时才创建对应索引 / Only create indexes when the table exists
+	tableIndexes := []struct {
+		table string
+		stmts []string
+	}{
+		{
+			table: "memory_tags",
+			stmts: []string{
+				`CREATE INDEX IF NOT EXISTS idx_memory_tags_tag_id ON memory_tags(tag_id)`,
+			},
+		},
+		{
+			table: "documents",
+			stmts: []string{
+				`CREATE INDEX IF NOT EXISTS idx_documents_scope ON documents(scope) WHERE scope != ''`,
+				`CREATE INDEX IF NOT EXISTS idx_documents_status_created ON documents(status, created_at)`,
+			},
+		},
+	}
+
+	for _, ti := range tableIndexes {
+		var cnt int
+		if err := tx.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", ti.table).Scan(&cnt); err != nil {
+			return fmt.Errorf("V10→V11 check table %s: %w", ti.table, err)
+		}
+		if cnt == 0 {
+			logger.Info("migration V10→V11: skip indexes for missing table", zap.String("table", ti.table))
+			continue
+		}
+		for _, stmt := range ti.stmts {
+			if _, err := tx.Exec(stmt); err != nil {
+				return fmt.Errorf("failed to execute %q: %w", stmt, err)
+			}
+		}
+	}
+
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (11, datetime('now'))`); err != nil {
+		return fmt.Errorf("V10→V11 schema_version: %w", err)
+	}
+
+	logger.Info("migration V10→V11 completed: memory_tags reverse index + document indexes")
 	return tx.Commit()
 }
 

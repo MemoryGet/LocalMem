@@ -116,8 +116,16 @@ func (s *SQLiteDocumentStore) Get(ctx context.Context, id string) (*model.Docume
 
 // List 分页列出文档 / List documents with pagination and optional scope filter
 func (s *SQLiteDocumentStore) List(ctx context.Context, scope string, offset, limit int) ([]*model.Document, error) {
-	query := fmt.Sprintf(`SELECT %s FROM documents WHERE (scope = ? OR ? = '') ORDER BY created_at DESC LIMIT ? OFFSET ?`, documentColumns)
-	rows, err := s.db.QueryContext(ctx, query, scope, scope, limit, offset)
+	var query string
+	var args []any
+	if scope == "" {
+		query = fmt.Sprintf(`SELECT %s FROM documents ORDER BY created_at DESC LIMIT ? OFFSET ?`, documentColumns)
+		args = []any{limit, offset}
+	} else {
+		query = fmt.Sprintf(`SELECT %s FROM documents WHERE scope = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`, documentColumns)
+		args = []any{scope, limit, offset}
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list documents: %w", err)
 	}
