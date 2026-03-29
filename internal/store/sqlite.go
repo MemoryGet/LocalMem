@@ -56,6 +56,9 @@ func NewSQLiteMemoryStore(dbPath string, bm25Weights [3]float64, tok tokenizer.T
 		"PRAGMA foreign_keys=ON",
 		"PRAGMA busy_timeout=5000",
 		"PRAGMA mmap_size=268435456",
+		"PRAGMA synchronous = NORMAL",
+		"PRAGMA cache_size = -32000",
+		"PRAGMA temp_store = MEMORY",
 	}
 	for _, pragma := range pragmas {
 		if _, err := db.Exec(pragma); err != nil {

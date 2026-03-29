@@ -44,7 +44,7 @@ func setupFullRouter(t *testing.T) (http.Handler, func()) {
 	ret := search.NewRetriever(s, nil, nil, nil, nil, config.RetrievalConfig{}, nil, nil)
 	ctxMgr := memory.NewContextManager(ctxStore)
 	graphMgr := memory.NewGraphManager(graphStore)
-	docProc := document.NewProcessor(docStore, s, nil, nil, nil, nil)
+	docProc := document.NewProcessor(docStore, mgr, nil, nil, nil, nil)
 
 	router := api.SetupRouter(&api.RouterDeps{
 		MemManager:     mgr,

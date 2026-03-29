@@ -175,13 +175,13 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 	var docProcessor *document.Processor
 	var docFileStore document.FileStore
 	if stores.DocumentStore != nil {
-		pipeline := document.InitDocumentPipeline(ctx, cfg.Document, stores.DocumentStore, stores.MemoryStore, stores.Embedder)
+		pipeline := document.InitDocumentPipeline(ctx, cfg.Document, stores.DocumentStore, memManager, stores.Embedder)
 		if pipeline != nil {
 			docProcessor = pipeline.Processor
 			docFileStore = pipeline.FileStore
 		} else {
 			// document.enabled=false 但 DocumentStore 可用时，保持基础功能
-			docProcessor = document.NewProcessor(stores.DocumentStore, stores.MemoryStore, stores.Embedder, nil, nil, nil)
+			docProcessor = document.NewProcessor(stores.DocumentStore, memManager, stores.Embedder, nil, nil, nil)
 		}
 	}
 

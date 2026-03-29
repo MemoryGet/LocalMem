@@ -7,6 +7,7 @@ import (
 
 	"iclude/internal/config"
 	"iclude/internal/logger"
+	"iclude/internal/memory"
 	"iclude/internal/store"
 
 	"go.uber.org/zap"
@@ -20,7 +21,7 @@ type Pipeline struct {
 
 // InitDocumentPipeline 初始化文档处理管线 / Initialize document processing pipeline
 // 返回 nil 如果 document.enabled=false 或 DocumentStore 不可用
-func InitDocumentPipeline(ctx context.Context, cfg config.DocumentConfig, docStore store.DocumentStore, memStore store.MemoryStore, embedder store.Embedder) *Pipeline {
+func InitDocumentPipeline(ctx context.Context, cfg config.DocumentConfig, docStore store.DocumentStore, memManager *memory.Manager, embedder store.Embedder) *Pipeline {
 	if !cfg.Enabled || docStore == nil {
 		return nil
 	}
@@ -86,7 +87,7 @@ func InitDocumentPipeline(ctx context.Context, cfg config.DocumentConfig, docSto
 		},
 	}
 
-	processor := NewProcessor(docStore, memStore, embedder, fileStore, parseRouter, chunker,
+	processor := NewProcessor(docStore, memManager, embedder, fileStore, parseRouter, chunker,
 		WithMaxConcurrent(cfg.MaxConcurrent),
 		WithProcessorConfig(procCfg),
 	)

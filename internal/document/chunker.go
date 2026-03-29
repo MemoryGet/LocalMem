@@ -32,12 +32,22 @@ type Chunk struct {
 	TokenCount int
 }
 
-// estimateTokens 估算 token 数 / Estimate token count
+// estimateTokens 估算 token 数（CJK 感知）/ Estimate token count (CJK-aware)
 func estimateTokens(s string) int {
 	if len(s) == 0 {
 		return 0
 	}
-	return (len(s) + 2) / 3
+	cjk := 0
+	total := 0
+	for _, r := range s {
+		total++
+		if r >= 0x2E80 && r <= 0x9FFF || r >= 0xF900 && r <= 0xFAFF {
+			cjk++
+		}
+	}
+	// CJK: ~1.5 chars/token; non-CJK: ~4 chars/token
+	nonCJK := total - cjk
+	return cjk*2/3 + nonCJK/4 + 1
 }
 
 // tokensToChars 将 token 数转为近似字符数 / Convert tokens to approximate char count
@@ -87,13 +97,13 @@ func (c *TextChunker) Chunk(content string, opts ChunkOptions) []Chunk {
 
 	if overlapChars > 0 && len(chunks) > 1 {
 		for i := 1; i < len(chunks); i++ {
-			prev := chunks[i-1].RawContent
+			prevRunes := []rune(chunks[i-1].RawContent)
 			ol := overlapChars
-			if ol > len(prev) {
-				ol = len(prev)
+			if ol > len(prevRunes) {
+				ol = len(prevRunes)
 			}
-			overlapText := prev[len(prev)-ol:]
-			chunks[i].RawContent = overlapText + chunks[i].RawContent
+			overlapText := string(prevRunes[len(prevRunes)-ol:])
+			chunks[i].RawContent = overlapText + "\n" + chunks[i].RawContent
 			chunks[i].Content = chunks[i].RawContent
 			chunks[i].TokenCount = estimateTokens(chunks[i].RawContent)
 		}

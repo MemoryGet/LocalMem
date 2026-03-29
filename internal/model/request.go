@@ -32,6 +32,10 @@ type CreateMemoryRequest struct {
 	// Phase 2: 自动实体抽取 / Auto entity extraction
 	AutoExtract bool `json:"auto_extract,omitempty"`
 
+	// 文档关联 / Document association
+	DocumentID string `json:"document_id,omitempty"`
+	ChunkIndex int    `json:"chunk_index,omitempty"`
+
 	// V6: 身份与可见性 / Identity & Visibility
 	OwnerID    string `json:"-"`                    // API 层注入 / Injected by API layer
 	Visibility string `json:"visibility,omitempty"` // private(default) / team / public

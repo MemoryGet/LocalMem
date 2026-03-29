@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"iclude/internal/logger"
+	"iclude/internal/memory"
 	"iclude/internal/model"
 	"iclude/internal/store"
 
@@ -19,7 +20,7 @@ import (
 // Processor 文档处理器 / Document processor for upload, parse, chunk, and ingest
 type Processor struct {
 	docStore    store.DocumentStore
-	memStore    store.MemoryStore
+	memManager  *memory.Manager
 	embedder    store.Embedder
 	fileStore   FileStore
 	parseRouter *ParseRouter
@@ -39,7 +40,7 @@ type ProcessorConfig struct {
 // NewProcessor 创建文档处理器 / Create document processor
 func NewProcessor(
 	docStore store.DocumentStore,
-	memStore store.MemoryStore,
+	memManager *memory.Manager,
 	embedder store.Embedder,
 	fileStore FileStore,
 	parseRouter *ParseRouter,
@@ -48,7 +49,7 @@ func NewProcessor(
 ) *Processor {
 	p := &Processor{
 		docStore:    docStore,
-		memStore:    memStore,
+		memManager:  memManager,
 		embedder:    embedder,
 		fileStore:   fileStore,
 		parseRouter: parseRouter,
@@ -179,7 +180,7 @@ func (p *Processor) processDocument(ctx context.Context, docID string) error {
 
 	var failedChunks []int
 	for _, chunk := range chunks {
-		mem := &model.Memory{
+		req := &model.CreateMemoryRequest{
 			Content:    chunk.Content,
 			SourceType: "document",
 			SourceRef:  doc.Name,
@@ -188,18 +189,16 @@ func (p *Processor) processDocument(ctx context.Context, docID string) error {
 			Scope:      doc.Scope,
 			Kind:       "note",
 			Summary:    chunk.Heading,
-			Metadata: map[string]any{
-				"chunk_type": chunk.ChunkType,
-			},
+			Metadata:   map[string]any{"chunk_type": chunk.ChunkType},
 		}
 		if chunk.PageStart > 0 {
-			mem.Metadata["page_start"] = chunk.PageStart
+			req.Metadata["page_start"] = chunk.PageStart
 		}
 		if doc.ContextID != "" {
-			mem.ContextID = doc.ContextID
+			req.ContextID = doc.ContextID
 		}
 
-		if err := p.memStore.Create(ctx, mem); err != nil {
+		if _, err := p.memManager.Create(ctx, req); err != nil {
 			logger.Error("failed to create memory for chunk",
 				zap.String("document_id", docID),
 				zap.Int("chunk_index", chunk.Index),
@@ -260,7 +259,7 @@ func (p *Processor) Process(ctx context.Context, docID string, content string) e
 	doc.Parser = "manual"
 
 	for _, chunk := range chunks {
-		mem := &model.Memory{
+		req := &model.CreateMemoryRequest{
 			Content:    chunk.Content,
 			SourceType: "document",
 			SourceRef:  doc.Name,
@@ -270,10 +269,10 @@ func (p *Processor) Process(ctx context.Context, docID string, content string) e
 			Kind:       "note",
 		}
 		if doc.ContextID != "" {
-			mem.ContextID = doc.ContextID
+			req.ContextID = doc.ContextID
 		}
 
-		if err := p.memStore.Create(ctx, mem); err != nil {
+		if _, err := p.memManager.Create(ctx, req); err != nil {
 			logger.Error("failed to create memory for document chunk",
 				zap.String("document_id", docID),
 				zap.Int("chunk_index", chunk.Index),

@@ -133,6 +133,8 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		HappenedAt:    req.HappenedAt,
 		SourceType:    req.SourceType,
 		SourceRef:     req.SourceRef,
+		DocumentID:    req.DocumentID,
+		ChunkIndex:    req.ChunkIndex,
 		RetentionTier: req.RetentionTier,
 		MessageRole:   req.MessageRole,
 		TurnNumber:    req.TurnNumber,
