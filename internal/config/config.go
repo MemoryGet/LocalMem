@@ -31,6 +31,7 @@ type Config struct {
 	MCP             MCPConfig             `mapstructure:"mcp"`
 	Queue           QueueConfig           `mapstructure:"queue"`
 	Hooks           HooksConfig           `mapstructure:"hooks"`
+	Document        DocumentConfig        `mapstructure:"document"`
 }
 
 // StorageConfig 存储配置 / Storage configuration
@@ -359,6 +360,25 @@ func LoadConfig() error {
 	// Auth 默认值 / Auth defaults
 	viper.SetDefault("auth.enabled", true)
 	viper.SetDefault("auth.cors_allowed_origins", []string{"*"})
+	// Document 默认值 / Document defaults
+	viper.SetDefault("document.enabled", false)
+	viper.SetDefault("document.max_concurrent", 3)
+	viper.SetDefault("document.process_timeout", "10m")
+	viper.SetDefault("document.max_file_size", 104857600) // 100MB
+	viper.SetDefault("document.cleanup_after_parse", true)
+	viper.SetDefault("document.keep_images", true)
+	viper.SetDefault("document.allowed_types", []string{"pdf", "docx", "pptx", "xlsx", "md", "html", "txt", "png", "jpg", "jpeg"})
+	viper.SetDefault("document.file_store.provider", "local")
+	viper.SetDefault("document.file_store.local.base_dir", "./data/uploads")
+	viper.SetDefault("document.docling.url", "http://localhost:5001")
+	viper.SetDefault("document.docling.timeout", "120s")
+	viper.SetDefault("document.tika.url", "http://localhost:9998")
+	viper.SetDefault("document.tika.timeout", "60s")
+	viper.SetDefault("document.chunking.max_tokens", 512)
+	viper.SetDefault("document.chunking.overlap_tokens", 50)
+	viper.SetDefault("document.chunking.context_prefix", true)
+	viper.SetDefault("document.chunking.keep_table_intact", true)
+	viper.SetDefault("document.chunking.keep_code_intact", true)
 
 	// 从环境变量读取
 	viper.AutomaticEnv()

@@ -126,3 +126,29 @@ hooks:
   max_output_chars: 500
   inject_limit: 20
   summary_limit: 50
+
+# Document 文档处理配置 / Document processing configuration
+document:
+  enabled: false                        # 需要 docling/tika sidecar / Requires docling/tika sidecar
+  max_concurrent: 3
+  process_timeout: 10m
+  max_file_size: 104857600              # 100MB
+  cleanup_after_parse: true
+  keep_images: true
+  allowed_types: [pdf, docx, pptx, xlsx, md, html, txt, png, jpg, jpeg]
+  file_store:
+    provider: "local"
+    local:
+      base_dir: "./data/uploads"
+  docling:
+    url: "http://localhost:5001"
+    timeout: 120s
+  tika:
+    url: "http://localhost:9998"
+    timeout: 60s
+  chunking:
+    max_tokens: 512
+    overlap_tokens: 50
+    context_prefix: true
+    keep_table_intact: true
+    keep_code_intact: true
