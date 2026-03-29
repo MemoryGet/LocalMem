@@ -1,8 +1,15 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"io"
+	"path/filepath"
 	"strconv"
+	"strings"
 
+	"iclude/internal/config"
 	"iclude/internal/document"
 	"iclude/internal/model"
 
@@ -12,31 +19,127 @@ import (
 // DocumentHandler 文档处理器 / Document handler
 type DocumentHandler struct {
 	processor *document.Processor
+	fileStore document.FileStore
+	docCfg    config.DocumentConfig
 }
 
 // NewDocumentHandler 创建文档处理器 / Create document handler
-func NewDocumentHandler(processor *document.Processor) *DocumentHandler {
-	return &DocumentHandler{processor: processor}
+func NewDocumentHandler(processor *document.Processor, fileStore document.FileStore, docCfg config.DocumentConfig) *DocumentHandler {
+	return &DocumentHandler{processor: processor, fileStore: fileStore, docCfg: docCfg}
 }
 
-// Upload 上传文档 / POST /v1/documents
+// Upload 文件上传 / POST /v1/documents/upload (multipart/form-data)
 func (h *DocumentHandler) Upload(c *gin.Context) {
 	identity := requireIdentity(c)
 	if identity == nil {
 		return
 	}
 
-	var req model.CreateDocumentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		Error(c, model.ErrInvalidInput)
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		Error(c, fmt.Errorf("file is required: %w", model.ErrInvalidInput))
 		return
 	}
-	doc, err := h.processor.Upload(c.Request.Context(), req.Name, req.DocType, req.Scope, req.ContextID, req.FileSize, req.Metadata)
+	defer file.Close()
+
+	// 校验文件大小
+	if header.Size > h.docCfg.MaxFileSize {
+		Error(c, model.ErrFileTooLarge)
+		return
+	}
+
+	// 校验文件类型
+	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(header.Filename)), ".")
+	if !h.isAllowedType(ext) {
+		Error(c, model.ErrUnsupportedFileType)
+		return
+	}
+
+	// 文档名
+	name := c.PostForm("name")
+	if name == "" {
+		name = header.Filename
+	}
+	scope := identity.OwnerID
+	contextID := c.PostForm("context_id")
+
+	// 解析 metadata
+	var metadata map[string]any
+	if metaStr := c.PostForm("metadata"); metaStr != "" {
+		if err := json.Unmarshal([]byte(metaStr), &metadata); err != nil {
+			Error(c, fmt.Errorf("invalid metadata JSON: %w", model.ErrInvalidInput))
+			return
+		}
+	}
+
+	// 创建文档记录
+	doc, err := h.processor.Upload(c.Request.Context(), name, ext, scope, contextID, header.Size, metadata)
 	if err != nil {
 		Error(c, err)
 		return
 	}
+
+	// 计算 SHA-256 做去重
+	hasher := sha256.New()
+	teeReader := io.TeeReader(file, hasher)
+
+	// 保存文件
+	if h.fileStore == nil {
+		Error(c, fmt.Errorf("file store not configured: %w", model.ErrStorageUnavailable))
+		return
+	}
+	filePath, err := h.fileStore.Save(c.Request.Context(), doc.ID, header.Filename, teeReader)
+	if err != nil {
+		Error(c, fmt.Errorf("failed to save file: %w", err))
+		return
+	}
+
+	contentHash := fmt.Sprintf("%x", hasher.Sum(nil))
+
+	// 文件级去重检查
+	existing, dupErr := h.processor.GetDocumentByHash(c.Request.Context(), contentHash, scope)
+	if dupErr == nil && existing != nil {
+		_ = h.fileStore.Delete(c.Request.Context(), filepath.Dir(filePath))
+		Success(c, existing)
+		return
+	}
+
+	// 更新文件路径和哈希
+	doc.FilePath = filePath
+	doc.ContentHash = contentHash
+	h.processor.UpdateDocFilePath(c.Request.Context(), doc)
+
+	// 异步处理
+	h.processor.ProcessAsync(doc.ID)
+
 	Created(c, doc)
+}
+
+// Status 获取处理状态 / GET /v1/documents/:id/status
+func (h *DocumentHandler) Status(c *gin.Context) {
+	identity := requireIdentity(c)
+	if identity == nil {
+		return
+	}
+
+	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if doc.Scope != "" && doc.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
+	Success(c, gin.H{
+		"id":          doc.ID,
+		"status":      doc.Status,
+		"stage":       doc.Stage,
+		"parser":      doc.Parser,
+		"chunk_count": doc.ChunkCount,
+		"error_msg":   doc.ErrorMsg,
+	})
 }
 
 // Get 获取文档 / GET /v1/documents/:id
@@ -51,7 +154,6 @@ func (h *DocumentHandler) Get(c *gin.Context) {
 		Error(c, err)
 		return
 	}
-	// 授权检查：scope 不匹配则拒绝 / Authorization: reject if scope does not match owner
 	if doc.Scope != "" && doc.Scope != identity.OwnerID && !identity.IsSystem() {
 		Error(c, model.ErrForbidden)
 		return
@@ -66,10 +168,8 @@ func (h *DocumentHandler) List(c *gin.Context) {
 		return
 	}
 
-	// 强制以当前用户 OwnerID 作为 scope 过滤，防止跨用户数据泄露 / Force scope to caller's OwnerID to prevent cross-user data leakage
 	scope := identity.OwnerID
 	if identity.IsSystem() {
-		// 系统身份允许使用请求中指定的 scope / System identity may use the requested scope
 		scope = c.Query("scope")
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -89,7 +189,6 @@ func (h *DocumentHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	// 授权检查：先获取文档，验证 scope 归属 / Authorization: fetch doc first, verify scope ownership
 	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -107,13 +206,13 @@ func (h *DocumentHandler) Delete(c *gin.Context) {
 	Success(c, nil)
 }
 
-// Process 处理文档 / POST /v1/documents/:id/reprocess
+// Process 手动纯文本处理 / POST /v1/documents/:id/reprocess
 func (h *DocumentHandler) Process(c *gin.Context) {
 	identity := requireIdentity(c)
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+	_ = identity
 
 	var body struct {
 		Content string `json:"content" binding:"required"`
@@ -127,4 +226,14 @@ func (h *DocumentHandler) Process(c *gin.Context) {
 		return
 	}
 	Success(c, nil)
+}
+
+// isAllowedType 检查文件类型白名单 / Check file type allowlist
+func (h *DocumentHandler) isAllowedType(ext string) bool {
+	for _, allowed := range h.docCfg.AllowedTypes {
+		if strings.EqualFold(ext, allowed) {
+			return true
+		}
+	}
+	return false
 }

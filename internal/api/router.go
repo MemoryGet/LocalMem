@@ -20,7 +20,9 @@ type RouterDeps struct {
 	DocProcessor       *document.Processor
 	TagStore           store.TagStore
 	ReflectEngine      *reflectpkg.ReflectEngine
-	Extractor          *memory.Extractor // 可为 nil / may be nil
+	Extractor          *memory.Extractor      // 可为 nil / may be nil
+	FileStore          document.FileStore     // nil if document disabled
+	DocumentConfig     config.DocumentConfig
 	AuthConfig         config.AuthConfig
 	ReflectConfig      config.ReflectConfig
 	CORSAllowedOrigins []string
@@ -118,12 +120,16 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 
 		// Documents
 		if deps.DocProcessor != nil {
-			docHandler := NewDocumentHandler(deps.DocProcessor)
-			v1.POST("/documents", writeRateLimit, docHandler.Upload)
-			v1.GET("/documents", docHandler.List)
-			v1.GET("/documents/:id", docHandler.Get)
-			v1.DELETE("/documents/:id", docHandler.Delete)
-			v1.POST("/documents/:id/reprocess", docHandler.Process)
+			docHandler := NewDocumentHandler(deps.DocProcessor, deps.FileStore, deps.DocumentConfig)
+			docGroup := v1.Group("/documents")
+			{
+				docGroup.POST("/upload", MaxBodySizeMiddleware(deps.DocumentConfig.MaxFileSize+1<<20), writeRateLimit, docHandler.Upload)
+				docGroup.GET("", docHandler.List)
+				docGroup.GET("/:id", docHandler.Get)
+				docGroup.GET("/:id/status", docHandler.Status)
+				docGroup.DELETE("/:id", docHandler.Delete)
+				docGroup.POST("/:id/reprocess", docHandler.Process)
+			}
 		}
 
 		// LLM 密集型接口使用更严格的速率限制 / Stricter rate limit for LLM-intensive endpoints
