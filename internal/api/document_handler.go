@@ -279,7 +279,6 @@ func isAllowedMIME(mime string) bool {
 		"image/png",
 		"image/jpeg",
 		"image/gif",
-		"application/octet-stream", // fallback for unrecognized binary
 	}
 	for _, a := range allowed {
 		if strings.HasPrefix(mime, a) {

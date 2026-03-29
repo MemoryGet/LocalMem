@@ -156,7 +156,7 @@ func (p *Processor) processDocument(ctx context.Context, docID string) error {
 		return fmt.Errorf("parse failed: %w", err)
 	}
 
-	doc.Parser = p.parseRouter.ParserUsed(doc.DocType)
+	doc.Parser = result.ParserName
 
 	// 计算内容哈希
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(result.Content)))
@@ -316,6 +316,21 @@ func (p *Processor) DeleteDocument(ctx context.Context, id string) error {
 	doc, err := p.docStore.Get(ctx, id)
 	if err != nil {
 		return err
+	}
+
+	// 软删除关联的分块记忆 / Soft delete associated chunk memories
+	if p.memManager != nil {
+		if n, err := p.memManager.DeleteChunksByDocumentID(ctx, id); err != nil {
+			logger.Warn("failed to delete chunk memories for document",
+				zap.String("document_id", id),
+				zap.Error(err),
+			)
+		} else {
+			logger.Info("deleted chunk memories for document",
+				zap.String("document_id", id),
+				zap.Int("count", n),
+			)
+		}
 	}
 
 	// 清理源文件

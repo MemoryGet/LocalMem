@@ -637,6 +637,14 @@ func (m *Manager) GetConversation(ctx context.Context, contextID string, identit
 	return m.memStore.ListByContextOrdered(ctx, contextID, identity, offset, limit)
 }
 
+// DeleteChunksByDocumentID 软删除文档的所有分块记忆 / Soft delete all chunk memories for a document
+func (m *Manager) DeleteChunksByDocumentID(ctx context.Context, documentID string) (int, error) {
+	if documentID == "" {
+		return 0, fmt.Errorf("document_id is required: %w", model.ErrInvalidInput)
+	}
+	return m.memStore.SoftDeleteByDocumentID(ctx, documentID)
+}
+
 // CleanupExpired 清理过期记忆 / Cleanup expired memories
 func (m *Manager) CleanupExpired(ctx context.Context) (int, error) {
 	return m.memStore.CleanupExpired(ctx)

@@ -77,8 +77,9 @@ func (p *TikaParser) Parse(ctx context.Context, filePath string, docType string)
 	)
 
 	return &ParseResult{
-		Content: content,
-		Format:  "plaintext",
+		Content:    content,
+		Format:     "plaintext",
+		ParserName: "tika",
 	}, nil
 }
 

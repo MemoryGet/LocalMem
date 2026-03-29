@@ -97,9 +97,10 @@ func (p *DoclingParser) Parse(ctx context.Context, filePath string, docType stri
 	)
 
 	return &ParseResult{
-		Content:  doclingResp.Document.MdContent,
-		Format:   "markdown",
-		Metadata: doclingResp.Metadata,
+		Content:    doclingResp.Document.MdContent,
+		Format:     "markdown",
+		Metadata:   doclingResp.Metadata,
+		ParserName: "docling",
 	}, nil
 }
 

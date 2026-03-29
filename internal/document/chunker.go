@@ -4,6 +4,8 @@ package document
 import (
 	"fmt"
 	"strings"
+
+	"iclude/pkg/tokenutil"
 )
 
 // Chunker 分块器接口 / Chunker interface
@@ -33,21 +35,9 @@ type Chunk struct {
 }
 
 // estimateTokens 估算 token 数（CJK 感知）/ Estimate token count (CJK-aware)
+// 委托给 pkg/tokenutil 统一实现 / Delegates to shared tokenutil package
 func estimateTokens(s string) int {
-	if len(s) == 0 {
-		return 0
-	}
-	cjk := 0
-	total := 0
-	for _, r := range s {
-		total++
-		if r >= 0x2E80 && r <= 0x9FFF || r >= 0xF900 && r <= 0xFAFF {
-			cjk++
-		}
-	}
-	// CJK: ~1.5 chars/token; non-CJK: ~4 chars/token
-	nonCJK := total - cjk
-	return cjk*2/3 + nonCJK/4 + 1
+	return tokenutil.EstimateTokens(s)
 }
 
 // tokensToChars 将 token 数转为近似字符数 / Convert tokens to approximate char count

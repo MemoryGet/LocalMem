@@ -32,6 +32,9 @@ func NewLocalFileStore(baseDir string) *LocalFileStore {
 // Save 保存文件到本地 / Save file to local filesystem
 func (s *LocalFileStore) Save(ctx context.Context, docID string, filename string, reader io.Reader) (string, error) {
 	dir := filepath.Join(s.baseDir, docID)
+	if err := s.validatePath(dir); err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create upload dir: %w", err)
 	}

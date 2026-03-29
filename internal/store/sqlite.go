@@ -739,6 +739,61 @@ func (s *SQLiteMemoryStore) SoftDelete(ctx context.Context, id string) error {
 	return nil
 }
 
+// SoftDeleteByDocumentID 软删除关联文档的所有记忆 / Soft delete all memories linked to a document
+func (s *SQLiteMemoryStore) SoftDeleteByDocumentID(ctx context.Context, documentID string) (int, error) {
+	now := time.Now().UTC()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin soft delete by document tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 先收集需要清理 FTS5 的 rowid 列表
+	rows, err := tx.QueryContext(ctx, `SELECT rowid FROM memories WHERE document_id = ? AND deleted_at IS NULL`, documentID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query document memories: %w", err)
+	}
+	var rowIDs []int64
+	for rows.Next() {
+		var rowid int64
+		if scanErr := rows.Scan(&rowid); scanErr == nil {
+			rowIDs = append(rowIDs, rowid)
+		}
+	}
+	rows.Close()
+
+	result, err := tx.ExecContext(ctx,
+		`UPDATE memories SET deleted_at = ?, updated_at = ? WHERE document_id = ? AND deleted_at IS NULL`,
+		now, now, documentID,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to soft delete document memories: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	// 清理 FTS5 索引 / Remove FTS5 index entries
+	for _, rowid := range rowIDs {
+		if ftsErr := s.deleteFTS5ByRowIDTx(ctx, tx, rowid); ftsErr != nil {
+			logger.Warn("soft delete by document: FTS5 cleanup failed",
+				zap.String("document_id", documentID),
+				zap.Int64("rowid", rowid),
+				zap.Error(ftsErr),
+			)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit soft delete by document tx: %w", err)
+	}
+
+	return int(affected), nil
+}
+
 // Restore 恢复软删除的记忆 / Restore a soft-deleted memory
 func (s *SQLiteMemoryStore) Restore(ctx context.Context, id string) error {
 	now := time.Now().UTC()

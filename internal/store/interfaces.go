@@ -91,6 +91,9 @@ type MemoryStore interface {
 
 	// ListMissingAbstract 列出缺少摘要的记忆（排除软删除）/ List memories missing abstract (excluding soft-deleted)
 	ListMissingAbstract(ctx context.Context, limit int) ([]*model.Memory, error)
+
+	// SoftDeleteByDocumentID 软删除关联文档的所有记忆 / Soft delete all memories linked to a document
+	SoftDeleteByDocumentID(ctx context.Context, documentID string) (int, error)
 }
 
 // VectorStore 向量存储接口 / Vector storage interface (Qdrant)

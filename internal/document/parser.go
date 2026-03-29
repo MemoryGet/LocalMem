@@ -19,9 +19,10 @@ type Parser interface {
 
 // ParseResult 解析结果 / Parse result
 type ParseResult struct {
-	Content  string         `json:"content"`
-	Format   string         `json:"format"`   // "markdown" | "plaintext"
-	Metadata map[string]any `json:"metadata"`
+	Content    string         `json:"content"`
+	Format     string         `json:"format"`      // "markdown" | "plaintext"
+	Metadata   map[string]any `json:"metadata"`
+	ParserName string         `json:"parser_name"` // 实际使用的解析器 / Actual parser used
 }
 
 // ParseRouter 解析路由器 / Parse router with primary → fallback chain
@@ -40,6 +41,7 @@ func (r *ParseRouter) Parse(ctx context.Context, filePath string, docType string
 	if r.primary != nil && r.primary.Supports(docType) {
 		result, err := r.primary.Parse(ctx, filePath, docType)
 		if err == nil {
+			result.ParserName = "docling"
 			return result, nil
 		}
 		logger.Warn("primary parser failed, trying fallback",
@@ -51,6 +53,7 @@ func (r *ParseRouter) Parse(ctx context.Context, filePath string, docType string
 	if r.fallback != nil && r.fallback.Supports(docType) {
 		result, err := r.fallback.Parse(ctx, filePath, docType)
 		if err == nil {
+			result.ParserName = "tika"
 			return result, nil
 		}
 		return nil, fmt.Errorf("all parsers failed for %s: fallback: %w", docType, err)
