@@ -469,7 +469,7 @@ func TestFullIntegration(t *testing.T) {
 		code, resp := doRequest(t, router, "POST", "/v1/entities", map[string]any{
 			"name":        "Go",
 			"entity_type": "tool",
-			"scope":       "tech",
+			"scope":       "anonymous",
 			"description": "Go 编程语言",
 		})
 		require.Equal(t, http.StatusCreated, code)
@@ -480,7 +480,7 @@ func TestFullIntegration(t *testing.T) {
 		code, resp = doRequest(t, router, "POST", "/v1/entities", map[string]any{
 			"name":        "SQLite",
 			"entity_type": "tool",
-			"scope":       "tech",
+			"scope":       "anonymous",
 			"description": "嵌入式关系数据库",
 		})
 		require.Equal(t, http.StatusCreated, code)
@@ -516,11 +516,11 @@ func TestFullIntegration(t *testing.T) {
 		assert.GreaterOrEqual(t, len(relations), 1)
 
 		// 列出所有实体
-		code, resp = doRequest(t, router, "GET", "/v1/entities?scope=tech", nil)
+		code, resp = doRequest(t, router, "GET", "/v1/entities?scope=anonymous", nil)
 		assert.Equal(t, http.StatusOK, code)
 		var entities []map[string]any
 		json.Unmarshal(resp.Data, &entities)
-		t.Logf("  Entities in scope=tech: %d", len(entities))
+		t.Logf("  Entities in scope=anonymous: %d", len(entities))
 		assert.GreaterOrEqual(t, len(entities), 2)
 	}
 

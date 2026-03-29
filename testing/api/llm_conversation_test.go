@@ -684,7 +684,7 @@ func TestLLMConversation_WithTagsAndEntities(t *testing.T) {
 	reqBody := map[string]any{
 		"provider":    "claude",
 		"external_id": "msg-entities-001",
-		"scope":       "team/engineering",
+		"scope":       "anonymous",
 		"messages": []map[string]any{
 			{"role": "user", "content": "We should consider switching from Redis to Valkey for caching."},
 			{"role": "assistant", "content": "That's a good suggestion. Valkey is the community fork of Redis after the license change. It maintains API compatibility while being fully open source under BSD license."},
@@ -704,7 +704,7 @@ func TestLLMConversation_WithTagsAndEntities(t *testing.T) {
 	code, resp = doRequest(t, router, "POST", "/v1/entities", map[string]any{
 		"name":        "Redis",
 		"entity_type": "technology",
-		"scope":       "team/engineering",
+		"scope":       "anonymous",
 	})
 	require.Equal(t, http.StatusCreated, code)
 	redisID := extractID(t, resp)
@@ -712,7 +712,7 @@ func TestLLMConversation_WithTagsAndEntities(t *testing.T) {
 	code, resp = doRequest(t, router, "POST", "/v1/entities", map[string]any{
 		"name":        "Valkey",
 		"entity_type": "technology",
-		"scope":       "team/engineering",
+		"scope":       "anonymous",
 	})
 	require.Equal(t, http.StatusCreated, code)
 	valkeyID := extractID(t, resp)
