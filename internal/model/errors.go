@@ -77,4 +77,13 @@ var (
 
 	// ErrForbidden 无权访问 / Access denied
 	ErrForbidden = errors.New("access denied")
+
+	// ErrFileTooLarge 文件过大 / File too large
+	ErrFileTooLarge = errors.New("file too large")
+
+	// ErrUnsupportedFileType 不支持的文件类型 / Unsupported file type
+	ErrUnsupportedFileType = errors.New("unsupported file type")
+
+	// ErrParseFailure 文档解析失败 / Document parse failure
+	ErrParseFailure = errors.New("document parse failure")
 )

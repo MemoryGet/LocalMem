@@ -14,7 +14,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 9
+const latestVersion = 10
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -123,6 +123,13 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 			return fmt.Errorf("migrate V8→V9: %w", err)
 		}
 		version = 9
+	}
+
+	// V9→V10: 文档扩展字段 / Document extension fields (error_msg, stage, parser)
+	if version < 10 {
+		if err := migrateV9ToV10(db); err != nil {
+			return fmt.Errorf("V9→V10 migration failed: %w", err)
+		}
 	}
 
 	return nil
@@ -803,6 +810,30 @@ func migrateAddPerformanceIndexes(db *sql.DB) error {
 		return fmt.Errorf("commit performance index tx: %w", err)
 	}
 	return nil
+}
+
+// migrateV9ToV10 文档扩展字段 / Document extension fields (error_msg, stage, parser)
+func migrateV9ToV10(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmts := []string{
+		`ALTER TABLE documents ADD COLUMN error_msg TEXT DEFAULT ''`,
+		`ALTER TABLE documents ADD COLUMN stage TEXT DEFAULT ''`,
+		`ALTER TABLE documents ADD COLUMN parser TEXT DEFAULT ''`,
+		`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (10, datetime('now'))`,
+	}
+	for _, stmt := range stmts {
+		if _, err := tx.Exec(stmt); err != nil {
+			return fmt.Errorf("failed to execute %q: %w", stmt, err)
+		}
+	}
+
+	logger.Info("migration V9→V10 completed: document extension fields")
+	return tx.Commit()
 }
 
 // isColumnExistsError 检查是否为列已存在错误

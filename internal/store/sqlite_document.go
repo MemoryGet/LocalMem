@@ -16,9 +16,10 @@ import (
 // 编译期接口检查 / Compile-time interface compliance check
 var _ DocumentStore = (*SQLiteDocumentStore)(nil)
 
-// 文档表列名（13列）
+// 文档表列名（16列）
 const documentColumns = `id, name, doc_type, scope, context_id, file_path,
-	file_size, content_hash, status, chunk_count, metadata, created_at, updated_at`
+	file_size, content_hash, status, chunk_count, metadata,
+	error_msg, stage, parser, created_at, updated_at`
 
 // SQLiteDocumentStore 基于 SQLite 的文档存储 / SQLite-backed document store
 type SQLiteDocumentStore struct {
@@ -47,6 +48,9 @@ func scanDocument(scanner interface{ Scan(...any) error }) (*model.Document, err
 		&doc.Status,
 		&doc.ChunkCount,
 		&metadataRaw,
+		&doc.ErrorMsg,
+		&doc.Stage,
+		&doc.Parser,
 		&doc.CreatedAt,
 		&doc.UpdatedAt,
 	)
@@ -87,10 +91,11 @@ func (s *SQLiteDocumentStore) Create(ctx context.Context, doc *model.Document) e
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	query := fmt.Sprintf(`INSERT INTO documents (%s) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, documentColumns)
+	query := fmt.Sprintf(`INSERT INTO documents (%s) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, documentColumns)
 	_, err = s.db.ExecContext(ctx, query,
 		doc.ID, doc.Name, doc.DocType, doc.Scope, doc.ContextID, doc.FilePath,
 		doc.FileSize, doc.ContentHash, doc.Status, doc.ChunkCount, metadataVal,
+		doc.ErrorMsg, doc.Stage, doc.Parser,
 		doc.CreatedAt, doc.UpdatedAt,
 	)
 	if err != nil {
@@ -148,11 +153,13 @@ func (s *SQLiteDocumentStore) Update(ctx context.Context, doc *model.Document) e
 	}
 
 	query := `UPDATE documents SET name = ?, doc_type = ?, scope = ?, context_id = ?, file_path = ?,
-		file_size = ?, content_hash = ?, status = ?, chunk_count = ?, metadata = ?, updated_at = ?
+		file_size = ?, content_hash = ?, status = ?, chunk_count = ?, metadata = ?,
+		error_msg = ?, stage = ?, parser = ?, updated_at = ?
 		WHERE id = ?`
 	_, err = s.db.ExecContext(ctx, query,
 		doc.Name, doc.DocType, doc.Scope, doc.ContextID, doc.FilePath,
 		doc.FileSize, doc.ContentHash, doc.Status, doc.ChunkCount, metadataVal,
+		doc.ErrorMsg, doc.Stage, doc.Parser,
 		doc.UpdatedAt, doc.ID,
 	)
 	if err != nil {
@@ -236,6 +243,24 @@ func (s *SQLiteDocumentStore) UpdateStatus(ctx context.Context, id string, statu
 		return fmt.Errorf("failed to update document status: %w", err)
 	}
 
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rows == 0 {
+		return model.ErrDocumentNotFound
+	}
+	return nil
+}
+
+// UpdateErrorMsg 更新文档错误信息 / Update document error message
+func (s *SQLiteDocumentStore) UpdateErrorMsg(ctx context.Context, id string, msg string) error {
+	now := time.Now().UTC()
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE documents SET error_msg = ?, updated_at = ? WHERE id = ?`, msg, now, id)
+	if err != nil {
+		return fmt.Errorf("failed to update document error_msg: %w", err)
+	}
 	rows, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)

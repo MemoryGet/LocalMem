@@ -259,4 +259,7 @@ type DocumentStore interface {
 
 	// UpdateStatus 更新文档状态 / Update document status
 	UpdateStatus(ctx context.Context, id string, status string) error
+
+	// UpdateErrorMsg 更新文档错误信息 / Update document error message
+	UpdateErrorMsg(ctx context.Context, id string, msg string) error
 }
