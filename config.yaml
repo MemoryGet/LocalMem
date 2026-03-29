@@ -116,3 +116,13 @@ mcp:
   port: 8081
   default_team_id: "default"
   default_owner_id: "mcp-user"
+
+# Claude Code hooks 集成 / Claude Code hooks integration
+hooks:
+  enabled: false
+  mcp_url: "http://localhost:8081"
+  skip_tools: [Glob, Grep, ToolSearch, TaskCreate, TaskUpdate, TaskList, TaskGet, TodoWrite]
+  max_input_chars: 1000
+  max_output_chars: 500
+  inject_limit: 20
+  summary_limit: 50

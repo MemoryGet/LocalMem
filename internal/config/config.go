@@ -30,6 +30,7 @@ type Config struct {
 	Heartbeat       HeartbeatConfig       `mapstructure:"heartbeat"`
 	MCP             MCPConfig             `mapstructure:"mcp"`
 	Queue           QueueConfig           `mapstructure:"queue"`
+	Hooks           HooksConfig           `mapstructure:"hooks"`
 }
 
 // StorageConfig 存储配置 / Storage configuration
@@ -347,6 +348,14 @@ func LoadConfig() error {
 	viper.SetDefault("queue.poll_interval", "10s")
 	viper.SetDefault("queue.max_retries", 3)
 	viper.SetDefault("queue.stale_timeout", "5m")
+	// Hooks 默认值 / Hooks defaults
+	viper.SetDefault("hooks.enabled", false)
+	viper.SetDefault("hooks.mcp_url", "http://localhost:8081")
+	viper.SetDefault("hooks.skip_tools", []string{"Glob", "Grep", "ToolSearch", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "TodoWrite"})
+	viper.SetDefault("hooks.max_input_chars", 1000)
+	viper.SetDefault("hooks.max_output_chars", 500)
+	viper.SetDefault("hooks.inject_limit", 20)
+	viper.SetDefault("hooks.summary_limit", 50)
 	// Auth 默认值 / Auth defaults
 	viper.SetDefault("auth.enabled", true)
 	viper.SetDefault("auth.cors_allowed_origins", []string{"*"})
