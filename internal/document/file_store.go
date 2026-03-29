@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // FileStore 文件存储接口 / File storage interface
@@ -49,8 +50,27 @@ func (s *LocalFileStore) Save(ctx context.Context, docID string, filename string
 	return destPath, nil
 }
 
+// validatePath 校验路径在 baseDir 范围内 / Validate path is within baseDir
+func (s *LocalFileStore) validatePath(path string) error {
+	absBase, err := filepath.Abs(s.baseDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve base dir: %w", err)
+	}
+	absPath, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+	if !strings.HasPrefix(absPath, absBase+string(os.PathSeparator)) && absPath != absBase {
+		return fmt.Errorf("path traversal detected")
+	}
+	return nil
+}
+
 // Get 读取本地文件 / Read file from local filesystem
 func (s *LocalFileStore) Get(ctx context.Context, path string) (io.ReadCloser, error) {
+	if err := s.validatePath(path); err != nil {
+		return nil, err
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
@@ -60,6 +80,9 @@ func (s *LocalFileStore) Get(ctx context.Context, path string) (io.ReadCloser, e
 
 // Delete 删除本地文件或目录 / Delete local file or directory
 func (s *LocalFileStore) Delete(ctx context.Context, path string) error {
+	if err := s.validatePath(path); err != nil {
+		return err
+	}
 	if err := os.RemoveAll(path); err != nil {
 		return fmt.Errorf("failed to delete path: %w", err)
 	}

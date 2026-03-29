@@ -174,6 +174,9 @@ func (h *DocumentHandler) List(c *gin.Context) {
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit > 200 {
+		limit = 200
+	}
 	docs, err := h.processor.ListDocuments(c.Request.Context(), scope, offset, limit)
 	if err != nil {
 		Error(c, err)

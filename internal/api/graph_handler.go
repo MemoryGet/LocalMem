@@ -106,6 +106,9 @@ func (h *GraphHandler) ListEntities(c *gin.Context) {
 	if l := c.Query("limit"); l != "" {
 		fmt.Sscanf(l, "%d", &limit)
 	}
+	if limit > 200 {
+		limit = 200
+	}
 	entities, err := h.manager.ListEntities(c.Request.Context(), scope, entityType, limit)
 	if err != nil {
 		Error(c, err)
@@ -141,6 +144,9 @@ func (h *GraphHandler) GetEntityMemories(c *gin.Context) {
 	limit := 20
 	if l := c.Query("limit"); l != "" {
 		fmt.Sscanf(l, "%d", &limit)
+	}
+	if limit > 200 {
+		limit = 200
 	}
 	memories, err := h.manager.GetEntityMemories(c.Request.Context(), c.Param("id"), limit)
 	if err != nil {

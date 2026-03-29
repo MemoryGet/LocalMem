@@ -57,6 +57,9 @@ func (h *ConversationHandler) GetConversation(c *gin.Context) {
 	contextID := c.Param("context_id")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	if limit > 200 {
+		limit = 200
+	}
 
 	memories, err := h.manager.GetConversation(c.Request.Context(), contextID, identity, offset, limit)
 	if err != nil {
