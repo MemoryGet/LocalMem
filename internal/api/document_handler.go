@@ -31,7 +31,7 @@ func (h *DocumentHandler) Upload(c *gin.Context) {
 		Error(c, model.ErrInvalidInput)
 		return
 	}
-	doc, err := h.processor.Upload(c.Request.Context(), &req)
+	doc, err := h.processor.Upload(c.Request.Context(), req.Name, req.DocType, req.Scope, req.ContextID, req.FileSize, req.Metadata)
 	if err != nil {
 		Error(c, err)
 		return

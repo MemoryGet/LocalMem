@@ -173,7 +173,7 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 
 	var docProcessor *document.Processor
 	if stores.DocumentStore != nil {
-		docProcessor = document.NewProcessor(stores.DocumentStore, stores.MemoryStore, stores.Embedder)
+		docProcessor = document.NewProcessor(stores.DocumentStore, stores.MemoryStore, stores.Embedder, nil, nil, nil)
 	}
 
 	var reflectEngine *reflectpkg.ReflectEngine
