@@ -39,6 +39,7 @@ func main() {
 		GraphManager:       deps.GraphManager,
 		DocProcessor:       deps.DocProcessor,
 		TagStore:           deps.Stores.TagStore,
+		MemStore:           deps.Stores.MemoryStore,
 		ReflectEngine:      deps.ReflectEngine,
 		Extractor:          deps.Extractor,
 		FileStore:          deps.DocFileStore,

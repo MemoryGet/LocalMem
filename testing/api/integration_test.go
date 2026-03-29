@@ -53,6 +53,7 @@ func setupFullRouter(t *testing.T) (http.Handler, func()) {
 		Retriever:      ret,
 		DocProcessor:   docProc,
 		TagStore:       tagStore,
+		MemStore:       s,
 	})
 
 	return router, func() { s.Close() }

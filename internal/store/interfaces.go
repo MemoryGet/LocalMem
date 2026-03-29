@@ -255,6 +255,9 @@ type GraphStore interface {
 
 	// FindEntitiesByName 按名称模糊匹配实体（索引查询，替代 ListEntities 全量扫描）/ Find entities by name (indexed query)
 	FindEntitiesByName(ctx context.Context, name string, scope string, limit int) ([]*model.Entity, error)
+
+	// GetRelation 获取关系 / Get a relation by ID
+	GetRelation(ctx context.Context, id string) (*model.EntityRelation, error)
 }
 
 // DocumentStore 文档存储接口 / Document storage interface

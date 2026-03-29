@@ -33,8 +33,13 @@ func (h *ReflectHandler) Reflect(c *gin.Context) {
 		return
 	}
 
-	// 强制覆盖身份字段 / Force override identity from middleware
+	// 强制覆盖身份字段 / Force override identity fields from middleware
 	req.TeamID = identity.TeamID
+	// 当调用者拥有实名身份时，将 scope 限定到其 OwnerID，防止跨用户读取
+	// When the caller has a real identity, confine scope to their OwnerID to prevent cross-user reads
+	if !identity.IsSystem() && identity.OwnerID != "" && identity.OwnerID != "anonymous" {
+		req.Scope = identity.OwnerID
+	}
 
 	// 服务端上限校验，防止客户端绕过配置 / Enforce server-side max_rounds limit
 	if req.MaxRounds <= 0 || req.MaxRounds > h.reflectCfg.MaxRounds {

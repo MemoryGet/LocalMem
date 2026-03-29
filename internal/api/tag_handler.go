@@ -9,12 +9,13 @@ import (
 
 // TagHandler 标签处理器 / Tag handler
 type TagHandler struct {
-	tagStore store.TagStore
+	tagStore  store.TagStore
+	memReader store.MemoryReader
 }
 
 // NewTagHandler 创建标签处理器 / Create tag handler
-func NewTagHandler(tagStore store.TagStore) *TagHandler {
-	return &TagHandler{tagStore: tagStore}
+func NewTagHandler(tagStore store.TagStore, memReader store.MemoryReader) *TagHandler {
+	return &TagHandler{tagStore: tagStore, memReader: memReader}
 }
 
 // CreateTag 创建标签 / Create tag
@@ -95,6 +96,18 @@ func (h *TagHandler) TagMemory(c *gin.Context) {
 	}
 
 	memoryID := c.Param("id")
+
+	// 授权检查：验证调用者拥有该记忆 / Authorization: verify caller owns the memory
+	mem, err := h.memReader.GetVisible(c.Request.Context(), memoryID, identity)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if mem.OwnerID != "" && mem.OwnerID != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	var body struct {
 		TagID string `json:"tag_id" binding:"required"`
 	}
@@ -118,6 +131,18 @@ func (h *TagHandler) UntagMemory(c *gin.Context) {
 	}
 
 	memoryID := c.Param("id")
+
+	// 授权检查：验证调用者拥有该记忆 / Authorization: verify caller owns the memory
+	mem, err := h.memReader.GetVisible(c.Request.Context(), memoryID, identity)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if mem.OwnerID != "" && mem.OwnerID != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	tagID := c.Param("tag_id")
 	if err := h.tagStore.UntagMemory(c.Request.Context(), memoryID, tagID); err != nil {
 		Error(c, err)
@@ -135,6 +160,18 @@ func (h *TagHandler) GetMemoryTags(c *gin.Context) {
 	}
 
 	memoryID := c.Param("id")
+
+	// 授权检查：验证调用者可见该记忆 / Authorization: verify memory is visible to caller
+	mem, err := h.memReader.GetVisible(c.Request.Context(), memoryID, identity)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if mem.OwnerID != "" && mem.OwnerID != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	tags, err := h.tagStore.GetMemoryTags(c.Request.Context(), memoryID)
 	if err != nil {
 		Error(c, err)

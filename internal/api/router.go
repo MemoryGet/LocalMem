@@ -19,6 +19,7 @@ type RouterDeps struct {
 	Retriever          *search.Retriever
 	DocProcessor       *document.Processor
 	TagStore           store.TagStore
+	MemStore           store.MemoryReader // 用于标签操作的记忆归属校验 / For memory ownership checks in tag operations
 	ReflectEngine      *reflectpkg.ReflectEngine
 	Extractor          *memory.Extractor      // 可为 nil / may be nil
 	FileStore          document.FileStore     // nil if document disabled
@@ -93,7 +94,7 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 
 		// Tags
 		if deps.TagStore != nil {
-			tagHandler := NewTagHandler(deps.TagStore)
+			tagHandler := NewTagHandler(deps.TagStore, deps.MemStore)
 			v1.POST("/tags", tagHandler.CreateTag)
 			v1.GET("/tags", tagHandler.ListTags)
 			v1.DELETE("/tags/:id", tagHandler.DeleteTag)

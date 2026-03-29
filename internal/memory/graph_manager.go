@@ -113,6 +113,14 @@ func (m *GraphManager) CreateRelation(ctx context.Context, req *model.CreateEnti
 	return rel, nil
 }
 
+// GetRelation 获取关系 / Get relation by ID
+func (m *GraphManager) GetRelation(ctx context.Context, id string) (*model.EntityRelation, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id is required: %w", model.ErrInvalidInput)
+	}
+	return m.graphStore.GetRelation(ctx, id)
+}
+
 // DeleteRelation 删除关系 / Delete relation
 func (m *GraphManager) DeleteRelation(ctx context.Context, id string) error {
 	if id == "" {

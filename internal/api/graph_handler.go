@@ -145,6 +145,17 @@ func (h *GraphHandler) GetEntityRelations(c *gin.Context) {
 		return
 	}
 
+	// 授权检查：先获取实体，验证 scope 归属 / Authorization: fetch entity and verify scope ownership
+	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	relations, err := h.manager.GetEntityRelations(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -223,13 +234,23 @@ func (h *GraphHandler) DeleteRelation(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	// TODO: GraphStore 尚无 GetRelation(id) 方法，无法在删除前验证关系归属的 scope。
-	// 当 GraphStore 接口增加 GetRelation 后，应先获取关系找到 source_entity，
-	// 再检查 entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem()。
-	// TODO: GraphStore has no GetRelation(id) method yet, so ownership cannot be verified
-	// before delete. Once GetRelation is added to the interface, fetch the relation to find
-	// its source entity and check entity.Scope against identity.OwnerID.
-	_ = identity
+
+	// 授权检查：获取关系→获取源实体→验证 scope 归属
+	// Authorization: fetch relation → fetch source entity → verify scope ownership
+	rel, err := h.manager.GetRelation(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	sourceEntity, err := h.manager.GetEntity(c.Request.Context(), rel.SourceID)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if sourceEntity.Scope != "" && sourceEntity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 
 	if err := h.manager.DeleteRelation(c.Request.Context(), c.Param("id")); err != nil {
 		Error(c, err)

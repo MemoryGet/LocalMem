@@ -239,6 +239,34 @@ func (s *SQLiteGraphStore) DeleteRelation(ctx context.Context, id string) error 
 	return nil
 }
 
+// GetRelation 获取单条关系 / Get a single entity relation by ID
+func (s *SQLiteGraphStore) GetRelation(ctx context.Context, id string) (*model.EntityRelation, error) {
+	query := `SELECT id, source_id, target_id, relation_type, weight, metadata, created_at
+		FROM entity_relations WHERE id = ?`
+
+	row := s.db.QueryRowContext(ctx, query, id)
+	var (
+		rel     model.EntityRelation
+		metaStr sql.NullString
+	)
+	err := row.Scan(
+		&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType,
+		&rel.Weight, &metaStr, &rel.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, model.ErrRelationNotFound
+		}
+		return nil, fmt.Errorf("failed to get relation: %w", err)
+	}
+	if metaStr.Valid {
+		if err := json.Unmarshal([]byte(metaStr.String), &rel.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal relation metadata: %w", err)
+		}
+	}
+	return &rel, nil
+}
+
 // GetEntityRelations 获取实体的所有关系 / Get all relations for an entity
 func (s *SQLiteGraphStore) GetEntityRelations(ctx context.Context, entityID string) ([]*model.EntityRelation, error) {
 	query := `SELECT id, source_id, target_id, relation_type, weight, metadata, created_at
