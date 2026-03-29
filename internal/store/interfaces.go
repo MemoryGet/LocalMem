@@ -8,22 +8,44 @@ import (
 	"iclude/internal/model"
 )
 
-// MemoryStore 结构化存储接口 / Structured storage interface (SQLite)
-type MemoryStore interface {
-	// Init 初始化存储（建表等）/ Initialize storage (create tables etc.)
-	Init(ctx context.Context) error
-
-	// Close 关闭存储连接 / Close storage connection
-	Close() error
-
-	// Create 创建记忆 / Create a memory
-	Create(ctx context.Context, mem *model.Memory) error
-
+// MemoryReader 记忆读取接口 / Memory read operations
+type MemoryReader interface {
 	// Get 获取单条记忆 / Get a memory by ID
 	Get(ctx context.Context, id string) (*model.Memory, error)
 
 	// GetVisible 带可见性校验获取记忆 / Get memory with visibility check
 	GetVisible(ctx context.Context, id string, identity *model.Identity) (*model.Memory, error)
+
+	// List 分页列表（带可见性过滤）/ List memories with pagination and visibility filtering
+	List(ctx context.Context, identity *model.Identity, offset, limit int) ([]*model.Memory, error)
+
+	// ListByContext 按上下文列出记忆（带可见性过滤）/ List memories by context ID with visibility filtering
+	ListByContext(ctx context.Context, contextID string, identity *model.Identity, offset, limit int) ([]*model.Memory, error)
+
+	// ListByContextOrdered 按轮次顺序列出上下文记忆（带可见性过滤）/ List memories by context ordered by turn number with visibility filtering
+	ListByContextOrdered(ctx context.Context, contextID string, identity *model.Identity, offset, limit int) ([]*model.Memory, error)
+
+	// GetByURI 通过 URI 获取记忆 / Get memory by URI
+	GetByURI(ctx context.Context, uri string) (*model.Memory, error)
+
+	// GetByContentHash 通过内容哈希获取记忆 / Get memory by content hash
+	// 未找到时返回 (nil, model.ErrMemoryNotFound)
+	GetByContentHash(ctx context.Context, contentHash string) (*model.Memory, error)
+
+	// ListTimeline 时间线查询 / List memories by timeline
+	ListTimeline(ctx context.Context, req *model.TimelineRequest) ([]*model.Memory, error)
+
+	// GetOwnerID 获取记忆的 owner_id（含 soft-deleted）/ Get owner_id including soft-deleted memories
+	GetOwnerID(ctx context.Context, id string) (string, error)
+
+	// ListMissingAbstract 列出缺少摘要的记忆（排除软删除）/ List memories missing abstract (excluding soft-deleted)
+	ListMissingAbstract(ctx context.Context, limit int) ([]*model.Memory, error)
+}
+
+// MemoryWriter 记忆写入接口 / Memory write operations
+type MemoryWriter interface {
+	// Create 创建记忆 / Create a memory
+	Create(ctx context.Context, mem *model.Memory) error
 
 	// Update 更新记忆 / Update a memory
 	Update(ctx context.Context, mem *model.Memory) error
@@ -31,41 +53,32 @@ type MemoryStore interface {
 	// Delete 删除记忆（硬删除）/ Delete a memory by ID (hard delete)
 	Delete(ctx context.Context, id string) error
 
-	// List 分页列表（带可见性过滤）/ List memories with pagination and visibility filtering
-	List(ctx context.Context, identity *model.Identity, offset, limit int) ([]*model.Memory, error)
+	// CreateBatch 批量创建记忆（单事务）/ Batch create memories in a single transaction
+	CreateBatch(ctx context.Context, memories []*model.Memory) error
 
+	// Reinforce 强化记忆 / Reinforce a memory (increase strength)
+	Reinforce(ctx context.Context, id string) error
+
+	// IncrementAccessCount 批量递增访问计数 / Increment access count by delta
+	IncrementAccessCount(ctx context.Context, id string, delta int) error
+}
+
+// MemorySearch 记忆搜索接口 / Memory search operations
+type MemorySearch interface {
 	// SearchText 全文检索（带可见性过滤）/ Full-text search with visibility filtering
 	SearchText(ctx context.Context, query string, identity *model.Identity, limit int) ([]*model.SearchResult, error)
 
-	// DB 获取底层数据库连接（供其他 store 共用）/ Get underlying db connection for sharing
-	DB() interface{}
-
-	// ListByContext 按上下文列出记忆（带可见性过滤）/ List memories by context ID with visibility filtering
-	ListByContext(ctx context.Context, contextID string, identity *model.Identity, offset, limit int) ([]*model.Memory, error)
-
-	// GetByURI 通过 URI 获取记忆 / Get memory by URI
-	GetByURI(ctx context.Context, uri string) (*model.Memory, error)
-
 	// SearchTextFiltered 带过滤条件的全文检索 / Full-text search with filters
 	SearchTextFiltered(ctx context.Context, query string, filters *model.SearchFilters, limit int) ([]*model.SearchResult, error)
+}
 
-	// ListTimeline 时间线查询 / List memories by timeline
-	ListTimeline(ctx context.Context, req *model.TimelineRequest) ([]*model.Memory, error)
-
+// MemoryLifecycle 记忆生命周期接口 / Memory lifecycle operations
+type MemoryLifecycle interface {
 	// SoftDelete 软删除记忆 / Soft delete a memory
 	SoftDelete(ctx context.Context, id string) error
 
 	// Restore 恢复软删除的记忆 / Restore a soft-deleted memory
 	Restore(ctx context.Context, id string) error
-
-	// Reinforce 强化记忆 / Reinforce a memory (increase strength)
-	Reinforce(ctx context.Context, id string) error
-
-	// ListExpired 列出已过期记忆 / List expired memories
-	ListExpired(ctx context.Context, limit int) ([]*model.Memory, error)
-
-	// ListWeak 列出弱记忆 / List weak memories below threshold
-	ListWeak(ctx context.Context, threshold float64, limit int) ([]*model.Memory, error)
 
 	// CleanupExpired 软删除已过期记忆 / Soft delete expired memories
 	CleanupExpired(ctx context.Context) (int, error)
@@ -73,27 +86,31 @@ type MemoryStore interface {
 	// PurgeDeleted 硬删除旧的软删除记录 / Hard delete old soft-deleted memories
 	PurgeDeleted(ctx context.Context, olderThan time.Duration) (int, error)
 
-	// ListByContextOrdered 按轮次顺序列出上下文记忆（带可见性过滤）/ List memories by context ordered by turn number with visibility filtering
-	ListByContextOrdered(ctx context.Context, contextID string, identity *model.Identity, offset, limit int) ([]*model.Memory, error)
+	// ListExpired 列出已过期记忆 / List expired memories
+	ListExpired(ctx context.Context, limit int) ([]*model.Memory, error)
 
-	// CreateBatch 批量创建记忆（单事务）/ Batch create memories in a single transaction
-	CreateBatch(ctx context.Context, memories []*model.Memory) error
-
-	// GetByContentHash 通过内容哈希获取记忆 / Get memory by content hash
-	// 未找到时返回 (nil, model.ErrMemoryNotFound)
-	GetByContentHash(ctx context.Context, contentHash string) (*model.Memory, error)
-
-	// IncrementAccessCount 批量递增访问计数 / Increment access count by delta
-	IncrementAccessCount(ctx context.Context, id string, delta int) error
-
-	// GetOwnerID 获取记忆的 owner_id（含 soft-deleted）/ Get owner_id including soft-deleted memories
-	GetOwnerID(ctx context.Context, id string) (string, error)
-
-	// ListMissingAbstract 列出缺少摘要的记忆（排除软删除）/ List memories missing abstract (excluding soft-deleted)
-	ListMissingAbstract(ctx context.Context, limit int) ([]*model.Memory, error)
+	// ListWeak 列出弱记忆 / List weak memories below threshold
+	ListWeak(ctx context.Context, threshold float64, limit int) ([]*model.Memory, error)
 
 	// SoftDeleteByDocumentID 软删除关联文档的所有记忆 / Soft delete all memories linked to a document
 	SoftDeleteByDocumentID(ctx context.Context, documentID string) (int, error)
+}
+
+// MemoryStore 完整记忆存储接口（组合子接口）/ Complete memory store interface (composite)
+type MemoryStore interface {
+	MemoryReader
+	MemoryWriter
+	MemorySearch
+	MemoryLifecycle
+
+	// Init 初始化存储（建表等）/ Initialize storage (create tables etc.)
+	Init(ctx context.Context) error
+
+	// Close 关闭存储连接 / Close storage connection
+	Close() error
+
+	// DB 获取底层数据库连接（供其他 store 共用）/ Get underlying db connection for sharing
+	DB() interface{}
 }
 
 // VectorStore 向量存储接口 / Vector storage interface (Qdrant)
