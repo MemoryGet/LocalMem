@@ -24,12 +24,14 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	var tag model.Tag
 	if err := c.ShouldBindJSON(&tag); err != nil {
 		Error(c, model.ErrInvalidInput)
 		return
+	}
+	if !identity.IsSystem() {
+		tag.Scope = identity.OwnerID
 	}
 	if err := h.tagStore.CreateTag(c.Request.Context(), &tag); err != nil {
 		Error(c, err)
@@ -45,9 +47,11 @@ func (h *TagHandler) ListTags(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	scope := c.Query("scope")
+	if !identity.IsSystem() {
+		scope = identity.OwnerID
+	}
 	tags, err := h.tagStore.ListTags(c.Request.Context(), scope)
 	if err != nil {
 		Error(c, err)
@@ -63,9 +67,18 @@ func (h *TagHandler) DeleteTag(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	id := c.Param("id")
+	tag, err := h.tagStore.GetTag(c.Request.Context(), id)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if tag.Scope != "" && tag.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	if err := h.tagStore.DeleteTag(c.Request.Context(), id); err != nil {
 		Error(c, err)
 		return
@@ -80,7 +93,6 @@ func (h *TagHandler) TagMemory(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	memoryID := c.Param("id")
 	var body struct {
@@ -104,7 +116,6 @@ func (h *TagHandler) UntagMemory(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	memoryID := c.Param("id")
 	tagID := c.Param("tag_id")
@@ -122,7 +133,6 @@ func (h *TagHandler) GetMemoryTags(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	memoryID := c.Param("id")
 	tags, err := h.tagStore.GetMemoryTags(c.Request.Context(), memoryID)

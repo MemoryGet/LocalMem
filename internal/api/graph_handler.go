@@ -25,12 +25,14 @@ func (h *GraphHandler) CreateEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity
 
 	var req model.CreateEntityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
 		return
+	}
+	if !identity.IsSystem() {
+		req.Scope = identity.OwnerID
 	}
 	entity, err := h.manager.CreateEntity(c.Request.Context(), &req)
 	if err != nil {
@@ -46,7 +48,6 @@ func (h *GraphHandler) GetEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity
 
 	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -143,7 +144,6 @@ func (h *GraphHandler) GetEntityRelations(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity
 
 	relations, err := h.manager.GetEntityRelations(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -191,11 +191,24 @@ func (h *GraphHandler) CreateRelation(c *gin.Context) {
 	if identity == nil {
 		return
 	}
+
 	var req model.CreateEntityRelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
 		return
 	}
+
+	// 授权检查：验证源实体归属 / Authorization: verify source entity ownership
+	sourceEntity, err := h.manager.GetEntity(c.Request.Context(), req.SourceID)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if sourceEntity.Scope != "" && sourceEntity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	rel, err := h.manager.CreateRelation(c.Request.Context(), &req)
 	if err != nil {
 		Error(c, err)
@@ -210,7 +223,6 @@ func (h *GraphHandler) DeleteRelation(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity
 
 	if err := h.manager.DeleteRelation(c.Request.Context(), c.Param("id")); err != nil {
 		Error(c, err)
@@ -225,13 +237,24 @@ func (h *GraphHandler) CreateMemoryEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity
 
 	var req model.CreateMemoryEntityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
 		return
 	}
+
+	// 授权检查：验证实体归属 / Authorization: verify entity ownership
+	entity, err := h.manager.GetEntity(c.Request.Context(), req.EntityID)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	if err := h.manager.CreateMemoryEntity(c.Request.Context(), &req); err != nil {
 		Error(c, err)
 		return
@@ -245,10 +268,21 @@ func (h *GraphHandler) DeleteMemoryEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity
 
 	memoryID := c.Query("memory_id")
 	entityID := c.Query("entity_id")
+
+	// 授权检查：验证实体归属 / Authorization: verify entity ownership
+	entity, err := h.manager.GetEntity(c.Request.Context(), entityID)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
+
 	if err := h.manager.DeleteMemoryEntity(c.Request.Context(), memoryID, entityID); err != nil {
 		Error(c, err)
 		return
