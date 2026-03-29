@@ -71,6 +71,7 @@ func NewSQLiteMemoryStore(dbPath string, bm25Weights [3]float64, tok tokenizer.T
 	db.SetMaxOpenConns(5)
 	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(2 * time.Minute)
 
 	weights := bm25Weights
 	if weights[0] == 0 && weights[1] == 0 && weights[2] == 0 {
@@ -1229,8 +1230,15 @@ func (s *SQLiteMemoryStore) CleanupExpired(ctx context.Context) (int, error) {
 func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Duration) (int, error) {
 	cutoff := time.Now().UTC().Add(-olderThan)
 
-	// 合并两次相同 SELECT：一次查询同时收集 rowid 和 id / Merge two identical SELECTs into one scan
-	rows, err := s.db.QueryContext(ctx, `SELECT rowid, id FROM memories WHERE deleted_at IS NOT NULL AND deleted_at < ?`, cutoff)
+	// 原子删除：SELECT + FTS5 + 关联表 + 主记录全在事务内，避免 TOCTOU / Atomic purge: SELECT + FTS5 + associations + main records in one tx, prevents TOCTOU
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 在事务内查询候选记录 / Query purge candidates inside the transaction
+	rows, err := tx.QueryContext(ctx, `SELECT rowid, id FROM memories WHERE deleted_at IS NOT NULL AND deleted_at < ?`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query purge candidates: %w", err)
 	}
@@ -1247,13 +1255,6 @@ func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Dur
 		memoryIDs = append(memoryIDs, id)
 	}
 	rows.Close()
-
-	// 原子删除：FTS5 + 关联表 + 主记录全在事务内 / Atomic purge: FTS5 + associations + main records in one tx
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("begin purge tx: %w", err)
-	}
-	defer tx.Rollback()
 
 	// 在事务内清理 FTS5 条目 / Clean FTS5 within transaction
 	for _, rowid := range rowids {

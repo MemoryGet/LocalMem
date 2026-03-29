@@ -25,7 +25,7 @@ func (h *GraphHandler) CreateEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+	_ = identity
 
 	var req model.CreateEntityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -46,7 +46,7 @@ func (h *GraphHandler) GetEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+	_ = identity
 
 	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -62,19 +62,28 @@ func (h *GraphHandler) UpdateEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+
+	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 
 	var req model.UpdateEntityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
 		return
 	}
-	entity, err := h.manager.UpdateEntity(c.Request.Context(), c.Param("id"), &req)
+	updated, err := h.manager.UpdateEntity(c.Request.Context(), c.Param("id"), &req)
 	if err != nil {
 		Error(c, err)
 		return
 	}
-	Success(c, entity)
+	Success(c, updated)
 }
 
 // DeleteEntity 删除实体 / DELETE /v1/entities/:id
@@ -83,7 +92,16 @@ func (h *GraphHandler) DeleteEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+
+	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 
 	if err := h.manager.DeleteEntity(c.Request.Context(), c.Param("id")); err != nil {
 		Error(c, err)
@@ -98,9 +116,11 @@ func (h *GraphHandler) ListEntities(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
 
 	scope := c.Query("scope")
+	if !identity.IsSystem() {
+		scope = identity.OwnerID
+	}
 	entityType := c.Query("type")
 	limit := 20
 	if l := c.Query("limit"); l != "" {
@@ -123,7 +143,7 @@ func (h *GraphHandler) GetEntityRelations(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+	_ = identity
 
 	relations, err := h.manager.GetEntityRelations(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -139,7 +159,16 @@ func (h *GraphHandler) GetEntityMemories(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+
+	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 
 	limit := 20
 	if l := c.Query("limit"); l != "" {
@@ -162,8 +191,6 @@ func (h *GraphHandler) CreateRelation(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
-
 	var req model.CreateEntityRelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -183,7 +210,7 @@ func (h *GraphHandler) DeleteRelation(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+	_ = identity
 
 	if err := h.manager.DeleteRelation(c.Request.Context(), c.Param("id")); err != nil {
 		Error(c, err)
@@ -198,7 +225,7 @@ func (h *GraphHandler) CreateMemoryEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+	_ = identity
 
 	var req model.CreateMemoryEntityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -218,7 +245,7 @@ func (h *GraphHandler) DeleteMemoryEntity(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity // 身份已验证 / Identity verified
+	_ = identity
 
 	memoryID := c.Query("memory_id")
 	entityID := c.Query("entity_id")

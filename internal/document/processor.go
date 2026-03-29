@@ -251,7 +251,10 @@ func (p *Processor) Process(ctx context.Context, docID string, content string) e
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(content)))
 	doc.ContentHash = hash
 
-	chunker := NewTextChunker()
+	chunker := p.chunker
+	if chunker == nil {
+		chunker = NewTextChunker()
+	}
 	opts := p.cfg.ChunkingOpts
 	opts.DocName = doc.Name
 	chunks := chunker.Chunk(content, opts)
