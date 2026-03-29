@@ -14,6 +14,33 @@ services:
     depends_on:
       qdrant:
         condition: service_healthy
+      docling:
+        condition: service_started
+      tika:
+        condition: service_started
+
+  docling:
+    image: quay.io/docling-project/docling-serve:latest
+    ports:
+      - "5001:5001"
+    environment:
+      - DOCLING_BACKEND=dlparse_v2
+      - DOCLING_OCR_ENGINE=easyocr
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    restart: unless-stopped
+
+  tika:
+    image: apache/tika:latest
+    ports:
+      - "9998:9998"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:v1.7.4
