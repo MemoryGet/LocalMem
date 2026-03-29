@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -53,6 +54,21 @@ func (h *DocumentHandler) Upload(c *gin.Context) {
 	if !h.isAllowedType(ext) {
 		Error(c, model.ErrUnsupportedFileType)
 		return
+	}
+
+	// Magic bytes 内容类型检测 / Content-based MIME type detection
+	magicBuf := make([]byte, 512)
+	n, _ := io.ReadAtLeast(file, magicBuf, 1)
+	if n > 0 {
+		detectedMIME := http.DetectContentType(magicBuf[:n])
+		if !isAllowedMIME(detectedMIME) {
+			Error(c, model.ErrUnsupportedFileType)
+			return
+		}
+	}
+	// 重置文件读取位置 / Reset file read position
+	if seeker, ok := file.(io.Seeker); ok {
+		seeker.Seek(0, io.SeekStart)
 	}
 
 	// 文档名
@@ -215,7 +231,17 @@ func (h *DocumentHandler) Process(c *gin.Context) {
 	if identity == nil {
 		return
 	}
-	_ = identity
+
+	// 授权检查：先获取文档验证归属 / Authorization: fetch doc first, verify ownership
+	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if doc.Scope != "" && doc.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 
 	var body struct {
 		Content string `json:"content" binding:"required"`
@@ -235,6 +261,28 @@ func (h *DocumentHandler) Process(c *gin.Context) {
 func (h *DocumentHandler) isAllowedType(ext string) bool {
 	for _, allowed := range h.docCfg.AllowedTypes {
 		if strings.EqualFold(ext, allowed) {
+			return true
+		}
+	}
+	return false
+}
+
+// isAllowedMIME 检查 MIME 类型白名单 / Check MIME type allowlist
+func isAllowedMIME(mime string) bool {
+	allowed := []string{
+		"application/pdf",
+		"application/zip",          // docx/pptx/xlsx are ZIP-based
+		"application/x-gzip",
+		"text/plain",
+		"text/html",
+		"text/xml",
+		"image/png",
+		"image/jpeg",
+		"image/gif",
+		"application/octet-stream", // fallback for unrecognized binary
+	}
+	for _, a := range allowed {
+		if strings.HasPrefix(mime, a) {
 			return true
 		}
 	}
