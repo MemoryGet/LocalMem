@@ -12,3 +12,4 @@ test-dashboard
 # Editor swap files
 *.swp
 *.swo
+dist/
