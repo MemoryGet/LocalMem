@@ -14,6 +14,8 @@ IClude is a local-first, hybrid storage enterprise memory system for AI applicat
 go mod download              # install dependencies
 go run ./cmd/server/         # run the API service (port 8080)
 go run ./cmd/mcp/            # run the MCP server (port 8081, SSE transport)
+./server                     # run pre-built API binary (if available)
+./mcp                        # run pre-built MCP binary (if available)
 go fmt ./...                 # format code
 go vet ./...                 # static analysis
 go test ./testing/...        # run all tests
@@ -28,6 +30,9 @@ cd tools/test-dashboard-ui && npm run dev                   # 启动前端 → h
 
 # Jieba 分词服务（中文 FTS5，仅 provider=jieba 时需要）
 python tools/jieba_server.py                                # 启动 → http://localhost:8866
+
+# Docker 部署
+docker-compose -f deploy/docker-compose.yml up              # 容器化运行
 ```
 
 ## Architecture
@@ -53,6 +58,16 @@ pkg/qdrant/client.go           → Reusable Qdrant HTTP client (stdlib only)
 pkg/tokenizer/                 → Pluggable FTS5 tokenizer (Simple CJK / Jieba HTTP / Noop)
 pkg/sqlbuilder/                → Lightweight WHERE/SELECT builder (replaces string concat)
 pkg/testreport/                → Test report recorder + HTML generator (embed template)
+sdks/python/iclude/            → Python SDK client for the IClude API
+deploy/                        → Docker + docker-compose deployment configs
+internal/document/
+  ├─ processor.go    → Document lifecycle (upload, async process, delete with cleanup)
+  ├─ factory.go      → InitDocumentPipeline() factory (wires FileStore + Parsers + Chunker)
+  ├─ parser.go       → Parser interface + ParseRouter (Docling → Tika fallback chain)
+  ├─ docling.go      → Docling HTTP client (docling-serve REST API)
+  ├─ tika.go         → Tika HTTP client (Apache Tika Server REST API)
+  ├─ chunker.go      → MarkdownChunker (3-layer) + TextChunker (recursive + overlap)
+  └─ file_store.go   → FileStore interface + LocalFileStore (future: SMB/NFS)
 ```
 
 **Dependency flow** (acyclic): `cmd/server → api → reflect, memory, search, document → store(interfaces) → model, pkg/*`
@@ -130,6 +145,14 @@ All endpoints under `/v1/`. Core groups:
 - `/v1/reflect` — multi-round LLM reasoning over memories
 - `/v1/memories/:id/extract` — explicit entity extraction from a memory
 - `/v1/maintenance/cleanup` — expire/purge operations
+
+### Document Ingestion Pipeline
+
+File upload → async processing → Memory ingestion. Three-layer fallback: Docling → Tika → manual /reprocess.
+
+**Chunking pipeline**: Structure-aware split (headings/tables/code blocks) → recursive character split (512 token, 50 overlap) → context prefix enrichment. Markdown input uses MarkdownChunker, plaintext falls back to TextChunker.
+
+**Processing stages**: `pending → parsing → chunking → embedding → ready` (or `→ failed`). Async via goroutine + semaphore (default 3 concurrent). Config-gated: `document.enabled: true` required + docling/tika Docker sidecars.
 
 ## AI 日报 Skill
 
