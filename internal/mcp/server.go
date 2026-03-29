@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,7 +27,8 @@ type Server struct {
 	registry *Registry
 	sessions sync.Map // map[string]*Session
 	mux      *http.ServeMux
-	limiter  *rate.Limiter // 全局速率限制 / Global rate limiter
+	limiter  *rate.Limiter  // 全局速率限制 / Global rate limiter
+	sseConns atomic.Int32   // 当前 SSE 连接数 / Current SSE connection count
 }
 
 // NewServer 创建 MCP 服务器并注册路由 / Create MCP server and register routes
@@ -40,7 +42,7 @@ func NewServer(cfg config.MCPConfig, registry *Registry) *Server {
 	if s.cfg.APIToken == "" {
 		logger.Warn("MCP server running without authentication — set mcp.api_token in config for production use")
 	}
-	s.mux.HandleFunc("/sse", s.handleSSE)
+	s.mux.HandleFunc("/sse", s.rateLimitWrap(s.handleSSE))
 	s.mux.HandleFunc("/messages", s.rateLimitWrap(s.handleMessages))
 	return s
 }
@@ -82,6 +84,18 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	if s.sseConns.Load() >= 100 {
+		http.Error(w, "too many SSE connections", http.StatusTooManyRequests)
+		return
+	}
+	s.sseConns.Add(1)
+	defer s.sseConns.Add(-1)
+
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming not supported", http.StatusInternalServerError)
@@ -139,6 +153,10 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
 	sessionID := r.URL.Query().Get("session")
 	if sessionID == "" {
 		http.Error(w, "missing session parameter", http.StatusBadRequest)

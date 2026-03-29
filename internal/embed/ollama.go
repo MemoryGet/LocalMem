@@ -44,6 +44,7 @@ func NewOllamaEmbedder(baseURL, model string) *OllamaEmbedder {
 
 // Embed 单条文本向量化 / Embed a single text via Ollama API
 func (e *OllamaEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
+	text = truncateForEmbedding(text)
 	embeddings, err := e.doRequest(ctx, text)
 	if err != nil {
 		return nil, fmt.Errorf("ollama embed: %w", err)
@@ -59,7 +60,11 @@ func (e *OllamaEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]fl
 	if len(texts) == 0 {
 		return nil, nil
 	}
-	embeddings, err := e.doRequest(ctx, texts)
+	truncated := make([]string, len(texts))
+	for i, t := range texts {
+		truncated[i] = truncateForEmbedding(t)
+	}
+	embeddings, err := e.doRequest(ctx, truncated)
 	if err != nil {
 		return nil, fmt.Errorf("ollama embed batch: %w", err)
 	}

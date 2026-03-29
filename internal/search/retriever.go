@@ -218,6 +218,10 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	// Backfill incomplete Memory objects (Qdrant results only contain ID)
 	results = r.backfillMemories(ctx, results)
 
+	// 强度加权（在 MMR 前执行，使过期/弱记忆在多样性选择前降分）
+	// Apply strength weighting before MMR so expired/weak memories are scored down before diversity selection
+	results = memory.ApplyStrengthWeighting(results, r.cfg.AccessAlpha)
+
 	// MMR 多样性重排（需要 VectorStore，SQLite-only 模式自动跳过）/ MMR diversity re-ranking
 	// per-request 覆盖全局配置 / Per-request fields override global config
 	mmrEnabled := r.cfg.MMR.Enabled
@@ -231,8 +235,6 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	if mmrEnabled && r.vecStore != nil {
 		results = MMRRerank(ctx, results, r.vecStore, mmrLambda, limit)
 	}
-
-	results = memory.ApplyStrengthWeighting(results, r.cfg.AccessAlpha)
 
 	// 异步记录访问 / Async-track access hits
 	if r.tracker != nil {

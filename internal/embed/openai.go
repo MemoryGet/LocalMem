@@ -38,6 +38,18 @@ type openaiEmbedResponse struct {
 
 const openaiEmbeddingsURL = "https://api.openai.com/v1/embeddings"
 
+// maxEmbeddingChars ~8000 tokens, safe for text-embedding-3-small (8191 token limit)
+const maxEmbeddingChars = 24000
+
+// truncateForEmbedding 截断超长文本 / Truncate text for embedding API limits
+func truncateForEmbedding(text string) string {
+	runes := []rune(text)
+	if len(runes) > maxEmbeddingChars {
+		return string(runes[:maxEmbeddingChars])
+	}
+	return text
+}
+
 // NewOpenAIEmbedder 创建 OpenAI 嵌入客户端 / Create a new OpenAI embedding client
 func NewOpenAIEmbedder(apiKey, model string) *OpenAIEmbedder {
 	return &OpenAIEmbedder{
@@ -49,6 +61,7 @@ func NewOpenAIEmbedder(apiKey, model string) *OpenAIEmbedder {
 
 // Embed 单条文本向量化 / Embed a single text via OpenAI API
 func (e *OpenAIEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
+	text = truncateForEmbedding(text)
 	embeddings, err := e.doRequest(ctx, text)
 	if err != nil {
 		return nil, fmt.Errorf("openai embed: %w", err)
@@ -64,7 +77,11 @@ func (e *OpenAIEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]fl
 	if len(texts) == 0 {
 		return nil, nil
 	}
-	embeddings, err := e.doRequest(ctx, texts)
+	truncated := make([]string, len(texts))
+	for i, t := range texts {
+		truncated[i] = truncateForEmbedding(t)
+	}
+	embeddings, err := e.doRequest(ctx, truncated)
 	if err != nil {
 		return nil, fmt.Errorf("openai embed batch: %w", err)
 	}
