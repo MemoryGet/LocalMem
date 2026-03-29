@@ -383,12 +383,18 @@ func LoadConfig() error {
 	// 从环境变量读取
 	viper.AutomaticEnv()
 
-	// 从配置文件读取
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("./config")
-	viper.AddConfigPath("./deploy")
+	// 从配置文件读取 / Read from config file
+	// ICLUDE_CONFIG_PATH 环境变量可指定配置文件路径（CLI --config flag 设置）
+	if envPath := os.Getenv("ICLUDE_CONFIG_PATH"); envPath != "" {
+		viper.SetConfigFile(envPath)
+	} else {
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(".")
+		viper.AddConfigPath("./config")
+		viper.AddConfigPath("./deploy")
+		viper.AddConfigPath(os.ExpandEnv("$HOME/.iclude"))
+	}
 
 	err := viper.ReadInConfig()
 	if err != nil {

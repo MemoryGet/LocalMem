@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -79,15 +80,24 @@ func (a *memoryRetrieverAdapter) Retrieve(ctx context.Context, req *model.Retrie
 }
 
 func main() {
+	stdioMode := flag.Bool("stdio", false, "Run in stdio mode (JSON-RPC over stdin/stdout)")
+	configPath := flag.String("config", "", "Path to config file (overrides default search)")
+	flag.Parse()
+
 	logger.InitLogger()
 	defer logger.GetLogger().Sync() //nolint:errcheck
+
+	if *configPath != "" {
+		os.Setenv("ICLUDE_CONFIG_PATH", *configPath)
+	}
 
 	if err := config.LoadConfig(); err != nil {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 	cfg := config.GetConfig()
 
-	if !cfg.MCP.Enabled {
+	// stdio 模式不检查 mcp.enabled（由 Claude Code 直接拉起）/ stdio mode skips enabled check
+	if !*stdioMode && !cfg.MCP.Enabled {
 		logger.Info("mcp server disabled, set mcp.enabled=true to enable")
 		os.Exit(0)
 	}
@@ -125,6 +135,19 @@ func main() {
 
 	// 注册提示模板 / Register prompts
 	reg.RegisterPrompt(prompts.NewMemoryContextPrompt(retrieverAdapter))
+
+	// stdio 模式：stdin/stdout JSON-RPC 传输 / stdio mode: JSON-RPC over stdin/stdout
+	if *stdioMode {
+		identity := &model.Identity{
+			TeamID:  cfg.MCP.DefaultTeamID,
+			OwnerID: cfg.MCP.DefaultOwnerID,
+		}
+		logger.Info("mcp server starting in stdio mode")
+		if err := mcp.RunStdio(context.Background(), reg, identity, os.Stdin, os.Stdout); err != nil {
+			logger.Error("stdio transport error", zap.Error(err))
+		}
+		return
+	}
 
 	srv := mcp.NewServer(cfg.MCP, reg)
 	addr := fmt.Sprintf(":%d", cfg.MCP.Port)
