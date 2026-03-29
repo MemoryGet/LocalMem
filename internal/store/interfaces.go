@@ -210,6 +210,9 @@ type TagStore interface {
 
 	// GetTagNamesByMemoryIDs 批量获取多条记忆的标签名 / Batch get tag names for multiple memories
 	GetTagNamesByMemoryIDs(ctx context.Context, ids []string) (map[string][]string, error)
+
+	// GetTagByName 通过名称获取标签 / Get tag by name and scope
+	GetTagByName(ctx context.Context, name, scope string) (*model.Tag, error)
 }
 
 // GraphStore 知识图谱存储接口 / Knowledge graph storage interface

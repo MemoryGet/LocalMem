@@ -140,189 +140,99 @@ func visibilityCondition(prefix string, identity *model.Identity) (string, []int
 
 // ---- 扫描辅助函数 ----
 
-// scanMemory 从单行扫描 Memory 对象（35 列）/ Scan a Memory from a single row (35 columns)
-func (s *SQLiteMemoryStore) scanMemory(row *sql.Row) (*model.Memory, error) {
-	var (
-		mem              model.Memory
-		metaStr          sql.NullString
-		isLatestInt      int
-		happenedAt       sql.NullTime
-		deletedAt        sql.NullTime
-		lastAccessedAt   sql.NullTime
-		expiresAt        sql.NullTime
-		strength         sql.NullFloat64
-		decayRate        sql.NullFloat64
-		reinforcedCount  sql.NullInt64
-		chunkIndex       sql.NullInt64
-		retentionTier    sql.NullString
-		messageRole      sql.NullString
-		turnNumber       sql.NullInt64
-		contentHash      sql.NullString
-		consolidatedInto sql.NullString
-		ownerID          sql.NullString
-		visibility       sql.NullString
-	)
+// memScanDest 记忆扫描目标，用于消除重复扫描逻辑 / Memory scan destination for reducing code duplication
+type memScanDest struct {
+	mem              model.Memory
+	metaStr          sql.NullString
+	isLatestInt      int
+	happenedAt       sql.NullTime
+	deletedAt        sql.NullTime
+	lastAccessedAt   sql.NullTime
+	expiresAt        sql.NullTime
+	strength         sql.NullFloat64
+	decayRate        sql.NullFloat64
+	reinforcedCount  sql.NullInt64
+	chunkIndex       sql.NullInt64
+	retentionTier    sql.NullString
+	messageRole      sql.NullString
+	turnNumber       sql.NullInt64
+	contentHash      sql.NullString
+	consolidatedInto sql.NullString
+	ownerID          sql.NullString
+	visibility       sql.NullString
+}
 
-	err := row.Scan(
-		&mem.ID, &mem.Content, &metaStr, &mem.TeamID,
-		&mem.EmbeddingID, &mem.ParentID, &isLatestInt, &mem.AccessCount,
-		&mem.CreatedAt, &mem.UpdatedAt,
-		&mem.URI, &mem.ContextID, &mem.Kind, &mem.SubKind, &mem.Scope, &mem.Abstract, &mem.Summary,
-		&happenedAt, &mem.SourceType, &mem.SourceRef, &mem.DocumentID, &chunkIndex,
-		&deletedAt, &strength, &decayRate, &lastAccessedAt, &reinforcedCount, &expiresAt,
-		&retentionTier, &messageRole, &turnNumber, &contentHash, &consolidatedInto,
-		&ownerID, &visibility,
-	)
-	if err != nil {
-		return nil, err
+// scanFields 返回扫描目标字段列表（与 memoryColumns 顺序一致，35 列）
+// Returns scan destination fields matching memoryColumns order (35 columns)
+func (d *memScanDest) scanFields() []any {
+	return []any{
+		&d.mem.ID, &d.mem.Content, &d.metaStr, &d.mem.TeamID,
+		&d.mem.EmbeddingID, &d.mem.ParentID, &d.isLatestInt, &d.mem.AccessCount,
+		&d.mem.CreatedAt, &d.mem.UpdatedAt,
+		&d.mem.URI, &d.mem.ContextID, &d.mem.Kind, &d.mem.SubKind, &d.mem.Scope, &d.mem.Abstract, &d.mem.Summary,
+		&d.happenedAt, &d.mem.SourceType, &d.mem.SourceRef, &d.mem.DocumentID, &d.chunkIndex,
+		&d.deletedAt, &d.strength, &d.decayRate, &d.lastAccessedAt, &d.reinforcedCount, &d.expiresAt,
+		&d.retentionTier, &d.messageRole, &d.turnNumber, &d.contentHash, &d.consolidatedInto,
+		&d.ownerID, &d.visibility,
 	}
+}
 
-	mem.IsLatest = isLatestInt != 0
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &mem.Metadata); err != nil {
+// toMemory 将扫描结果转为 Memory / Convert scan result to Memory
+func (d *memScanDest) toMemory() (*model.Memory, error) {
+	d.mem.IsLatest = d.isLatestInt != 0
+	if d.metaStr.Valid && d.metaStr.String != "" {
+		if err := json.Unmarshal([]byte(d.metaStr.String), &d.mem.Metadata); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
 		}
 	}
-	applyNullables(&mem, happenedAt, deletedAt, lastAccessedAt, expiresAt, strength, decayRate, reinforcedCount, chunkIndex)
-	applyV3Nullables(&mem, retentionTier, messageRole, turnNumber)
-	if contentHash.Valid {
-		mem.ContentHash = contentHash.String
+	applyNullables(&d.mem, d.happenedAt, d.deletedAt, d.lastAccessedAt, d.expiresAt, d.strength, d.decayRate, d.reinforcedCount, d.chunkIndex)
+	applyV3Nullables(&d.mem, d.retentionTier, d.messageRole, d.turnNumber)
+	if d.contentHash.Valid {
+		d.mem.ContentHash = d.contentHash.String
 	}
-	if consolidatedInto.Valid {
-		mem.ConsolidatedInto = consolidatedInto.String
+	if d.consolidatedInto.Valid {
+		d.mem.ConsolidatedInto = d.consolidatedInto.String
 	}
-	if ownerID.Valid {
-		mem.OwnerID = ownerID.String
+	if d.ownerID.Valid {
+		d.mem.OwnerID = d.ownerID.String
 	}
-	if visibility.Valid {
-		mem.Visibility = visibility.String
+	if d.visibility.Valid {
+		d.mem.Visibility = d.visibility.String
 	}
+	return &d.mem, nil
+}
 
-	return &mem, nil
+// scanMemory 从单行扫描 Memory 对象（35 列）/ Scan a Memory from a single row (35 columns)
+func (s *SQLiteMemoryStore) scanMemory(row *sql.Row) (*model.Memory, error) {
+	var d memScanDest
+	if err := row.Scan(d.scanFields()...); err != nil {
+		return nil, err
+	}
+	return d.toMemory()
 }
 
 // scanMemoryFromRows 从结果集行扫描 Memory 对象（35 列）/ Scan a Memory from a rows cursor (35 columns)
 func (s *SQLiteMemoryStore) scanMemoryFromRows(rows *sql.Rows) (*model.Memory, error) {
-	var (
-		mem              model.Memory
-		metaStr          sql.NullString
-		isLatestInt      int
-		happenedAt       sql.NullTime
-		deletedAt        sql.NullTime
-		lastAccessedAt   sql.NullTime
-		expiresAt        sql.NullTime
-		strength         sql.NullFloat64
-		decayRate        sql.NullFloat64
-		reinforcedCount  sql.NullInt64
-		chunkIndex       sql.NullInt64
-		retentionTier    sql.NullString
-		messageRole      sql.NullString
-		turnNumber       sql.NullInt64
-		contentHash      sql.NullString
-		consolidatedInto sql.NullString
-		ownerID          sql.NullString
-		visibility       sql.NullString
-	)
-
-	err := rows.Scan(
-		&mem.ID, &mem.Content, &metaStr, &mem.TeamID,
-		&mem.EmbeddingID, &mem.ParentID, &isLatestInt, &mem.AccessCount,
-		&mem.CreatedAt, &mem.UpdatedAt,
-		&mem.URI, &mem.ContextID, &mem.Kind, &mem.SubKind, &mem.Scope, &mem.Abstract, &mem.Summary,
-		&happenedAt, &mem.SourceType, &mem.SourceRef, &mem.DocumentID, &chunkIndex,
-		&deletedAt, &strength, &decayRate, &lastAccessedAt, &reinforcedCount, &expiresAt,
-		&retentionTier, &messageRole, &turnNumber, &contentHash, &consolidatedInto,
-		&ownerID, &visibility,
-	)
-	if err != nil {
+	var d memScanDest
+	if err := rows.Scan(d.scanFields()...); err != nil {
 		return nil, err
 	}
-
-	mem.IsLatest = isLatestInt != 0
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &mem.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
-		}
-	}
-	applyNullables(&mem, happenedAt, deletedAt, lastAccessedAt, expiresAt, strength, decayRate, reinforcedCount, chunkIndex)
-	applyV3Nullables(&mem, retentionTier, messageRole, turnNumber)
-	if contentHash.Valid {
-		mem.ContentHash = contentHash.String
-	}
-	if consolidatedInto.Valid {
-		mem.ConsolidatedInto = consolidatedInto.String
-	}
-	if ownerID.Valid {
-		mem.OwnerID = ownerID.String
-	}
-	if visibility.Valid {
-		mem.Visibility = visibility.String
-	}
-
-	return &mem, nil
+	return d.toMemory()
 }
 
 // scanMemoryWithRank 扫描带 rank 列的行（36 列 = 35 + rank）/ Scan a Memory + BM25 rank (36 columns)
 func (s *SQLiteMemoryStore) scanMemoryWithRank(rows *sql.Rows) (*model.Memory, float64, error) {
-	var (
-		mem              model.Memory
-		metaStr          sql.NullString
-		isLatestInt      int
-		happenedAt       sql.NullTime
-		deletedAt        sql.NullTime
-		lastAccessedAt   sql.NullTime
-		expiresAt        sql.NullTime
-		strength         sql.NullFloat64
-		decayRate        sql.NullFloat64
-		reinforcedCount  sql.NullInt64
-		chunkIndex       sql.NullInt64
-		retentionTier    sql.NullString
-		messageRole      sql.NullString
-		turnNumber       sql.NullInt64
-		contentHash      sql.NullString
-		consolidatedInto sql.NullString
-		ownerID          sql.NullString
-		visibility       sql.NullString
-		rank             float64
-	)
-
-	err := rows.Scan(
-		&mem.ID, &mem.Content, &metaStr, &mem.TeamID,
-		&mem.EmbeddingID, &mem.ParentID, &isLatestInt, &mem.AccessCount,
-		&mem.CreatedAt, &mem.UpdatedAt,
-		&mem.URI, &mem.ContextID, &mem.Kind, &mem.SubKind, &mem.Scope, &mem.Abstract, &mem.Summary,
-		&happenedAt, &mem.SourceType, &mem.SourceRef, &mem.DocumentID, &chunkIndex,
-		&deletedAt, &strength, &decayRate, &lastAccessedAt, &reinforcedCount, &expiresAt,
-		&retentionTier, &messageRole, &turnNumber, &contentHash, &consolidatedInto,
-		&ownerID, &visibility,
-		&rank,
-	)
+	var d memScanDest
+	var rank float64
+	fields := append(d.scanFields(), &rank)
+	if err := rows.Scan(fields...); err != nil {
+		return nil, 0, err
+	}
+	mem, err := d.toMemory()
 	if err != nil {
 		return nil, 0, err
 	}
-
-	mem.IsLatest = isLatestInt != 0
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &mem.Metadata); err != nil {
-			return nil, 0, fmt.Errorf("failed to unmarshal metadata: %w", err)
-		}
-	}
-	applyNullables(&mem, happenedAt, deletedAt, lastAccessedAt, expiresAt, strength, decayRate, reinforcedCount, chunkIndex)
-	applyV3Nullables(&mem, retentionTier, messageRole, turnNumber)
-	if contentHash.Valid {
-		mem.ContentHash = contentHash.String
-	}
-	if consolidatedInto.Valid {
-		mem.ConsolidatedInto = consolidatedInto.String
-	}
-	if ownerID.Valid {
-		mem.OwnerID = ownerID.String
-	}
-	if visibility.Valid {
-		mem.Visibility = visibility.String
-	}
-
-	return &mem, rank, nil
+	return mem, rank, nil
 }
 
 // scanMemories 扫描多行

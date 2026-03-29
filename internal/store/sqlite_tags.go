@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -252,64 +251,27 @@ func (s *SQLiteTagStore) GetTagNamesByMemoryIDs(ctx context.Context, ids []strin
 	return result, rows.Err()
 }
 
-// scanMemoryRow 从结果集行扫描 Memory 对象（35 列），与 SQLiteMemoryStore.scanMemoryFromRows 相同
-// Scan a Memory from a rows cursor (35 columns), mirrors SQLiteMemoryStore.scanMemoryFromRows
-func scanMemoryRow(rows *sql.Rows) (*model.Memory, error) {
-	var (
-		mem              model.Memory
-		metaStr          sql.NullString
-		isLatestInt      int
-		happenedAt       sql.NullTime
-		deletedAt        sql.NullTime
-		lastAccessedAt   sql.NullTime
-		expiresAt        sql.NullTime
-		strength         sql.NullFloat64
-		decayRate        sql.NullFloat64
-		reinforcedCount  sql.NullInt64
-		chunkIndex       sql.NullInt64
-		retentionTier    sql.NullString
-		messageRole      sql.NullString
-		turnNumber       sql.NullInt64
-		contentHash      sql.NullString
-		consolidatedInto sql.NullString
-		ownerID          sql.NullString
-		visibility       sql.NullString
-	)
-
-	err := rows.Scan(
-		&mem.ID, &mem.Content, &metaStr, &mem.TeamID,
-		&mem.EmbeddingID, &mem.ParentID, &isLatestInt, &mem.AccessCount,
-		&mem.CreatedAt, &mem.UpdatedAt,
-		&mem.URI, &mem.ContextID, &mem.Kind, &mem.SubKind, &mem.Scope, &mem.Abstract, &mem.Summary,
-		&happenedAt, &mem.SourceType, &mem.SourceRef, &mem.DocumentID, &chunkIndex,
-		&deletedAt, &strength, &decayRate, &lastAccessedAt, &reinforcedCount, &expiresAt,
-		&retentionTier, &messageRole, &turnNumber, &contentHash, &consolidatedInto,
-		&ownerID, &visibility,
-	)
+// GetTagByName 通过名称获取标签 / Get tag by name and scope
+func (s *SQLiteTagStore) GetTagByName(ctx context.Context, name, scope string) (*model.Tag, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, name, scope, created_at FROM tags WHERE name = ? AND scope = ?`,
+		name, scope)
+	var tag model.Tag
+	err := row.Scan(&tag.ID, &tag.Name, &tag.Scope, &tag.CreatedAt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, model.ErrTagNotFound
+		}
+		return nil, fmt.Errorf("failed to get tag by name: %w", err)
+	}
+	return &tag, nil
+}
+
+// scanMemoryRow 从结果集行扫描 Memory 对象（35 列），复用 memScanDest / Scan a Memory from rows using shared memScanDest
+func scanMemoryRow(rows *sql.Rows) (*model.Memory, error) {
+	var d memScanDest
+	if err := rows.Scan(d.scanFields()...); err != nil {
 		return nil, err
 	}
-
-	mem.IsLatest = isLatestInt != 0
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &mem.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
-		}
-	}
-	applyNullables(&mem, happenedAt, deletedAt, lastAccessedAt, expiresAt, strength, decayRate, reinforcedCount, chunkIndex)
-	applyV3Nullables(&mem, retentionTier, messageRole, turnNumber)
-	if contentHash.Valid {
-		mem.ContentHash = contentHash.String
-	}
-	if consolidatedInto.Valid {
-		mem.ConsolidatedInto = consolidatedInto.String
-	}
-	if ownerID.Valid {
-		mem.OwnerID = ownerID.String
-	}
-	if visibility.Valid {
-		mem.Visibility = visibility.String
-	}
-
-	return &mem, nil
+	return d.toMemory()
 }

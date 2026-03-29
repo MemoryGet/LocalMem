@@ -4,6 +4,7 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -729,18 +730,16 @@ func (m *Manager) handleUpdateTags(ctx context.Context, memoryID, scope string, 
 
 // findOrCreateTag 查找或创建标签 / Find existing tag by name or create a new one
 func (m *Manager) findOrCreateTag(ctx context.Context, name, scope string) (string, error) {
-	// 尝试在已有标签中查找同名标签
-	existingTags, err := m.tagStore.ListTags(ctx, scope)
-	if err != nil {
-		return "", fmt.Errorf("failed to list tags: %w", err)
+	// 按名称索引查找，O(1) / Indexed lookup by name, O(1)
+	existing, err := m.tagStore.GetTagByName(ctx, name, scope)
+	if err == nil {
+		return existing.ID, nil
 	}
-	for _, t := range existingTags {
-		if t.Name == name {
-			return t.ID, nil
-		}
+	if !errors.Is(err, model.ErrTagNotFound) {
+		return "", fmt.Errorf("failed to lookup tag: %w", err)
 	}
 
-	// 创建新标签
+	// 标签不存在，创建新标签 / Tag not found, create new one
 	tag := &model.Tag{
 		Name:  name,
 		Scope: scope,
