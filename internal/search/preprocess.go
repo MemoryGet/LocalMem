@@ -150,41 +150,23 @@ func (p *Preprocessor) extractKeywords(ctx context.Context, query string) []stri
 	return keywords
 }
 
-// matchEntities 实体快速匹配 / Match keywords against graph entities
-// [fix] 去掉 100 硬限，短关键词(<3 rune)要求精确匹配
-// 注意：GraphStore.ListEntities 接口仅支持 limit，不支持 offset，
-// 因此无法真正分页遍历全部实体；当实体总量超过 batchSize 时仅能读取前 N 条。
-// Note: GraphStore.ListEntities only accepts limit (no offset), so full pagination
-// is not possible; only the first batchSize entities are matched when total > batchSize.
+// matchEntities 实体快速匹配（使用索引查询替代全量扫描）/ Match keywords against graph entities via indexed queries
 func (p *Preprocessor) matchEntities(ctx context.Context, keywords []string, scope string) []string {
 	if len(keywords) == 0 {
 		return nil
 	}
 
-	// 一次性拉取实体（接口不支持 offset，无法分页）/ Fetch entities in one call (no offset support in interface)
-	batchSize := 500
-	allEntities, err := p.graphStore.ListEntities(ctx, scope, "", batchSize)
-	if err != nil {
-		return nil
-	}
-
+	seen := make(map[string]bool)
 	var matched []string
-	for _, ent := range allEntities {
-		entNameLower := strings.ToLower(ent.Name)
-		for _, kw := range keywords {
-			kwRunes := len([]rune(kw))
-			kwLower := strings.ToLower(kw)
-			// 短关键词(<3 rune)要求精确匹配 / Short keywords require exact match
-			if kwRunes < 3 {
-				if strings.EqualFold(kw, ent.Name) {
-					matched = append(matched, ent.ID)
-					break
-				}
-			} else {
-				if strings.EqualFold(kw, ent.Name) || strings.Contains(entNameLower, kwLower) {
-					matched = append(matched, ent.ID)
-					break
-				}
+	for _, kw := range keywords {
+		entities, err := p.graphStore.FindEntitiesByName(ctx, kw, scope, 5)
+		if err != nil {
+			continue
+		}
+		for _, ent := range entities {
+			if !seen[ent.ID] {
+				seen[ent.ID] = true
+				matched = append(matched, ent.ID)
 			}
 		}
 	}

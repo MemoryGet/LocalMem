@@ -18,7 +18,7 @@ type mockMemoryGetter struct {
 	memories map[string]*model.Memory
 }
 
-func (m *mockMemoryGetter) Get(_ context.Context, id string) (*model.Memory, error) {
+func (m *mockMemoryGetter) GetVisible(_ context.Context, id string, _ *model.Identity) (*model.Memory, error) {
 	mem, ok := m.memories[id]
 	if !ok {
 		return nil, model.ErrMemoryNotFound

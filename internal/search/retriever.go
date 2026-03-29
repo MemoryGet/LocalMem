@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -212,6 +213,10 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		results = MergeWeightedRRF(rrfInputs, defaultRRFK, limit)
 	}
 
+	// 回填空壳 Memory（Qdrant 返回的 Memory 只有 ID，需从 SQLite 补全）
+	// Backfill incomplete Memory objects (Qdrant results only contain ID)
+	results = r.backfillMemories(ctx, results)
+
 	// MMR 多样性重排（需要 VectorStore，SQLite-only 模式自动跳过）/ MMR diversity re-ranking
 	// per-request 覆盖全局配置 / Per-request fields override global config
 	mmrEnabled := r.cfg.MMR.Enabled
@@ -369,13 +374,9 @@ func (r *Retriever) graphTraverseAndCollect(ctx context.Context, seedEntityIDs m
 	for id, mem := range memoryMap {
 		sorted = append(sorted, depthMem{mem: mem, depth: memoryDepth[id]})
 	}
-	for i := 0; i < len(sorted); i++ {
-		for j := i + 1; j < len(sorted); j++ {
-			if sorted[j].depth < sorted[i].depth {
-				sorted[i], sorted[j] = sorted[j], sorted[i]
-			}
-		}
-	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].depth < sorted[j].depth
+	})
 
 	results := make([]*model.SearchResult, 0, len(sorted))
 	for _, dm := range sorted {
@@ -420,20 +421,17 @@ func (r *Retriever) llmExtractEntities(ctx context.Context, query string, scope 
 		return nil
 	}
 
-	// 在 GraphStore 中匹配实体名 / Match entity names in GraphStore
+	// 在 GraphStore 中按名称精确匹配实体（索引查询，替代全量扫描）
+	// Match entity names via indexed query (replaces O(N) full scan)
 	var matchedIDs []string
-	allEntities, err := r.graphStore.ListEntities(ctx, scope, "", 500)
-	if err != nil {
-		logger.Warn("graph: ListEntities failed", zap.Error(err))
-		return nil
-	}
-
 	for _, name := range output.Entities {
-		for _, ent := range allEntities {
-			if strings.EqualFold(ent.Name, name) {
-				matchedIDs = append(matchedIDs, ent.ID)
-				break
-			}
+		entities, err := r.graphStore.FindEntitiesByName(ctx, name, scope, 1)
+		if err != nil {
+			logger.Debug("graph: FindEntitiesByName failed", zap.String("name", name), zap.Error(err))
+			continue
+		}
+		if len(entities) > 0 {
+			matchedIDs = append(matchedIDs, entities[0].ID)
 		}
 	}
 	return matchedIDs
@@ -518,4 +516,31 @@ func (r *Retriever) resolveEmbedding(ctx context.Context, provided []float32, qu
 		return nil, fmt.Errorf("embedding generation failed: %w", err)
 	}
 	return embedding, nil
+}
+
+// backfillMemories 回填空壳 Memory 对象 / Backfill incomplete Memory objects from MemoryStore
+// Qdrant 搜索结果仅含 ID，需从 SQLite 获取完整字段（Content/Strength/DecayRate 等）
+func (r *Retriever) backfillMemories(ctx context.Context, results []*model.SearchResult) []*model.SearchResult {
+	filled := make([]*model.SearchResult, 0, len(results))
+	for _, res := range results {
+		if res.Memory == nil {
+			continue
+		}
+		// 检测空壳：Content 为空说明是 Qdrant 返回的不完整对象
+		if res.Memory.Content == "" {
+			mem, err := r.memStore.Get(ctx, res.Memory.ID)
+			if err != nil {
+				logger.Debug("backfill: failed to get memory, skipping",
+					zap.String("id", res.Memory.ID), zap.Error(err))
+				continue
+			}
+			// 创建副本避免修改共享指针 / Create copy to avoid mutating shared pointer
+			newRes := *res
+			newRes.Memory = mem
+			filled = append(filled, &newRes)
+			continue
+		}
+		filled = append(filled, res)
+	}
+	return filled
 }

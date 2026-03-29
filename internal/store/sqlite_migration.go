@@ -14,7 +14,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 8
+const latestVersion = 9
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -82,6 +82,7 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		if err := migrateV3ToV4(db, tok); err != nil {
 			return fmt.Errorf("migration V3→V4 failed: %w", err)
 		}
+		version = 4
 	}
 
 	// V4→V5: 记忆归纳审计字段
@@ -89,6 +90,7 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		if err := migrateV4ToV5(db); err != nil {
 			return fmt.Errorf("migration V4→V5 failed: %w", err)
 		}
+		version = 5
 	}
 
 	// V5→V6: 身份与归属 / Identity & Ownership
@@ -115,9 +117,12 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		version = 8
 	}
 
-	// 性能索引（幂等，CREATE IF NOT EXISTS）
-	if err := migrateAddPerformanceIndexes(db); err != nil {
-		return fmt.Errorf("performance indexes migration failed: %w", err)
+	// V8→V9: 性能索引 + 实体名索引 + 缺失列索引 + 复合索引 / Performance, entity name, missing column, and composite indexes
+	if version < 9 {
+		if err := migrateV8ToV9(db); err != nil {
+			return fmt.Errorf("migrate V8→V9: %w", err)
+		}
+		version = 9
 	}
 
 	return nil
@@ -729,7 +734,51 @@ func migrateV7ToV8(db *sql.DB) error {
 	return tx.Commit()
 }
 
-// migrateAddPerformanceIndexes 添加性能索引 / Add performance indexes for common query patterns
+// migrateV8ToV9 性能索引版本化 + 实体名索引 + 缺失列索引 + 复合索引 / Versioned performance indexes + entity name + missing column + composite indexes
+func migrateV8ToV9(db *sql.DB) error {
+	logger.Info("executing migration V8→V9")
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin V8→V9 tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// memories 表索引（必须成功）/ Memory table indexes (must succeed)
+	memIndexes := []string{
+		// 原有性能索引（从 migrateAddPerformanceIndexes 迁入）
+		`CREATE INDEX IF NOT EXISTS idx_memories_strength ON memories(strength) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_updated_at ON memories(updated_at DESC) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_scope_kind ON memories(scope, kind) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_owner_team ON memories(owner_id, team_id) WHERE deleted_at IS NULL`,
+		// 缺失列索引 / Missing column indexes
+		`CREATE INDEX IF NOT EXISTS idx_memories_uri ON memories(uri) WHERE uri != '' AND deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_document_id ON memories(document_id) WHERE document_id != '' AND deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_memories_parent_id ON memories(parent_id) WHERE parent_id != '' AND deleted_at IS NULL`,
+		// 多租户复合索引（优化 visibilityCondition OR 路径）/ Multi-tenant composite index
+		`CREATE INDEX IF NOT EXISTS idx_memories_team_vis_owner ON memories(team_id, visibility, owner_id) WHERE deleted_at IS NULL`,
+	}
+	for _, idx := range memIndexes {
+		if _, err := tx.ExecContext(ctx, idx); err != nil {
+			return fmt.Errorf("V8→V9 index creation failed: %w", err)
+		}
+	}
+
+	// entities 表索引（表可能不存在，best-effort）/ Entity table index (table may not exist)
+	if _, err := tx.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_entities_lower_name ON entities(name COLLATE NOCASE)`); err != nil {
+		logger.Warn("V8→V9: entities index skipped (table may not exist)", zap.Error(err))
+	}
+
+	// 写入版本号
+	if _, err := tx.ExecContext(ctx, `INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (9, datetime('now'))`); err != nil {
+		return fmt.Errorf("V8→V9 version write failed: %w", err)
+	}
+
+	logger.Info("migration V8→V9 completed successfully")
+	return tx.Commit()
+}
+
+// migrateAddPerformanceIndexes 添加性能索引（已纳入 V9，保留向后兼容）/ Add performance indexes (now part of V9, kept for backward compat)
 func migrateAddPerformanceIndexes(db *sql.DB) error {
 	ctx := context.Background()
 	tx, err := db.BeginTx(ctx, nil)

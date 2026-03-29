@@ -74,6 +74,9 @@ func (e *OpenAIEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]fl
 	return embeddings, nil
 }
 
+// maxRetries 嵌入请求最大重试次数 / Max retries for embedding requests
+const maxRetries = 3
+
 func (e *OpenAIEmbedder) doRequest(ctx context.Context, input any) ([][]float32, error) {
 	reqBody := openaiEmbedRequest{
 		Input: input,
@@ -85,40 +88,67 @@ func (e *OpenAIEmbedder) doRequest(ctx context.Context, input any) ([][]float32,
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// 指数退避: 1s, 2s / Exponential backoff
+			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+
+		result, statusCode, err := e.doSingleRequest(ctx, bodyBytes)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+
+		// 仅对 429(速率限制) 和 5xx(服务端错误) 重试 / Retry only on 429 and 5xx
+		if statusCode > 0 && statusCode != http.StatusTooManyRequests && statusCode < 500 {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("embedding request failed after %d attempts: %w", maxRetries, lastErr)
+}
+
+func (e *OpenAIEmbedder) doSingleRequest(ctx context.Context, bodyBytes []byte) ([][]float32, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, openaiEmbeddingsURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+e.apiKey)
 
 	resp, err := e.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, 0, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBytes))
+		return nil, resp.StatusCode, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	var result openaiEmbedResponse
 	if err := json.Unmarshal(respBytes, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if result.Error != nil {
-		return nil, fmt.Errorf("API error: %s", result.Error.Message)
+		return nil, resp.StatusCode, fmt.Errorf("API error: %s", result.Error.Message)
 	}
 
 	embeddings := make([][]float32, len(result.Data))
 	for i, d := range result.Data {
 		embeddings[i] = d.Embedding
 	}
-	return embeddings, nil
+	return embeddings, resp.StatusCode, nil
 }

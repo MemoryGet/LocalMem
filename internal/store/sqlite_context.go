@@ -277,9 +277,14 @@ func (s *SQLiteContextStore) Move(ctx context.Context, id string, newParentID st
 
 // IncrementMemoryCount 递增记忆计数 / Atomically increment memory count by 1
 func (s *SQLiteContextStore) IncrementMemoryCount(ctx context.Context, id string) error {
+	return s.IncrementMemoryCountBy(ctx, id, 1)
+}
+
+// IncrementMemoryCountBy 递增记忆计数（指定增量）/ Atomically increment memory count by delta
+func (s *SQLiteContextStore) IncrementMemoryCountBy(ctx context.Context, id string, delta int) error {
 	result, err := s.db.ExecContext(ctx,
-		`UPDATE contexts SET memory_count = memory_count + 1, updated_at = ? WHERE id = ?`,
-		time.Now().UTC(), id,
+		`UPDATE contexts SET memory_count = MAX(0, memory_count + ?), updated_at = ? WHERE id = ?`,
+		delta, time.Now().UTC(), id,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to increment memory count: %w", err)
@@ -299,7 +304,7 @@ func (s *SQLiteContextStore) IncrementMemoryCount(ctx context.Context, id string
 // DecrementMemoryCount 递减记忆计数 / Atomically decrement memory count by 1
 func (s *SQLiteContextStore) DecrementMemoryCount(ctx context.Context, id string) error {
 	result, err := s.db.ExecContext(ctx,
-		`UPDATE contexts SET memory_count = memory_count - 1, updated_at = ? WHERE id = ?`,
+		`UPDATE contexts SET memory_count = MAX(0, memory_count - 1), updated_at = ? WHERE id = ?`,
 		time.Now().UTC(), id,
 	)
 	if err != nil {

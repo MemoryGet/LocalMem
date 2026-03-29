@@ -288,13 +288,12 @@ func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
 
 // resolveEntity 实体规范化（两阶段）/ Entity normalization (two-phase)
 func (e *Extractor) resolveEntity(ctx context.Context, ent extractedEntity, scope string) (*model.ExtractedEntityResult, bool, error) {
-	// 阶段 1: 精确匹配 / Phase 1: Exact match
-	existing, err := e.graphManager.graphStore.ListEntities(ctx, scope, ent.EntityType, e.cfg.NormalizeCandidates)
+	// 阶段 1: 精确匹配（索引查询）/ Phase 1: Exact match via indexed query
+	exactMatches, err := e.graphManager.FindEntitiesByName(ctx, ent.Name, scope, 5)
 	if err != nil {
-		logger.Warn("list entities failed during normalization", zap.Error(err))
-		// 继续创建新实体 / Continue to create new entity
+		logger.Warn("FindEntitiesByName failed during normalization", zap.Error(err))
 	} else {
-		for _, ex := range existing {
+		for _, ex := range exactMatches {
 			if strings.EqualFold(ex.Name, ent.Name) {
 				return &model.ExtractedEntityResult{
 					EntityID:   ex.ID,
@@ -304,26 +303,30 @@ func (e *Extractor) resolveEntity(ctx context.Context, ent extractedEntity, scop
 				}, false, nil
 			}
 		}
+	}
 
-		// 阶段 2: LLM 辅助规范化 / Phase 2: LLM-assisted normalization
-		if e.cfg.NormalizeEnabled && len(existing) > 0 {
-			candidates := existing
-			if len(candidates) > e.cfg.NormalizeCandidates {
-				candidates = candidates[:e.cfg.NormalizeCandidates]
-			}
+	// 阶段 2: LLM 辅助规范化（候选列表）/ Phase 2: LLM-assisted normalization
+	existing, listErr := e.graphManager.ListEntities(ctx, scope, ent.EntityType, e.cfg.NormalizeCandidates)
+	if listErr != nil {
+		logger.Warn("list entities failed during normalization", zap.Error(listErr))
+	}
+	if e.cfg.NormalizeEnabled && len(existing) > 0 {
+		candidates := existing
+		if len(candidates) > e.cfg.NormalizeCandidates {
+			candidates = candidates[:e.cfg.NormalizeCandidates]
+		}
 
-			matched, matchedName := e.llmNormalize(ctx, ent.Name, candidates)
-			if matched {
-				for _, ex := range candidates {
-					if strings.EqualFold(ex.Name, matchedName) {
-						return &model.ExtractedEntityResult{
-							EntityID:       ex.ID,
-							Name:           ex.Name,
-							EntityType:     ex.EntityType,
-							Reused:         true,
-							NormalizedFrom: ent.Name,
-						}, true, nil
-					}
+		matched, matchedName := e.llmNormalize(ctx, ent.Name, candidates)
+		if matched {
+			for _, ex := range candidates {
+				if strings.EqualFold(ex.Name, matchedName) {
+					return &model.ExtractedEntityResult{
+						EntityID:       ex.ID,
+						Name:           ex.Name,
+						EntityType:     ex.EntityType,
+						Reused:         true,
+						NormalizedFrom: ent.Name,
+					}, true, nil
 				}
 			}
 		}
@@ -395,7 +398,7 @@ func (e *Extractor) llmNormalize(ctx context.Context, name string, candidates []
 // resolveRelation 创建关系（去重）/ Create relation with dedup
 func (e *Extractor) resolveRelation(ctx context.Context, sourceID, targetID, relationType string) *model.ExtractedRelationResult {
 	// 去重检查 / Dedup check
-	existing, err := e.graphManager.graphStore.GetEntityRelations(ctx, sourceID)
+	existing, err := e.graphManager.GetEntityRelations(ctx, sourceID)
 	if err == nil {
 		for _, rel := range existing {
 			if rel.TargetID == targetID && rel.RelationType == relationType {

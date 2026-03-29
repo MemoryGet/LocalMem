@@ -29,7 +29,7 @@ func TestMigrate_FreshDB(t *testing.T) {
 	var version int
 	err = db.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 8, version)
+	assert.Equal(t, 9, version)
 
 	// 验证新表存在
 	tables := []string{"memories", "contexts", "tags", "memory_tags", "entities", "entity_relations", "memory_entities", "documents", "async_tasks"}
@@ -147,7 +147,7 @@ func TestMigrate_V2ToV3(t *testing.T) {
 	var version int
 	err = rawDB.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 8, version)
+	assert.Equal(t, 9, version)
 
 	// 验证 V3 新增列存在
 	v3Columns := []string{"retention_tier", "message_role", "turn_number"}

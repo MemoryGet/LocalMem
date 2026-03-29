@@ -59,7 +59,7 @@ func setupConsolidatorStores(t *testing.T) (*store.Stores, store.MemoryStore) {
 // TestConsolidator_Run_NoLLM LLM 为 nil 时 Run 提前返回不报错 / nil LLM skips gracefully
 func TestConsolidator_Run_NoLLM(t *testing.T) {
 	stores, _ := setupConsolidatorStores(t)
-	c := memory.NewConsolidator(stores.MemoryStore, nil, nil) // nil LLM
+	c := memory.NewConsolidator(stores.MemoryStore, nil, nil, config.ConsolidationConfig{}) // nil LLM
 	config.AppConfig.Consolidation = config.ConsolidationConfig{
 		Enabled: true, MinAgeDays: 0, SimilarityThreshold: 0.8,
 		MinClusterSize: 2, MaxMemoriesPerRun: 100,
@@ -72,7 +72,7 @@ func TestConsolidator_Run_NoLLM(t *testing.T) {
 func TestConsolidator_Run_EmptyDB(t *testing.T) {
 	stores, _ := setupConsolidatorStores(t)
 	mockLLM := &consolidateMockLLM{response: strings.Repeat("consolidated fact. ", 5)}
-	c := memory.NewConsolidator(stores.MemoryStore, nil, mockLLM)
+	c := memory.NewConsolidator(stores.MemoryStore, nil, mockLLM, config.ConsolidationConfig{})
 	config.AppConfig.Consolidation = config.ConsolidationConfig{
 		Enabled: true, MinAgeDays: 0, SimilarityThreshold: 0.8,
 		MinClusterSize: 2, MaxMemoriesPerRun: 100,
@@ -92,7 +92,7 @@ func TestConsolidator_Run_NoVecStore(t *testing.T) {
 
 	mockLLM := &consolidateMockLLM{response: strings.Repeat("consolidated. ", 10)}
 	// vecStore=nil → Run skips (no vectors for clustering)
-	c := memory.NewConsolidator(stores.MemoryStore, nil, mockLLM)
+	c := memory.NewConsolidator(stores.MemoryStore, nil, mockLLM, config.ConsolidationConfig{})
 	config.AppConfig.Consolidation = config.ConsolidationConfig{
 		Enabled: true, MinAgeDays: 0, SimilarityThreshold: 0.8,
 		MinClusterSize: 2, MaxMemoriesPerRun: 100,
@@ -105,7 +105,7 @@ func TestConsolidator_Run_NoVecStore(t *testing.T) {
 func TestConsolidator_LLMError(t *testing.T) {
 	stores, _ := setupConsolidatorStores(t)
 	mockLLM := &consolidateMockLLM{err: assert.AnError}
-	c := memory.NewConsolidator(stores.MemoryStore, nil, mockLLM)
+	c := memory.NewConsolidator(stores.MemoryStore, nil, mockLLM, config.ConsolidationConfig{})
 	config.AppConfig.Consolidation = config.ConsolidationConfig{
 		Enabled: true, MinAgeDays: 0, SimilarityThreshold: 0.8,
 		MinClusterSize: 2, MaxMemoriesPerRun: 100,
@@ -179,7 +179,7 @@ func TestConsolidator_OutputValidation_EmptyRejected(t *testing.T) {
 			vs := setupClusterWithVecStore(t, memStore, 3, "default")
 
 			mockLLM := &consolidateMockLLM{response: tc.response}
-			c := memory.NewConsolidator(stores.MemoryStore, vs, mockLLM)
+			c := memory.NewConsolidator(stores.MemoryStore, vs, mockLLM, config.ConsolidationConfig{})
 
 			config.AppConfig.Consolidation = config.ConsolidationConfig{
 				Enabled:             true,

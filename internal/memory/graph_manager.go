@@ -52,6 +52,14 @@ func (m *GraphManager) ListEntities(ctx context.Context, scope, entityType strin
 	return m.graphStore.ListEntities(ctx, scope, entityType, limit)
 }
 
+// FindEntitiesByName 按名称匹配实体 / Find entities by name
+func (m *GraphManager) FindEntitiesByName(ctx context.Context, name, scope string, limit int) ([]*model.Entity, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	return m.graphStore.FindEntitiesByName(ctx, name, scope, limit)
+}
+
 // UpdateEntity 更新实体 / Update entity
 func (m *GraphManager) UpdateEntity(ctx context.Context, id string, req *model.UpdateEntityRequest) (*model.Entity, error) {
 	if id == "" {

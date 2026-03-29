@@ -32,7 +32,9 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 	r := gin.New()
 
 	r.Use(gin.Recovery())
+	r.Use(SecurityHeadersMiddleware())
 	r.Use(CORSMiddleware(deps.CORSAllowedOrigins))
+	r.Use(MaxBodySizeMiddleware(4 << 20)) // 4 MB 请求体上限 / 4 MB request body limit
 	r.Use(LoggerMiddleware())
 
 	r.GET("/health", func(c *gin.Context) {
@@ -43,9 +45,12 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 	v1.Use(AuthMiddleware(deps.AuthConfig))
 	v1.Use(IdentityMiddleware())
 	{
+		// 写接口速率限制 / Write endpoint rate limiting
+		writeRateLimit := RateLimitMiddleware(20, 40) // 20 rps, burst 40
+
 		// Memory CRUD
-		memHandler := NewMemoryHandler(deps.MemManager)
-		v1.POST("/memories", memHandler.Create)
+		memHandler := NewMemoryHandler(deps.MemManager, deps.AuthConfig.Enabled)
+		v1.POST("/memories", writeRateLimit, memHandler.Create)
 		v1.GET("/memories", memHandler.List)
 		v1.GET("/memories/:id", memHandler.Get)
 		v1.PUT("/memories/:id", memHandler.Update)
@@ -63,12 +68,13 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 
 		// Conversations
 		convHandler := NewConversationHandler(deps.MemManager)
-		v1.POST("/conversations", convHandler.Ingest)
+		v1.POST("/conversations", writeRateLimit, convHandler.Ingest)
 		v1.GET("/conversations/:context_id", convHandler.GetConversation)
 
-		// Search
+		// Search（带速率限制）/ Search with rate limiting
 		searchHandler := NewSearchHandler(deps.Retriever)
-		v1.POST("/retrieve", searchHandler.Retrieve)
+		apiRateLimit := RateLimitMiddleware(10, 20) // 10 rps, burst 20
+		v1.POST("/retrieve", apiRateLimit, searchHandler.Retrieve)
 		v1.GET("/timeline", searchHandler.Timeline)
 
 		// Contexts
@@ -113,23 +119,26 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 		// Documents
 		if deps.DocProcessor != nil {
 			docHandler := NewDocumentHandler(deps.DocProcessor)
-			v1.POST("/documents", docHandler.Upload)
+			v1.POST("/documents", writeRateLimit, docHandler.Upload)
 			v1.GET("/documents", docHandler.List)
 			v1.GET("/documents/:id", docHandler.Get)
 			v1.DELETE("/documents/:id", docHandler.Delete)
 			v1.POST("/documents/:id/reprocess", docHandler.Process)
 		}
 
+		// LLM 密集型接口使用更严格的速率限制 / Stricter rate limit for LLM-intensive endpoints
+		llmRateLimit := RateLimitMiddleware(2, 5) // 2 rps, burst 5
+
 		// Extract 实体抽取 / Entity extraction
 		if deps.Extractor != nil {
 			extractHandler := NewExtractHandler(deps.Extractor)
-			v1.POST("/memories/:id/extract", extractHandler.Extract)
+			v1.POST("/memories/:id/extract", llmRateLimit, extractHandler.Extract)
 		}
 
 		// Reflect 反思推理 / Reflect reasoning
 		if deps.ReflectEngine != nil {
 			reflectHandler := NewReflectHandler(deps.ReflectEngine, deps.ReflectConfig)
-			v1.POST("/reflect", reflectHandler.Reflect)
+			v1.POST("/reflect", llmRateLimit, reflectHandler.Reflect)
 		}
 	}
 

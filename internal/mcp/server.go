@@ -3,6 +3,7 @@ package mcp
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/time/rate"
 	"iclude/internal/config"
 	"iclude/internal/logger"
 	"iclude/internal/model"
@@ -24,17 +26,34 @@ type Server struct {
 	registry *Registry
 	sessions sync.Map // map[string]*Session
 	mux      *http.ServeMux
+	limiter  *rate.Limiter // 全局速率限制 / Global rate limiter
 }
 
 // NewServer 创建 MCP 服务器并注册路由 / Create MCP server and register routes
 func NewServer(cfg config.MCPConfig, registry *Registry) *Server {
-	s := &Server{cfg: cfg, registry: registry, mux: http.NewServeMux()}
+	s := &Server{
+		cfg:      cfg,
+		registry: registry,
+		mux:      http.NewServeMux(),
+		limiter:  rate.NewLimiter(rate.Limit(10), 20), // 10 rps, burst 20
+	}
 	if s.cfg.APIToken == "" {
 		logger.Warn("MCP server running without authentication — set mcp.api_token in config for production use")
 	}
 	s.mux.HandleFunc("/sse", s.handleSSE)
-	s.mux.HandleFunc("/messages", s.handleMessages)
+	s.mux.HandleFunc("/messages", s.rateLimitWrap(s.handleMessages))
 	return s
+}
+
+// rateLimitWrap 为 MCP handler 添加速率限制 / Add rate limiting to MCP handler
+func (s *Server) rateLimitWrap(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.limiter.Allow() {
+			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+		next(w, r)
+	}
 }
 
 // Handler 返回 HTTP handler / Return HTTP handler
@@ -49,7 +68,8 @@ func (s *Server) checkAuth(r *http.Request) bool {
 	if !strings.HasPrefix(auth, "Bearer ") {
 		return false
 	}
-	return strings.TrimPrefix(auth, "Bearer ") == s.cfg.APIToken
+	provided := strings.TrimPrefix(auth, "Bearer ")
+	return subtle.ConstantTimeCompare([]byte(provided), []byte(s.cfg.APIToken)) == 1
 }
 
 // handleSSE GET /sse — 建立 SSE 流，创建会话，推送 endpoint 事件 / Establish SSE stream, create session, push endpoint event

@@ -27,7 +27,7 @@ func MergeRRFWithK(resultSets [][]*model.SearchResult, limit int, k int) []*mode
 		for rank, r := range results {
 			id := r.Memory.ID
 			scores[id] += 1.0 / float64(k+rank+1)
-			if _, exists := memMap[id]; !exists {
+			if existing, ok := memMap[id]; !ok || existing.Content == "" {
 				memMap[id] = r.Memory
 			}
 		}
@@ -77,7 +77,7 @@ func MergeWeightedRRF(inputs []RRFInput, k int, limit int) []*model.SearchResult
 		for rank, r := range input.Results {
 			id := r.Memory.ID
 			scores[id] += input.Weight * (1.0 / float64(k+rank+1))
-			if _, exists := memMap[id]; !exists {
+			if existing, ok := memMap[id]; !ok || existing.Content == "" {
 				memMap[id] = r.Memory
 			}
 		}

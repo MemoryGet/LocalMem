@@ -150,20 +150,26 @@ func (s *SQLiteGraphStore) UpdateEntity(ctx context.Context, entity *model.Entit
 	return nil
 }
 
-// DeleteEntity 删除实体（级联删除关系和关联）/ Delete an entity with cascade
+// DeleteEntity 删除实体（原子级联删除关系和关联）/ Delete an entity with atomic cascade
 func (s *SQLiteGraphStore) DeleteEntity(ctx context.Context, id string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete entity tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	// 级联删除 entity_relations 中相关的行
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM entity_relations WHERE source_id = ? OR target_id = ?`, id, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM entity_relations WHERE source_id = ? OR target_id = ?`, id, id); err != nil {
 		return fmt.Errorf("failed to cascade delete entity relations: %w", err)
 	}
 
 	// 级联删除 memory_entities 中相关的行
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM memory_entities WHERE entity_id = ?`, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM memory_entities WHERE entity_id = ?`, id); err != nil {
 		return fmt.Errorf("failed to cascade delete memory entities: %w", err)
 	}
 
 	// 删除实体本身
-	result, err := s.db.ExecContext(ctx, `DELETE FROM entities WHERE id = ?`, id)
+	result, err := tx.ExecContext(ctx, `DELETE FROM entities WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete entity: %w", err)
 	}
@@ -174,6 +180,10 @@ func (s *SQLiteGraphStore) DeleteEntity(ctx context.Context, id string) error {
 	}
 	if rows == 0 {
 		return model.ErrEntityNotFound
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete entity tx: %w", err)
 	}
 
 	return nil
@@ -427,6 +437,48 @@ func scanRelation(rows *sql.Rows) (*model.EntityRelation, error) {
 	}
 
 	return &rel, nil
+}
+
+// FindEntitiesByName 按名称匹配实体（大小写不敏感）/ Find entities by name (case-insensitive)
+func (s *SQLiteGraphStore) FindEntitiesByName(ctx context.Context, name string, scope string, limit int) ([]*model.Entity, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var conditions []string
+	var args []interface{}
+
+	conditions = append(conditions, "name = ? COLLATE NOCASE")
+	args = append(args, name)
+
+	if scope != "" {
+		conditions = append(conditions, "scope = ?")
+		args = append(args, scope)
+	}
+
+	query := `SELECT id, name, entity_type, scope, description, metadata, created_at, updated_at FROM entities WHERE ` +
+		strings.Join(conditions, " AND ") + ` ORDER BY updated_at DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find entities by name: %w", err)
+	}
+	defer rows.Close()
+
+	var entities []*model.Entity
+	for rows.Next() {
+		entity, err := scanEntityFromRows(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan entity row: %w", err)
+		}
+		entities = append(entities, entity)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate entity rows: %w", err)
+	}
+
+	return entities, nil
 }
 
 // isUniqueConstraintError 检查是否为唯一约束冲突错误

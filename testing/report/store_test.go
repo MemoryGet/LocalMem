@@ -55,7 +55,7 @@ func TestStore_CreateAndGet(t *testing.T) {
 	assert.Equal(t, "fact", got.Kind)
 	assert.Equal(t, "long_term", got.RetentionTier)
 	assert.Equal(t, 1.0, got.Strength)
-	assert.Equal(t, 1, got.AccessCount) // Get 自动 +1
+	assert.Equal(t, 0, got.AccessCount) // Get 为纯读，不递增访问计数
 	tc.Step("验证所有字段", "content/scope/kind/retention_tier/strength/access_count 全部匹配")
 
 	tc.Output("ID", got.ID)

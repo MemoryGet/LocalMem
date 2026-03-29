@@ -1,7 +1,10 @@
 package api
 
 import (
+	"crypto/subtle"
+	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"iclude/internal/config"
@@ -10,17 +13,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 const identityKey = "iclude_identity"
 
 // AuthMiddleware API Key 认证中间件 / API Key authentication middleware
 func AuthMiddleware(cfg config.AuthConfig) gin.HandlerFunc {
-	keyMap := make(map[string]string, len(cfg.APIKeys))
-	for _, item := range cfg.APIKeys {
-		keyMap[item.Key] = item.TeamID
-	}
-
 	return func(c *gin.Context) {
 		if !cfg.Enabled {
 			c.Set("team_id", "default")
@@ -35,14 +34,16 @@ func AuthMiddleware(cfg config.AuthConfig) gin.HandlerFunc {
 		}
 
 		token := strings.TrimPrefix(auth, "Bearer ")
-		teamID, ok := keyMap[token]
-		if !ok {
-			c.AbortWithStatusJSON(401, gin.H{"error": "invalid api key"})
-			return
+		// 使用恒定时间比较防止时序攻击 / Constant-time comparison to prevent timing attacks
+		for _, item := range cfg.APIKeys {
+			if subtle.ConstantTimeCompare([]byte(token), []byte(item.Key)) == 1 {
+				c.Set("team_id", item.TeamID)
+				c.Next()
+				return
+			}
 		}
 
-		c.Set("team_id", teamID)
-		c.Next()
+		c.AbortWithStatusJSON(401, gin.H{"error": "invalid api key"})
 	}
 }
 
@@ -143,6 +144,71 @@ func CORSMiddleware(allowedOrigins []string) gin.HandlerFunc {
 			c.AbortWithStatus(204)
 			return
 		}
+		c.Next()
+	}
+}
+
+// MaxBodySizeMiddleware 请求体大小限制中间件 / Request body size limit middleware
+func MaxBodySizeMiddleware(maxBytes int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Body != nil {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		}
+		c.Next()
+	}
+}
+
+// ipLimiterEntry 带最后访问时间的限流器 / Rate limiter with last-access tracking
+type ipLimiterEntry struct {
+	limiter    *rate.Limiter
+	lastAccess time.Time
+}
+
+// RateLimitMiddleware 基于客户端 IP 的速率限制中间件 / Per-IP rate limiting middleware
+// rps: 每秒允许请求数, burst: 突发上限
+func RateLimitMiddleware(rps float64, burst int) gin.HandlerFunc {
+	var mu sync.Mutex
+	limiters := make(map[string]*ipLimiterEntry)
+	ttl := 10 * time.Minute
+
+	getLimiter := func(key string) *rate.Limiter {
+		mu.Lock()
+		defer mu.Unlock()
+		now := time.Now()
+		if entry, ok := limiters[key]; ok {
+			entry.lastAccess = now
+			return entry.limiter
+		}
+		lim := rate.NewLimiter(rate.Limit(rps), burst)
+		limiters[key] = &ipLimiterEntry{limiter: lim, lastAccess: now}
+
+		// 惰性清理：当 map 超过 1000 条时清理过期条目 / Lazy cleanup when map exceeds 1000 entries
+		if len(limiters) > 1000 {
+			for k, v := range limiters {
+				if now.Sub(v.lastAccess) > ttl {
+					delete(limiters, k)
+				}
+			}
+		}
+		return lim
+	}
+
+	return func(c *gin.Context) {
+		key := c.ClientIP()
+		if !getLimiter(key).Allow() {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
+			return
+		}
+		c.Next()
+	}
+}
+
+// SecurityHeadersMiddleware 安全响应头中间件 / Security response headers middleware
+func SecurityHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "no-referrer")
 		c.Next()
 	}
 }

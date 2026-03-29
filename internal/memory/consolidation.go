@@ -20,29 +20,30 @@ import (
 // 定期找到相似记忆簇，用 LLM 归纳为浓缩版永久记忆
 type Consolidator struct {
 	memStore store.MemoryStore
-	vecStore store.VectorStore // 可为 nil / may be nil
-	llm      llm.Provider      // 可为 nil / may be nil
+	vecStore store.VectorStore          // 可为 nil / may be nil
+	llm      llm.Provider               // 可为 nil / may be nil
+	cfg      config.ConsolidationConfig // 注入配置 / injected config
 }
 
 // NewConsolidator 创建归纳引擎 / Create a new consolidator
-func NewConsolidator(memStore store.MemoryStore, vecStore store.VectorStore, llmProvider llm.Provider) *Consolidator {
+func NewConsolidator(memStore store.MemoryStore, vecStore store.VectorStore, llmProvider llm.Provider, cfg config.ConsolidationConfig) *Consolidator {
 	return &Consolidator{
 		memStore: memStore,
 		vecStore: vecStore,
 		llm:      llmProvider,
+		cfg:      cfg,
 	}
 }
 
 // Run 执行一次归纳（由调度器调用）/ Execute one consolidation run
 func (c *Consolidator) Run(ctx context.Context) error {
-	cfg := config.GetConfig()
 	if c.vecStore == nil || c.llm == nil {
 		logger.Debug("consolidation: skipped (vecStore or llm unavailable)")
 		return nil
 	}
 
 	// 获取候选记忆
-	candidates, err := c.selectCandidates(ctx, cfg.Consolidation)
+	candidates, err := c.selectCandidates(ctx, c.cfg)
 	if err != nil {
 		return fmt.Errorf("consolidation: failed to select candidates: %w", err)
 	}
@@ -62,7 +63,7 @@ func (c *Consolidator) Run(ctx context.Context) error {
 	}
 
 	// 层次聚类
-	clusters := agglomerativeClustering(candidates, vectors, cfg.Consolidation.SimilarityThreshold, cfg.Consolidation.MinClusterSize)
+	clusters := agglomerativeClustering(candidates, vectors, c.cfg.SimilarityThreshold, c.cfg.MinClusterSize)
 	if len(clusters) == 0 {
 		logger.Debug("consolidation: no clusters found")
 		return nil
@@ -123,13 +124,13 @@ func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.
 	totalReinforced := 0
 	// 取首个非空 scope/kind 作为归纳记忆的元数据 / Inherit scope/kind from first non-empty member
 	var inheritScope, inheritKind, inheritTeamID string
-	for _, m := range cluster {
+	for i, m := range cluster {
 		// 带编号和 kind 前缀，保留结构化上下文 / Numbered entries with kind prefix preserve context
 		kindTag := ""
 		if m.Kind != "" {
 			kindTag = fmt.Sprintf("[%s] ", m.Kind)
 		}
-		memLines += fmt.Sprintf("%d. %s%s\n", len(memLines)+1, kindTag, m.Content)
+		memLines += fmt.Sprintf("%d. %s%s\n", i+1, kindTag, m.Content)
 		if m.Strength > maxStrength {
 			maxStrength = m.Strength
 		}
