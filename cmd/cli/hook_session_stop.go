@@ -72,8 +72,9 @@ func runSessionStop() error {
 		summary += "\nLast action: " + hooks.Truncate(hookInput.LastAssistantMessage, 300)
 	}
 
-	// 6. 存储会话摘要 / Store session summary
-	return c.CallTool(ctx, "iclude_retain", map[string]any{
+	// 6. 存储会话摘要（Stop hook 必须静默失败）/ Store session summary (Stop hook must be silent)
+	defer c.Close()
+	if err := c.CallTool(ctx, "iclude_retain", map[string]any{
 		"content":      summary,
 		"kind":         "session_summary",
 		"source_type":  "hook",
@@ -81,5 +82,8 @@ func runSessionStop() error {
 		"metadata": map[string]string{
 			"session_id": hookInput.SessionID,
 		},
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "iclude: session stop retain failed: %v\n", err)
+	}
+	return nil
 }

@@ -46,9 +46,7 @@ func runCapture() error {
 		return nil
 	}
 
-	// 4. 格式化 content / Format content
-	inputStr := hooks.Truncate(string(hookInput.ToolInput), cfg.Hooks.MaxInputChars)
-	outputStr := hooks.Truncate(string(hookInput.ToolResponse), cfg.Hooks.MaxOutputChars)
+	// 4. 格式化 content（FormatObservation 内部截断）/ Format content (FormatObservation truncates internally)
 	content := hooks.FormatObservation(hookInput.ToolName, string(hookInput.ToolInput), string(hookInput.ToolResponse), cfg.Hooks.MaxInputChars, cfg.Hooks.MaxOutputChars)
 
 	// 5. 构造 metadata / Build metadata
@@ -57,11 +55,11 @@ func runCapture() error {
 		"tool_use_id": hookInput.ToolUseID,
 		"session_id":  hookInput.SessionID,
 	}
-	if len(inputStr) > 0 {
-		metadata["tool_input"] = inputStr
+	if inputTrunc := hooks.Truncate(string(hookInput.ToolInput), cfg.Hooks.MaxInputChars); len(inputTrunc) > 0 {
+		metadata["tool_input"] = inputTrunc
 	}
-	if len(outputStr) > 0 {
-		metadata["tool_output"] = outputStr
+	if outputTrunc := hooks.Truncate(string(hookInput.ToolResponse), cfg.Hooks.MaxOutputChars); len(outputTrunc) > 0 {
+		metadata["tool_output"] = outputTrunc
 	}
 
 	// 6. 连接 MCP 并 retain / Connect MCP and retain
@@ -78,11 +76,16 @@ func runCapture() error {
 		return nil
 	}
 
-	return c.CallTool(ctx, "iclude_retain", map[string]any{
+	// PostToolUse 钩子必须静默失败，非零退出码会影响 Claude Code
+	// PostToolUse hooks must be silent — non-zero exit disrupts Claude Code.
+	if err := c.CallTool(ctx, "iclude_retain", map[string]any{
 		"content":      content,
 		"kind":         "observation",
 		"source_type":  "hook",
 		"message_role": "tool",
 		"metadata":     metadata,
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "iclude: capture retain failed: %v\n", err)
+	}
+	return nil
 }
