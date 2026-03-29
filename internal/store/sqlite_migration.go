@@ -812,7 +812,7 @@ func migrateAddPerformanceIndexes(db *sql.DB) error {
 	return nil
 }
 
-// migrateV9ToV10 文档扩展字段 / Document extension fields (error_msg, stage, parser)
+// migrateV9ToV10 文档扩展字段（documents 表可能不存在）/ Document extension fields (table may not exist)
 func migrateV9ToV10(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -820,16 +820,23 @@ func migrateV9ToV10(db *sql.DB) error {
 	}
 	defer tx.Rollback()
 
-	stmts := []string{
+	// documents 表可能不存在（旧库未启用文档功能）/ Table may not exist in older databases
+	alterStmts := []string{
 		`ALTER TABLE documents ADD COLUMN error_msg TEXT DEFAULT ''`,
 		`ALTER TABLE documents ADD COLUMN stage TEXT DEFAULT ''`,
 		`ALTER TABLE documents ADD COLUMN parser TEXT DEFAULT ''`,
-		`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (10, datetime('now'))`,
 	}
-	for _, stmt := range stmts {
+	for _, stmt := range alterStmts {
 		if _, err := tx.Exec(stmt); err != nil {
+			if strings.Contains(err.Error(), "no such table") || isColumnExistsError(err) {
+				continue
+			}
 			return fmt.Errorf("failed to execute %q: %w", stmt, err)
 		}
+	}
+
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (10, datetime('now'))`); err != nil {
+		return fmt.Errorf("V9→V10 version write failed: %w", err)
 	}
 
 	logger.Info("migration V9→V10 completed: document extension fields")
