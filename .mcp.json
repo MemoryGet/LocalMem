@@ -1,8 +1,1 @@
-{
-  "mcpServers": {
-    "iclude": {
-      "type": "sse",
-      "url": "http://localhost:8081/sse"
-    }
-  }
-}
+integrations/claude/mcp.json
