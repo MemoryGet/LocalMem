@@ -5,6 +5,10 @@
 test-dashboard
 /mcp
 /server
+/cli
+
+# Runtime data
+data/
 
 # OS
 .DS_Store
