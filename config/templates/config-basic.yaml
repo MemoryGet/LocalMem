@@ -1,0 +1,71 @@
+# ============================================================
+# LocalMem 基础版配置 / Basic Edition
+# 适用：个人本地使用，零外部依赖，开箱即用
+# 依赖：仅需 LLM API Key
+# ============================================================
+
+storage:
+  sqlite:
+    enabled: true
+    path: "${DATA_DIR}/iclude.db"
+    search:
+      bm25_weights:
+        content: 10.0
+        abstract: 5.0
+        summary: 3.0
+    tokenizer:
+      provider: simple  # 内置分词，无外部依赖
+
+  qdrant:
+    enabled: false  # 基础版不启用向量检索
+
+llm:
+  default_provider: openai
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: "${LLM_BASE_URL}"  # 空=官方API，可填兼容API地址
+    model: "${LLM_MODEL}"
+  embedding:
+    provider: openai
+    model: "text-embedding-3-small"
+
+retrieval:
+  graph_enabled: false  # 基础版不启用图谱
+  fts_weight: 1.0
+  preprocess:
+    enabled: true
+    use_llm: false  # 规则模式，快速无消耗
+
+extract:
+  max_entities: 10
+  max_relations: 15
+  normalize_enabled: false
+  timeout: 30s
+
+reflect:
+  max_rounds: 2
+  token_budget: 2048
+  round_timeout: 30s
+  auto_save: false
+
+heartbeat:
+  enabled: false
+
+scheduler:
+  enabled: true
+  cleanup_interval: 6h
+  access_flush_interval: 30s
+
+consolidation:
+  enabled: false
+
+document:
+  enabled: false
+
+server:
+  port: 8080
+
+mcp:
+  enabled: true
+  default_team_id: "default"
+  default_owner_id: "${OWNER_ID}"

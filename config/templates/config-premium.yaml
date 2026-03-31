@@ -1,0 +1,132 @@
+# ============================================================
+# LocalMem 高端版配置 / Premium Edition
+# 适用：企业级全功能部署，三路混合检索，自治维护
+# 依赖：LLM API + Qdrant + Jieba + Docling + Tika
+# ============================================================
+
+storage:
+  sqlite:
+    enabled: true
+    path: "${DATA_DIR}/iclude.db"
+    search:
+      bm25_weights:
+        content: 10.0
+        abstract: 5.0
+        summary: 3.0
+    tokenizer:
+      provider: jieba
+      jieba_url: "http://localhost:8866"
+      stopword_files:
+        - "config/stopwords_zh.txt"
+        - "config/stopwords_en.txt"
+
+  qdrant:
+    enabled: true  # 向量语义检索
+    url: "http://localhost:6333"
+    collection: "memories"
+    dimension: ${EMBEDDING_DIM}  # 必须与 embedding 模型维度匹配
+
+llm:
+  default_provider: openai
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: "${LLM_BASE_URL}"
+    model: "${LLM_MODEL}"
+  embedding:
+    provider: "${EMBEDDING_PROVIDER}"
+    model: "${EMBEDDING_MODEL}"
+  fallback:
+    - name: "backup"
+      base_url: "${FALLBACK_BASE_URL}"
+      api_key: "${FALLBACK_API_KEY}"
+      model: "${FALLBACK_MODEL}"
+
+retrieval:
+  graph_enabled: true
+  graph_depth: 2  # 更深的图谱遍历
+  fts_weight: 1.0
+  qdrant_weight: 1.0
+  graph_weight: 0.8
+  graph_fts_top: 5
+  graph_entity_limit: 10
+  access_alpha: 0.15
+  mmr:
+    enabled: true  # MMR 多样性重排
+    lambda: 0.7
+  preprocess:
+    enabled: true
+    use_llm: true  # LLM 增强查询改写
+    llm_timeout: 5s
+
+extract:
+  max_entities: 20
+  max_relations: 30
+  normalize_enabled: true
+  normalize_candidates: 20
+  timeout: 30s
+
+reflect:
+  max_rounds: 5  # 更多推理轮数
+  token_budget: 8192
+  round_timeout: 30s
+  auto_save: true
+
+heartbeat:
+  enabled: true
+  interval: 6h
+  contradiction_enabled: true  # LLM 矛盾检测
+  contradiction_max_comparisons: 50
+  decay_audit_min_age_days: 90
+  decay_audit_threshold: 0.1
+
+scheduler:
+  enabled: true
+  cleanup_interval: 6h
+  access_flush_interval: 5m
+  consolidation_interval: 24h
+
+consolidation:
+  enabled: true  # 记忆自动合并
+  min_age_days: 30
+  similarity_threshold: 0.85
+  min_cluster_size: 3
+  max_memories_per_run: 200
+
+document:
+  enabled: true  # 文档摄入
+  max_concurrent: 3
+  process_timeout: 10m
+  max_file_size: 104857600
+  cleanup_after_parse: true
+  allowed_types:
+    - pdf
+    - docx
+    - pptx
+    - xlsx
+    - md
+    - html
+    - txt
+  file_store:
+    provider: local
+    local:
+      base_dir: "${DATA_DIR}/uploads"
+  docling:
+    url: "http://localhost:5001"
+    timeout: 120s
+  tika:
+    url: "http://localhost:9998"
+    timeout: 60s
+  chunking:
+    max_tokens: 512
+    overlap_tokens: 50
+    context_prefix: true
+    keep_table_intact: true
+    keep_code_intact: true
+
+server:
+  port: 8080
+
+mcp:
+  enabled: true
+  default_team_id: "${TEAM_ID}"
+  default_owner_id: "${OWNER_ID}"

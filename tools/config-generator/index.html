@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalMem Config Generator</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e1e4e8; min-height: 100vh; }
+
+.header { text-align: center; padding: 40px 20px 20px; }
+.header h1 { font-size: 28px; color: #fff; margin-bottom: 8px; }
+.header p { color: #8b949e; font-size: 14px; }
+
+.container { max-width: 900px; margin: 0 auto; padding: 0 20px 40px; }
+
+/* Edition selector */
+.editions { display: flex; gap: 16px; margin: 30px 0; }
+.edition-card {
+  flex: 1; padding: 20px; border-radius: 12px; cursor: pointer;
+  border: 2px solid #30363d; background: #161b22; transition: all 0.3s;
+}
+.edition-card:hover { border-color: #58a6ff; }
+.edition-card.active { border-color: #58a6ff; background: #1c2333; }
+.edition-card.active.basic { border-color: #3fb950; }
+.edition-card.active.standard { border-color: #58a6ff; }
+.edition-card.active.premium { border-color: #d2a8ff; }
+.edition-card h3 { font-size: 18px; margin-bottom: 6px; }
+.edition-card .price { font-size: 13px; color: #8b949e; margin-bottom: 10px; }
+.edition-card ul { list-style: none; font-size: 13px; color: #c9d1d9; }
+.edition-card ul li { padding: 3px 0; }
+.edition-card ul li::before { content: "✓ "; color: #3fb950; }
+.edition-card ul li.disabled::before { content: "✗ "; color: #484f58; }
+.edition-card ul li.disabled { color: #484f58; }
+
+.badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 600; }
+.badge-green { background: #238636; color: #fff; }
+.badge-blue { background: #1f6feb; color: #fff; }
+.badge-purple { background: #8957e5; color: #fff; }
+
+/* Form sections */
+.section { background: #161b22; border: 1px solid #30363d; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.section-header { padding: 14px 20px; background: #1c2128; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+.section-header h3 { font-size: 15px; }
+.section-header .toggle { color: #8b949e; transition: transform 0.3s; }
+.section-header .toggle.open { transform: rotate(180deg); }
+.section-body { padding: 16px 20px; display: none; }
+.section-body.open { display: block; }
+
+.form-row { display: flex; gap: 16px; margin-bottom: 14px; align-items: flex-start; }
+.form-group { flex: 1; }
+.form-group label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 4px; }
+.form-group .hint { font-size: 11px; color: #484f58; margin-top: 2px; }
+.form-group input, .form-group select {
+  width: 100%; padding: 8px 12px; background: #0d1117; border: 1px solid #30363d;
+  border-radius: 6px; color: #e1e4e8; font-size: 14px; outline: none;
+}
+.form-group input:focus, .form-group select:focus { border-color: #58a6ff; }
+.form-group input::placeholder { color: #484f58; }
+.form-group input[type="checkbox"] { width: auto; margin-right: 6px; }
+
+.checkbox-row { display: flex; align-items: center; padding: 6px 0; }
+.checkbox-row label { font-size: 13px; color: #c9d1d9; cursor: pointer; }
+
+/* Output */
+.output-section { margin-top: 30px; }
+.output-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.output-header h2 { font-size: 18px; }
+.btn { padding: 8px 18px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+.btn-primary { background: #238636; color: #fff; }
+.btn-primary:hover { background: #2ea043; }
+.btn-secondary { background: #30363d; color: #c9d1d9; }
+.btn-secondary:hover { background: #3d444d; }
+.btn-copy { background: #1f6feb; color: #fff; }
+.btn-copy:hover { background: #388bfd; }
+
+.output-box {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+  padding: 16px; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-x: auto;
+  max-height: 500px; overflow-y: auto; color: #c9d1d9;
+}
+
+.actions { display: flex; gap: 10px; }
+.toast { position: fixed; top: 20px; right: 20px; background: #238636; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; display: none; z-index: 999; }
+
+/* Features table */
+.features-table { width: 100%; margin: 24px 0; border-collapse: collapse; font-size: 13px; }
+.features-table th, .features-table td { padding: 8px 12px; text-align: center; border-bottom: 1px solid #21262d; }
+.features-table th { color: #8b949e; font-weight: 600; }
+.features-table td:first-child { text-align: left; color: #c9d1d9; }
+.features-table .check { color: #3fb950; }
+.features-table .cross { color: #484f58; }
+
+@media (max-width: 768px) {
+  .editions { flex-direction: column; }
+  .form-row { flex-direction: column; gap: 10px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>LocalMem Config Generator</h1>
+  <p>Select an edition, customize settings, and generate your config.yaml</p>
+</div>
+
+<div class="container">
+
+<!-- Edition Cards -->
+<div class="editions">
+  <div class="edition-card basic" onclick="selectEdition('basic')">
+    <h3>Basic <span class="badge badge-green">Free</span></h3>
+    <div class="price">Zero Dependencies</div>
+    <ul>
+      <li>SQLite FTS5 Full-text Search</li>
+      <li>Simple Tokenizer (Built-in)</li>
+      <li>Reflect Reasoning (2 rounds)</li>
+      <li>Auto Cleanup Scheduler</li>
+      <li class="disabled">Vector Semantic Search</li>
+      <li class="disabled">Knowledge Graph</li>
+      <li class="disabled">Document Ingestion</li>
+      <li class="disabled">Contradiction Detection</li>
+    </ul>
+  </div>
+  <div class="edition-card standard" onclick="selectEdition('standard')">
+    <h3>Standard <span class="badge badge-blue">Recommended</span></h3>
+    <div class="price">+ Jieba Tokenizer</div>
+    <ul>
+      <li>SQLite FTS5 + Jieba Chinese NLP</li>
+      <li>Knowledge Graph Extraction</li>
+      <li>Entity Normalization</li>
+      <li>Reflect Reasoning (3 rounds)</li>
+      <li>Heartbeat Maintenance</li>
+      <li>LLM Fallback Chain</li>
+      <li class="disabled">Vector Semantic Search</li>
+      <li class="disabled">Document Ingestion</li>
+    </ul>
+  </div>
+  <div class="edition-card premium" onclick="selectEdition('premium')">
+    <h3>Premium <span class="badge badge-purple">Full Power</span></h3>
+    <div class="price">+ Qdrant + Docling + Tika</div>
+    <ul>
+      <li>3-Way Hybrid Retrieval (FTS+Vector+Graph)</li>
+      <li>MMR Diversity Reranking</li>
+      <li>LLM Query Preprocessing</li>
+      <li>Document Ingestion Pipeline</li>
+      <li>Contradiction Detection</li>
+      <li>Memory Consolidation</li>
+      <li>Reflect Reasoning (5 rounds)</li>
+      <li>All Standard Features</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Features Comparison -->
+<table class="features-table">
+  <tr><th style="text-align:left">Feature</th><th>Basic</th><th>Standard</th><th>Premium</th></tr>
+  <tr><td>SQLite FTS5</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+  <tr><td>Jieba Chinese Tokenizer</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+  <tr><td>Qdrant Vector Search</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+  <tr><td>Knowledge Graph</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+  <tr><td>Entity Normalization</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+  <tr><td>LLM Query Rewrite</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+  <tr><td>MMR Reranking</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+  <tr><td>Reflect Rounds</td><td>2</td><td>3</td><td>5</td></tr>
+  <tr><td>Token Budget</td><td>2048</td><td>4096</td><td>8192</td></tr>
+  <tr><td>Heartbeat Maintenance</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+  <tr><td>Contradiction Detection</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+  <tr><td>Memory Consolidation</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+  <tr><td>Document Ingestion</td><td class="cross">&#10007;</td><td class="cross">&#10007;</td><td class="check">&#10003;</td></tr>
+  <tr><td>LLM Fallback Chain</td><td class="cross">&#10007;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+</table>
+
+<!-- Configuration Form -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>LLM Settings</h3>
+    <span class="toggle open">&#9660;</span>
+  </div>
+  <div class="section-body open">
+    <div class="form-row">
+      <div class="form-group">
+        <label>LLM Provider</label>
+        <select id="llm_provider" onchange="updateForm()">
+          <option value="openai">OpenAI (GPT-4o-mini)</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="ollama">Ollama (Local)</option>
+          <option value="custom">Custom OpenAI-Compatible</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Model Name</label>
+        <input type="text" id="llm_model" value="gpt-4o-mini" placeholder="gpt-4o-mini">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="llm_api_key" placeholder="sk-..." autocomplete="off">
+        <div class="hint">Leave empty to use environment variable $OPENAI_API_KEY</div>
+      </div>
+      <div class="form-group">
+        <label>Base URL (optional)</label>
+        <input type="text" id="llm_base_url" placeholder="Leave empty for default">
+        <div class="hint">For DeepSeek: https://api.deepseek.com/v1</div>
+      </div>
+    </div>
+    <div class="form-row" id="fallback-row" style="display:none">
+      <div class="form-group">
+        <label>Fallback Model</label>
+        <input type="text" id="fallback_model" placeholder="deepseek-chat">
+      </div>
+      <div class="form-group">
+        <label>Fallback Base URL</label>
+        <input type="text" id="fallback_base_url" placeholder="https://api.deepseek.com/v1">
+      </div>
+      <div class="form-group">
+        <label>Fallback API Key</label>
+        <input type="password" id="fallback_api_key" placeholder="sk-..." autocomplete="off">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>Embedding Settings</h3>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Embedding Provider</label>
+        <select id="embed_provider" onchange="updateEmbedding()">
+          <option value="openai">OpenAI</option>
+          <option value="ollama">Ollama (Local)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Model</label>
+        <select id="embed_model" onchange="updateEmbedding()">
+          <option value="text-embedding-3-small" data-dim="1536">text-embedding-3-small (1536d)</option>
+          <option value="text-embedding-3-large" data-dim="3072">text-embedding-3-large (3072d)</option>
+          <option value="bge-m3" data-dim="1024">bge-m3 (1024d, multilingual)</option>
+          <option value="nomic-embed-text" data-dim="768">nomic-embed-text (768d)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Dimension</label>
+        <input type="number" id="embed_dim" value="1536" readonly>
+        <div class="hint">Auto-set from model selection</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>Identity Settings</h3>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Data Directory</label>
+        <input type="text" id="data_dir" value="./data">
+      </div>
+      <div class="form-group">
+        <label>Team ID</label>
+        <input type="text" id="team_id" value="default">
+      </div>
+      <div class="form-group">
+        <label>Owner ID</label>
+        <input type="text" id="owner_id" value="local-user">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Server Port</label>
+        <input type="number" id="server_port" value="8080">
+      </div>
+      <div class="form-group">
+        <label>MCP Port</label>
+        <input type="number" id="mcp_port" value="8081">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="qdrant-section" style="display:none">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>Qdrant Settings <span class="badge badge-purple">Premium</span></h3>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Qdrant URL</label>
+        <input type="text" id="qdrant_url" value="http://localhost:6333">
+      </div>
+      <div class="form-group">
+        <label>Collection Name</label>
+        <input type="text" id="qdrant_collection" value="memories">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="jieba-section" style="display:none">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>Jieba Tokenizer <span class="badge badge-blue">Standard+</span></h3>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Jieba Service URL</label>
+        <input type="text" id="jieba_url" value="http://localhost:8866">
+        <div class="hint">Start with: python tools/jieba_server.py</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="doc-section" style="display:none">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>Document Ingestion <span class="badge badge-purple">Premium</span></h3>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Docling URL</label>
+        <input type="text" id="docling_url" value="http://localhost:5001">
+        <div class="hint">docker run -p 5001:5001 ds4sd/docling-serve</div>
+      </div>
+      <div class="form-group">
+        <label>Tika URL (fallback)</label>
+        <input type="text" id="tika_url" value="http://localhost:9998">
+        <div class="hint">docker run -p 9998:9998 apache/tika</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Output -->
+<div class="output-section">
+  <div class="output-header">
+    <h2>Generated config.yaml</h2>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="generate()">Generate</button>
+      <button class="btn btn-copy" onclick="copyConfig()">Copy</button>
+      <button class="btn btn-secondary" onclick="downloadConfig()">Download</button>
+    </div>
+  </div>
+  <div class="output-box" id="output">Click "Generate" to create your config.yaml</div>
+</div>
+
+</div>
+
+<div class="toast" id="toast">Copied to clipboard!</div>
+
+<script>
+let currentEdition = '';
+
+const presets = {
+  openai:   { model: 'gpt-4o-mini', base_url: '' },
+  deepseek: { model: 'deepseek-chat', base_url: 'https://api.deepseek.com/v1' },
+  ollama:   { model: 'llama2', base_url: 'http://localhost:11434/v1' },
+  custom:   { model: '', base_url: '' },
+};
+
+function selectEdition(ed) {
+  currentEdition = ed;
+  document.querySelectorAll('.edition-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.edition-card.${ed}`).classList.add('active');
+
+  document.getElementById('qdrant-section').style.display = ed === 'premium' ? '' : 'none';
+  document.getElementById('jieba-section').style.display = ed !== 'basic' ? '' : 'none';
+  document.getElementById('doc-section').style.display = ed === 'premium' ? '' : 'none';
+  document.getElementById('fallback-row').style.display = ed !== 'basic' ? '' : 'none';
+
+  generate();
+}
+
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const toggle = header.querySelector('.toggle');
+  body.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+
+function updateForm() {
+  const provider = document.getElementById('llm_provider').value;
+  const preset = presets[provider];
+  document.getElementById('llm_model').value = preset.model;
+  document.getElementById('llm_base_url').value = preset.base_url;
+}
+
+function updateEmbedding() {
+  const sel = document.getElementById('embed_model');
+  const dim = sel.options[sel.selectedIndex].getAttribute('data-dim');
+  document.getElementById('embed_dim').value = dim;
+}
+
+function val(id) { return document.getElementById(id).value.trim(); }
+
+function generate() {
+  if (!currentEdition) { selectEdition('basic'); return; }
+  const ed = currentEdition;
+
+  const apiKey = val('llm_api_key') || '${OPENAI_API_KEY}';
+  const baseUrl = val('llm_base_url');
+  const model = val('llm_model') || 'gpt-4o-mini';
+  const embedProvider = val('embed_provider');
+  const embedModel = val('embed_model');
+  const embedDim = val('embed_dim');
+  const dataDir = val('data_dir') || './data';
+  const teamId = val('team_id') || 'default';
+  const ownerId = val('owner_id') || 'local-user';
+  const serverPort = val('server_port') || '8080';
+  const mcpPort = val('mcp_port') || '8081';
+
+  let yaml = `# ============================================================
+# LocalMem ${ed === 'basic' ? 'Basic' : ed === 'standard' ? 'Standard' : 'Premium'} Edition
+# Generated by LocalMem Config Generator
+# ============================================================
+
+storage:
+  sqlite:
+    enabled: true
+    path: "${dataDir}/iclude.db"
+    search:
+      bm25_weights:
+        content: 10.0
+        abstract: 5.0
+        summary: 3.0
+    tokenizer:
+      provider: ${ed === 'basic' ? 'simple' : 'jieba'}`;
+
+  if (ed !== 'basic') {
+    yaml += `
+      jieba_url: "${val('jieba_url') || 'http://localhost:8866'}"
+      stopword_files:
+        - "config/stopwords_zh.txt"
+        - "config/stopwords_en.txt"`;
+  }
+
+  yaml += `
+
+  qdrant:
+    enabled: ${ed === 'premium'}`;
+
+  if (ed === 'premium') {
+    yaml += `
+    url: "${val('qdrant_url') || 'http://localhost:6333'}"
+    collection: "${val('qdrant_collection') || 'memories'}"
+    dimension: ${embedDim}`;
+  }
+
+  yaml += `
+
+llm:
+  default_provider: openai
+  openai:
+    api_key: "${apiKey}"${baseUrl ? `\n    base_url: "${baseUrl}"` : ''}
+    model: "${model}"
+  embedding:
+    provider: ${embedProvider}
+    model: "${embedModel}"`;
+
+  if (ed !== 'basic') {
+    const fbModel = val('fallback_model');
+    const fbUrl = val('fallback_base_url');
+    const fbKey = val('fallback_api_key');
+    if (fbModel || fbUrl) {
+      yaml += `
+  fallback:
+    - name: "backup"
+      base_url: "${fbUrl}"
+      api_key: "${fbKey || '${FALLBACK_API_KEY}'}"
+      model: "${fbModel}"`;
+    }
+  }
+
+  yaml += `
+
+retrieval:
+  graph_enabled: ${ed !== 'basic'}
+  graph_depth: ${ed === 'premium' ? 2 : 1}
+  fts_weight: 1.0
+  qdrant_weight: 1.0
+  graph_weight: 0.8
+  access_alpha: 0.15
+  mmr:
+    enabled: ${ed === 'premium'}${ed === 'premium' ? '\n    lambda: 0.7' : ''}
+  preprocess:
+    enabled: true
+    use_llm: ${ed === 'premium'}`;
+
+  yaml += `
+
+extract:
+  max_entities: ${ed === 'basic' ? 10 : 20}
+  max_relations: ${ed === 'basic' ? 15 : 30}
+  normalize_enabled: ${ed !== 'basic'}
+  timeout: 30s
+
+reflect:
+  max_rounds: ${ed === 'basic' ? 2 : ed === 'standard' ? 3 : 5}
+  token_budget: ${ed === 'basic' ? 2048 : ed === 'standard' ? 4096 : 8192}
+  round_timeout: 30s
+  auto_save: ${ed !== 'basic'}
+
+heartbeat:
+  enabled: ${ed !== 'basic'}${ed !== 'basic' ? `
+  interval: 6h
+  contradiction_enabled: ${ed === 'premium'}
+  decay_audit_min_age_days: 90
+  decay_audit_threshold: 0.1` : ''}
+
+scheduler:
+  enabled: true
+  cleanup_interval: 6h
+  access_flush_interval: ${ed === 'basic' ? '30s' : '5m'}`;
+
+  if (ed !== 'basic') {
+    yaml += `
+  consolidation_interval: 24h`;
+  }
+
+  yaml += `
+
+consolidation:
+  enabled: ${ed === 'premium'}`;
+  if (ed === 'premium') {
+    yaml += `
+  min_age_days: 30
+  similarity_threshold: 0.85
+  min_cluster_size: 3
+  max_memories_per_run: 200`;
+  }
+
+  yaml += `
+
+document:
+  enabled: ${ed === 'premium'}`;
+  if (ed === 'premium') {
+    yaml += `
+  max_concurrent: 3
+  process_timeout: 10m
+  max_file_size: 104857600
+  cleanup_after_parse: true
+  allowed_types: [pdf, docx, pptx, xlsx, md, html, txt]
+  file_store:
+    provider: local
+    local:
+      base_dir: "${dataDir}/uploads"
+  docling:
+    url: "${val('docling_url') || 'http://localhost:5001'}"
+    timeout: 120s
+  tika:
+    url: "${val('tika_url') || 'http://localhost:9998'}"
+    timeout: 60s
+  chunking:
+    max_tokens: 512
+    overlap_tokens: 50
+    context_prefix: true
+    keep_table_intact: true
+    keep_code_intact: true`;
+  }
+
+  yaml += `
+
+server:
+  port: ${serverPort}
+
+mcp:
+  enabled: true
+  port: ${mcpPort}
+  default_team_id: "${teamId}"
+  default_owner_id: "${ownerId}"
+`;
+
+  document.getElementById('output').textContent = yaml;
+}
+
+function copyConfig() {
+  const text = document.getElementById('output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.getElementById('toast');
+    toast.style.display = 'block';
+    setTimeout(() => toast.style.display = 'none', 2000);
+  });
+}
+
+function downloadConfig() {
+  const text = document.getElementById('output').textContent;
+  const blob = new Blob([text], { type: 'text/yaml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'config.yaml';
+  a.click();
+}
+
+// Init
+selectEdition('basic');
+</script>
+</body>
+</html>
