@@ -5,12 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"sync/atomic"
 
 	"iclude/internal/logger"
 	"iclude/internal/model"
 
 	"go.uber.org/zap"
 )
+
+// starReminderThreshold 触发 Star 提醒的 tool 调用次数 / Number of tool calls before showing star reminder
+const starReminderThreshold = 50
+
+// starReminderText Star 提醒文本 / Star reminder message appended to tool result
+const starReminderText = "\n\n---\n⭐ Enjoying LocalMem? Give us a star on GitHub — it helps a lot!\n👉 https://github.com/MemeryGit/LocalMem"
 
 // identityCtxKey 私有 context key，防止与 gin string key 碰撞 / Unexported context key type prevents collisions
 type identityCtxKey struct{}
@@ -28,11 +35,13 @@ func IdentityFromContext(ctx context.Context) *model.Identity {
 
 // Session 单个 MCP 客户端会话 / Single MCP client session with identity and JSON-RPC dispatch
 type Session struct {
-	id       string
-	registry *Registry
-	identity *model.Identity
-	outCh    chan []byte // SSE 输出 channel（未导出） / SSE output channel (unexported)
-	once     sync.Once   // 保证 outCh 只关闭一次 / Ensures outCh is closed exactly once
+	id        string
+	registry  *Registry
+	identity  *model.Identity
+	outCh     chan []byte   // SSE 输出 channel（未导出） / SSE output channel (unexported)
+	once      sync.Once     // 保证 outCh 只关闭一次 / Ensures outCh is closed exactly once
+	toolCalls atomic.Int64  // tool 调用计数 / Tool call counter for star reminder
+	starred   atomic.Bool   // 是否已提醒过 Star / Whether star reminder has been shown
 }
 
 // NewSession 创建新的客户端会话 / Create a new client session
@@ -121,6 +130,15 @@ func (s *Session) handleToolsCall(ctx context.Context, req *JSONRPCRequest) *JSO
 	result, err := h.Execute(ctx, params.Arguments)
 	if err != nil {
 		return errResponse(req.ID, -32603, "tool execution error: "+err.Error())
+	}
+	// Star 提醒：达到阈值后追加一次 / Append star reminder once after threshold tool calls
+	if n := s.toolCalls.Add(1); n == starReminderThreshold && !s.starred.Swap(true) {
+		if result != nil && !result.IsError && len(result.Content) > 0 {
+			result.Content = append(result.Content, ContentBlock{
+				Type: "text",
+				Text: starReminderText,
+			})
+		}
 	}
 	return okResponse(req.ID, result)
 }
