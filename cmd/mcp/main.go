@@ -84,6 +84,9 @@ func main() {
 	configPath := flag.String("config", "", "Path to config file (overrides default search)")
 	flag.Parse()
 
+	if *stdioMode {
+		logger.SetStdioMode(true)
+	}
 	logger.InitLogger()
 	defer logger.GetLogger().Sync() //nolint:errcheck
 

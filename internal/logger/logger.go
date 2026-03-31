@@ -10,15 +10,29 @@ import (
 
 var log *zap.Logger
 
+// stdioMode 标记是否为 stdio 模式（日志写 stderr 避免污染 stdout）/ Flag for stdio mode: logs go to stderr
+var stdioMode bool
+
+// SetStdioMode 设置 stdio 模式，必须在 InitLogger 之前调用 / Must be called before InitLogger
+func SetStdioMode(enabled bool) {
+	stdioMode = enabled
+}
+
 // InitLogger 初始化日志器 / Initialize the global logger
 func InitLogger() {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.TimeKey = "timestamp"
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
+	// stdio 模式日志写 stderr，避免污染 JSON-RPC 通信流 / In stdio mode, write logs to stderr to avoid corrupting JSON-RPC stream
+	output := os.Stdout
+	if stdioMode {
+		output = os.Stderr
+	}
+
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(encoderConfig),
-		zapcore.AddSync(os.Stdout),
+		zapcore.AddSync(output),
 		zapcore.InfoLevel,
 	)
 
