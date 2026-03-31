@@ -31,8 +31,11 @@
   <a href="https://goreportcard.com/report/github.com/MemeryGit/LocalMem">
     <img src="https://goreportcard.com/badge/github.com/MemeryGit/LocalMem" alt="Go Report Card">
   </a>
-  <a href="https://github.com/MemeryGit/LocalMem/actions">
-    <img src="https://github.com/MemeryGit/LocalMem/actions/workflows/release.yml/badge.svg" alt="CI">
+  <a href="https://github.com/MemeryGit/LocalMem/actions/workflows/release.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MemeryGit/LocalMem/release.yml?label=CI&logo=github" alt="CI">
+  </a>
+  <a href="https://discord.gg/eG87YHjU">
+    <img src="https://img.shields.io/discord/1356309498498297856?color=5865F2&logo=discord&logoColor=white&label=Discord" alt="Discord">
   </a>
 </p>
 
