@@ -91,11 +91,17 @@ func (s *Session) HandleRequest(ctx context.Context, req *JSONRPCRequest) *JSONR
 	if !s.initialized.Load() {
 		switch req.Method {
 		case MethodInitialize:
-			return s.handleInitialize(req)
+			resp := s.handleInitialize(req)
+			// initialize 成功后立即标记就绪（不强制要求 notifications/initialized）
+			// Mark ready after successful initialize (don't require notifications/initialized)
+			if resp != nil && resp.Error == nil {
+				s.initialized.Store(true)
+				logger.Info("mcp: session initialized", zap.String("session_id", s.id))
+			}
+			return resp
 		case MethodNotificationsInitialized:
-			s.initialized.Store(true)
-			logger.Info("mcp: session initialized", zap.String("session_id", s.id))
-			return nil // 通知不需要响应 / Notifications get no response
+			s.initialized.Store(true) // 兼容发送此通知的客户端 / Compatible with clients that send this
+			return nil
 		case MethodPing:
 			return okResponse(req.ID, map[string]any{})
 		default:
