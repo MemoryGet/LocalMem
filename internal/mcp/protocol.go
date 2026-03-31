@@ -5,14 +5,15 @@ import "encoding/json"
 
 // MCP method constants
 const (
-	MethodInitialize    = "initialize"
-	MethodPing          = "ping"
-	MethodToolsList     = "tools/list"
-	MethodToolsCall     = "tools/call"
-	MethodResourcesList = "resources/list"
-	MethodResourcesRead = "resources/read"
-	MethodPromptsList   = "prompts/list"
-	MethodPromptsGet    = "prompts/get"
+	MethodInitialize              = "initialize"
+	MethodNotificationsInitialized = "notifications/initialized"
+	MethodPing                    = "ping"
+	MethodToolsList               = "tools/list"
+	MethodToolsCall               = "tools/call"
+	MethodResourcesList           = "resources/list"
+	MethodResourcesRead           = "resources/read"
+	MethodPromptsList             = "prompts/list"
+	MethodPromptsGet              = "prompts/get"
 )
 
 // MCPProtocolVersion MCP 协议版本 / MCP protocol version for SSE transport

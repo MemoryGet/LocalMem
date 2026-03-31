@@ -35,13 +35,14 @@ func IdentityFromContext(ctx context.Context) *model.Identity {
 
 // Session 单个 MCP 客户端会话 / Single MCP client session with identity and JSON-RPC dispatch
 type Session struct {
-	id        string
-	registry  *Registry
-	identity  *model.Identity
-	outCh     chan []byte   // SSE 输出 channel（未导出） / SSE output channel (unexported)
-	once      sync.Once     // 保证 outCh 只关闭一次 / Ensures outCh is closed exactly once
-	toolCalls atomic.Int64  // tool 调用计数 / Tool call counter for star reminder
-	starred   atomic.Bool   // 是否已提醒过 Star / Whether star reminder has been shown
+	id          string
+	registry    *Registry
+	identity    *model.Identity
+	outCh       chan []byte   // SSE 输出 channel（未导出） / SSE output channel (unexported)
+	once        sync.Once     // 保证 outCh 只关闭一次 / Ensures outCh is closed exactly once
+	toolCalls   atomic.Int64  // tool 调用计数 / Tool call counter for star reminder
+	starred     atomic.Bool   // 是否已提醒过 Star / Whether star reminder has been shown
+	initialized atomic.Bool   // 是否已完成 MCP 握手 / Whether MCP handshake is complete
 }
 
 // NewSession 创建新的客户端会话 / Create a new client session
@@ -76,7 +77,9 @@ func (s *Session) Dispatch(ctx context.Context, raw []byte) {
 	}
 
 	resp := s.HandleRequest(ctx, &req)
-	s.send(resp)
+	if resp != nil {
+		s.send(resp)
+	}
 }
 
 // HandleRequest 处理 JSON-RPC 请求，返回响应 / Handle a JSON-RPC request and return response
@@ -84,9 +87,27 @@ func (s *Session) HandleRequest(ctx context.Context, req *JSONRPCRequest) *JSONR
 	// 注入当前会话身份 / Inject session identity into context
 	ctx = WithIdentity(ctx, s.identity)
 
+	// 握手阶段：只允许 initialize、notifications/initialized 和 ping / Before handshake only allow init methods and ping
+	if !s.initialized.Load() {
+		switch req.Method {
+		case MethodInitialize:
+			return s.handleInitialize(req)
+		case MethodNotificationsInitialized:
+			s.initialized.Store(true)
+			logger.Info("mcp: session initialized", zap.String("session_id", s.id))
+			return nil // 通知不需要响应 / Notifications get no response
+		case MethodPing:
+			return okResponse(req.ID, map[string]any{})
+		default:
+			return errResponse(req.ID, -32600, "server not initialized: call initialize first")
+		}
+	}
+
 	switch req.Method {
 	case MethodInitialize:
-		return s.handleInitialize(req)
+		return errResponse(req.ID, -32600, "already initialized")
+	case MethodNotificationsInitialized:
+		return nil // 幂等，忽略重复通知 / Idempotent, ignore duplicate
 	case MethodPing:
 		return okResponse(req.ID, map[string]any{})
 	case MethodToolsList:
