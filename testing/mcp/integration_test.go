@@ -189,6 +189,12 @@ func TestMCPIntegration_FullHandshake(t *testing.T) {
 	require.NoError(t, json.Unmarshal(resultBytes, &resultMap))
 	assert.Equal(t, "2024-11-05", resultMap["protocolVersion"], "protocolVersion must be 2024-11-05")
 
+	// Step 3.5: Send notifications/initialized to complete handshake
+	notifReq := `{"jsonrpc":"2.0","method":"notifications/initialized"}`
+	notifResp := postJSON(t, client, msgURL, notifReq)
+	defer notifResp.Body.Close()
+	assert.Equal(t, http.StatusAccepted, notifResp.StatusCode)
+
 	// Step 4: Send tools/list request
 	toolsReq := `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`
 	toolsResp := postJSON(t, client, msgURL, toolsReq)

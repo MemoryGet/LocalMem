@@ -121,13 +121,15 @@ func RunStdio(ctx context.Context, registry *Registry, identity *model.Identity,
 			continue
 		}
 
+		// 通知和普通请求都需要经过 HandleRequest（握手通知需要更新状态）/ Both notifications and requests go through HandleRequest
+		resp := session.HandleRequest(ctx, &req)
+
 		// 通知（无 ID）不需要响应 / Notifications (no ID) don't get responses
 		if req.ID == nil || string(req.ID) == "null" {
 			logger.Debug("stdio: received notification", zap.String("method", req.Method))
 			continue
 		}
 
-		resp := session.HandleRequest(ctx, &req)
 		if resp != nil {
 			out, err := json.Marshal(resp)
 			if err != nil {

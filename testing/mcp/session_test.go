@@ -13,6 +13,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// initializeSession 完成 MCP 握手（initialize + notifications/initialized）/ Complete MCP handshake
+func initializeSession(t *testing.T, sess *mcp.Session) {
+	t.Helper()
+	ctx := context.Background()
+
+	// Step 1: initialize
+	initReq := &mcp.JSONRPCRequest{
+		JSONRPC: "2.0",
+		ID:      json.RawMessage(`99`),
+		Method:  mcp.MethodInitialize,
+	}
+	resp := sess.HandleRequest(ctx, initReq)
+	require.NotNil(t, resp)
+	require.Nil(t, resp.Error)
+
+	// Step 2: notifications/initialized
+	notifReq := &mcp.JSONRPCRequest{
+		JSONRPC: "2.0",
+		Method:  mcp.MethodNotificationsInitialized,
+	}
+	notifResp := sess.HandleRequest(ctx, notifReq)
+	assert.Nil(t, notifResp, "notification must return nil response")
+}
+
 // TestSession_Dispatch_initialize 验证 initialize 响应包含 protocolVersion / Verify protocolVersion in response
 func TestSession_Dispatch_initialize(t *testing.T) {
 	reg := mcp.NewRegistry()
@@ -66,6 +90,9 @@ func TestSession_Dispatch_toolsCall_success(t *testing.T) {
 	sess := mcp.NewSession("s3", reg, &model.Identity{TeamID: "t", OwnerID: "u"})
 	defer sess.Close()
 
+	// 先完成握手 / Complete handshake first
+	initializeSession(t, sess)
+
 	raw := mustMarshal(t, map[string]any{
 		"jsonrpc": "2.0",
 		"id":      3,
@@ -89,6 +116,9 @@ func TestSession_Dispatch_toolsCall_unknown(t *testing.T) {
 	reg := mcp.NewRegistry()
 	sess := mcp.NewSession("s4", reg, &model.Identity{})
 	defer sess.Close()
+
+	// 先完成握手 / Complete handshake first
+	initializeSession(t, sess)
 
 	raw := mustMarshal(t, map[string]any{
 		"jsonrpc": "2.0",
@@ -114,6 +144,9 @@ func TestSession_Dispatch_methodNotFound(t *testing.T) {
 	sess := mcp.NewSession("s5", reg, &model.Identity{})
 	defer sess.Close()
 
+	// 先完成握手 / Complete handshake first
+	initializeSession(t, sess)
+
 	raw := mustMarshal(t, map[string]any{
 		"jsonrpc": "2.0",
 		"id":      5,
@@ -126,6 +159,28 @@ func TestSession_Dispatch_methodNotFound(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &resp))
 	require.NotNil(t, resp.Error)
 	assert.Equal(t, -32601, resp.Error.Code)
+}
+
+// TestSession_Dispatch_beforeInitialize 未初始化时调用非 init 方法返回 -32600 / Non-init method before handshake returns -32600
+func TestSession_Dispatch_beforeInitialize(t *testing.T) {
+	reg := mcp.NewRegistry()
+	reg.RegisterTool(&stubTool{name: "my_tool", desc: "test"})
+	sess := mcp.NewSession("s-noinit", reg, &model.Identity{})
+	defer sess.Close()
+
+	raw := mustMarshal(t, map[string]any{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  mcp.MethodToolsCall,
+		"params":  map[string]any{"name": "my_tool", "arguments": map[string]any{}},
+	})
+	sess.Dispatch(context.Background(), raw)
+
+	data := <-sess.Out()
+	var resp mcp.JSONRPCResponse
+	require.NoError(t, json.Unmarshal(data, &resp))
+	require.NotNil(t, resp.Error)
+	assert.Equal(t, -32600, resp.Error.Code)
 }
 
 // TestWithIdentity_roundtrip WithIdentity + IdentityFromContext 往返验证 / WithIdentity + IdentityFromContext round-trip
@@ -182,6 +237,9 @@ func TestSession_HandleRequest_toolsList(t *testing.T) {
 	sess := mcp.NewSession("s8", reg, &model.Identity{})
 	defer sess.Close()
 
+	// 先完成握手 / Complete handshake first
+	initializeSession(t, sess)
+
 	req := &mcp.JSONRPCRequest{
 		JSONRPC: "2.0",
 		ID:      json.RawMessage(`2`),
@@ -196,6 +254,9 @@ func TestSession_HandleRequest_unknownMethod(t *testing.T) {
 	reg := mcp.NewRegistry()
 	sess := mcp.NewSession("s9", reg, &model.Identity{})
 	defer sess.Close()
+
+	// 先完成握手 / Complete handshake first
+	initializeSession(t, sess)
 
 	req := &mcp.JSONRPCRequest{JSONRPC: "2.0", ID: json.RawMessage(`3`), Method: "unknown/method"}
 	resp := sess.HandleRequest(context.Background(), req)
