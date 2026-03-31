@@ -73,6 +73,7 @@ func (t *RecallTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 	}
 	if id != nil {
 		req.TeamID = id.TeamID
+		req.OwnerID = id.OwnerID
 	}
 
 	// Build filters from structured map + scope shorthand

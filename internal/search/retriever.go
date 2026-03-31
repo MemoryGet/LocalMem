@@ -52,6 +52,15 @@ func NewRetriever(memStore store.MemoryStore, vecStore store.VectorStore, embedd
 	}
 }
 
+// resolveIdentity 从请求中构建身份，优先使用请求中的 OwnerID / Build identity from request, prefer request OwnerID
+func (r *Retriever) resolveIdentity(req *model.RetrieveRequest) *model.Identity {
+	ownerID := req.OwnerID
+	if ownerID == "" {
+		ownerID = model.SystemOwnerID
+	}
+	return &model.Identity{TeamID: req.TeamID, OwnerID: ownerID}
+}
+
 // Retrieve 执行检索 / Execute retrieval
 // 根据配置自动选择：仅 SQLite、仅 Qdrant、或双后端 RRF 融合
 func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
@@ -117,7 +126,7 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		if filters != nil {
 			textResults, err = r.memStore.SearchTextFiltered(ctx, ftsQuery, filters, limit)
 		} else {
-			textResults, err = r.memStore.SearchText(ctx, ftsQuery, &model.Identity{TeamID: req.TeamID, OwnerID: model.SystemOwnerID}, limit)
+			textResults, err = r.memStore.SearchText(ctx, ftsQuery, r.resolveIdentity(req), limit)
 		}
 		if err != nil {
 			logger.Warn("text search failed", zap.Error(err))
@@ -150,7 +159,7 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 			if filters != nil {
 				vecResults, err = r.vecStore.SearchFiltered(ctx, embedding, filters, limit)
 			} else {
-				vecResults, err = r.vecStore.Search(ctx, embedding, &model.Identity{TeamID: req.TeamID, OwnerID: model.SystemOwnerID}, limit)
+				vecResults, err = r.vecStore.Search(ctx, embedding, r.resolveIdentity(req), limit)
 			}
 			if err != nil {
 				logger.Warn("vector search failed", zap.Error(err))

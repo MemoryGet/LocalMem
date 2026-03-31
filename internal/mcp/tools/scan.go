@@ -91,6 +91,7 @@ func (t *ScanTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp
 	}
 	if id != nil {
 		req.TeamID = id.TeamID
+		req.OwnerID = id.OwnerID
 	}
 
 	// 从结构化 map 和 scope 简写构建过滤器 / Build filters from structured map + scope shorthand

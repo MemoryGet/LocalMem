@@ -72,6 +72,7 @@ func (t *ReflectTool) Execute(ctx context.Context, arguments json.RawMessage) (*
 	// 注入身份信息（如有）/ Inject identity when available
 	if id := mcp.IdentityFromContext(ctx); id != nil {
 		req.TeamID = id.TeamID
+		req.OwnerID = id.OwnerID
 	}
 
 	resp, err := t.engine.Reflect(ctx, req)

@@ -145,9 +145,10 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 
 		// 检索记忆 / Retrieve memories
 		retrieveReq := &model.RetrieveRequest{
-			Query:  currentQuery,
-			TeamID: req.TeamID,
-			Limit:  10,
+			Query:   currentQuery,
+			TeamID:  req.TeamID,
+			OwnerID: req.OwnerID,
+			Limit:   10,
 		}
 		if req.Scope != "" {
 			retrieveReq.Filters = &model.SearchFilters{Scope: req.Scope}

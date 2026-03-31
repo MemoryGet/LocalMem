@@ -76,6 +76,7 @@ type RetrieveRequest struct {
 	Query        string         `json:"query,omitempty"`
 	Embedding    []float32      `json:"embedding,omitempty"`
 	TeamID       string         `json:"team_id,omitempty"`
+	OwnerID      string         `json:"owner_id,omitempty"`
 	Limit        int            `json:"limit,omitempty"`
 	Filters      *SearchFilters `json:"filters,omitempty"`
 	DetailLevel  string         `json:"detail_level,omitempty"` // abstract_only / summary / full
@@ -219,6 +220,7 @@ type ReflectRequest struct {
 	Question    string `json:"question" binding:"required"`
 	Scope       string `json:"scope,omitempty"`
 	TeamID      string `json:"team_id,omitempty"`
+	OwnerID     string `json:"owner_id,omitempty"`
 	MaxRounds   int    `json:"max_rounds,omitempty"`
 	TokenBudget int    `json:"token_budget,omitempty"`
 	AutoSave    *bool  `json:"auto_save,omitempty"`
