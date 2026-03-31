@@ -26,6 +26,10 @@ storage:
     collection: "memories"
     dimension: ${EMBEDDING_DIM}  # 必须与 embedding 模型维度匹配
 
+partitions:
+  enabled: false
+  catalog_path: "${DATA_DIR}/partitions.db"
+
 llm:
   default_provider: openai
   openai:
@@ -40,6 +44,9 @@ llm:
       base_url: "${FALLBACK_BASE_URL}"
       api_key: "${FALLBACK_API_KEY}"
       model: "${FALLBACK_MODEL}"
+
+auth:
+  enabled: true
 
 retrieval:
   graph_enabled: true
@@ -57,6 +64,9 @@ retrieval:
     enabled: true
     use_llm: true  # LLM 增强查询改写
     llm_timeout: 5s
+    stopword_files:
+      - "config/stopwords_en.txt"
+      - "config/stopwords_zh.txt"
 
 extract:
   max_entities: 20
@@ -98,6 +108,7 @@ document:
   process_timeout: 10m
   max_file_size: 104857600
   cleanup_after_parse: true
+  keep_images: true
   allowed_types:
     - pdf
     - docx
@@ -106,6 +117,9 @@ document:
     - md
     - html
     - txt
+    - png
+    - jpg
+    - jpeg
   file_store:
     provider: local
     local:
@@ -125,8 +139,18 @@ document:
 
 server:
   port: 8080
+  auth_enabled: true
 
 mcp:
   enabled: true
   default_team_id: "${TEAM_ID}"
   default_owner_id: "${OWNER_ID}"
+
+hooks:
+  enabled: false
+  mcp_url: "http://localhost:8081"
+  skip_tools: [Glob, Grep, ToolSearch, TaskCreate, TaskUpdate, TaskList, TaskGet, TodoWrite]
+  max_input_chars: 1000
+  max_output_chars: 500
+  inject_limit: 20
+  summary_limit: 50

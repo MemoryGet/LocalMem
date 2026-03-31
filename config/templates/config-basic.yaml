@@ -19,6 +19,10 @@ storage:
   qdrant:
     enabled: false  # 基础版不启用向量检索
 
+partitions:
+  enabled: false
+  catalog_path: "${DATA_DIR}/partitions.db"
+
 llm:
   default_provider: openai
   openai:
@@ -29,12 +33,24 @@ llm:
     provider: openai
     model: "text-embedding-3-small"
 
+auth:
+  enabled: true
+
 retrieval:
   graph_enabled: false  # 基础版不启用图谱
   fts_weight: 1.0
+  qdrant_weight: 1.0
+  graph_weight: 0.8
+  access_alpha: 0.15
+  mmr:
+    enabled: false
   preprocess:
     enabled: true
-    use_llm: false  # 规则模式，快速无消耗
+    use_llm: false
+    llm_timeout: 5s
+    stopword_files:
+      - "config/stopwords_en.txt"
+      - "config/stopwords_zh.txt"
 
 extract:
   max_entities: 10
@@ -64,8 +80,18 @@ document:
 
 server:
   port: 8080
+  auth_enabled: true
 
 mcp:
   enabled: true
   default_team_id: "default"
   default_owner_id: "${OWNER_ID}"
+
+hooks:
+  enabled: false
+  mcp_url: "http://localhost:8081"
+  skip_tools: [Glob, Grep, ToolSearch, TaskCreate, TaskUpdate, TaskList, TaskGet, TodoWrite]
+  max_input_chars: 1000
+  max_output_chars: 500
+  inject_limit: 20
+  summary_limit: 50

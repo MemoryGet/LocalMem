@@ -23,6 +23,10 @@ storage:
   qdrant:
     enabled: false  # 普通版仅 SQLite，可手动开启
 
+partitions:
+  enabled: false
+  catalog_path: "${DATA_DIR}/partitions.db"
+
 llm:
   default_provider: openai
   openai:
@@ -38,6 +42,9 @@ llm:
       api_key: "${FALLBACK_API_KEY}"
       model: "${FALLBACK_MODEL}"
 
+auth:
+  enabled: true
+
 retrieval:
   graph_enabled: true  # 开启知识图谱
   graph_depth: 1
@@ -51,7 +58,11 @@ retrieval:
     enabled: false
   preprocess:
     enabled: true
-    use_llm: false  # 规则模式
+    use_llm: false
+    llm_timeout: 5s
+    stopword_files:
+      - "config/stopwords_en.txt"
+      - "config/stopwords_zh.txt"
 
 extract:
   max_entities: 20
@@ -70,6 +81,7 @@ heartbeat:
   enabled: true
   interval: 6h
   contradiction_enabled: false  # 普通版不开矛盾检测
+  contradiction_max_comparisons: 50
   decay_audit_min_age_days: 90
   decay_audit_threshold: 0.1
 
@@ -85,10 +97,23 @@ consolidation:
 document:
   enabled: false
 
+document:
+  enabled: false
+
 server:
   port: 8080
+  auth_enabled: true
 
 mcp:
   enabled: true
   default_team_id: "${TEAM_ID}"
   default_owner_id: "${OWNER_ID}"
+
+hooks:
+  enabled: false
+  mcp_url: "http://localhost:8081"
+  skip_tools: [Glob, Grep, ToolSearch, TaskCreate, TaskUpdate, TaskList, TaskGet, TodoWrite]
+  max_input_chars: 1000
+  max_output_chars: 500
+  inject_limit: 20
+  summary_limit: 50

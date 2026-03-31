@@ -344,6 +344,93 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   </div>
 </div>
 
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>Auth &amp; Security</h3>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="form-row">
+      <div class="form-group">
+        <div class="checkbox-row">
+          <input type="checkbox" id="auth_enabled" checked>
+          <label for="auth_enabled">Enable API Authentication</label>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>API Key (optional)</label>
+        <input type="text" id="auth_api_key" placeholder="your-secret-api-key-here">
+        <div class="hint">Leave empty to skip. Binds to the Team ID above.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>Hooks (Claude Code Integration)</h3>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="form-row">
+      <div class="form-group">
+        <div class="checkbox-row">
+          <input type="checkbox" id="hooks_enabled">
+          <label for="hooks_enabled">Enable Claude Code Hooks</label>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>MCP URL</label>
+        <input type="text" id="hooks_mcp_url" value="http://localhost:8081">
+      </div>
+      <div class="form-group">
+        <label>Max Input Chars</label>
+        <input type="number" id="hooks_max_input" value="1000">
+      </div>
+      <div class="form-group">
+        <label>Max Output Chars</label>
+        <input type="number" id="hooks_max_output" value="500">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Inject Limit</label>
+        <input type="number" id="hooks_inject_limit" value="20">
+      </div>
+      <div class="form-group">
+        <label>Summary Limit</label>
+        <input type="number" id="hooks_summary_limit" value="50">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h3>Partitions (Multi-tenant)</h3>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+    <div class="form-row">
+      <div class="form-group">
+        <div class="checkbox-row">
+          <input type="checkbox" id="partitions_enabled">
+          <label for="partitions_enabled">Enable Partitions</label>
+        </div>
+        <div class="hint">Separate SQLite databases per tenant</div>
+      </div>
+      <div class="form-group">
+        <label>Catalog Path</label>
+        <input type="text" id="partitions_catalog" value="./data/partitions.db">
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Output -->
 <div class="output-section">
   <div class="output-header">
@@ -459,6 +546,14 @@ storage:
     dimension: ${embedDim}`;
   }
 
+  // Partitions
+  const partEnabled = document.getElementById('partitions_enabled').checked;
+  yaml += `
+
+partitions:
+  enabled: ${partEnabled}
+  catalog_path: "${val('partitions_catalog') || './data/partitions.db'}"`;
+
   yaml += `
 
 llm:
@@ -486,18 +581,37 @@ llm:
 
   yaml += `
 
+auth:
+  enabled: ${document.getElementById('auth_enabled').checked}`;
+
+  const authKey = val('auth_api_key');
+  if (authKey) {
+    yaml += `
+  api_keys:
+    - key: "${authKey}"
+      team_id: "${teamId}"`;
+  }
+
+  yaml += `
+
 retrieval:
   graph_enabled: ${ed !== 'basic'}
   graph_depth: ${ed === 'premium' ? 2 : 1}
   fts_weight: 1.0
   qdrant_weight: 1.0
   graph_weight: 0.8
+  graph_fts_top: 5
+  graph_entity_limit: 10
   access_alpha: 0.15
   mmr:
     enabled: ${ed === 'premium'}${ed === 'premium' ? '\n    lambda: 0.7' : ''}
   preprocess:
     enabled: true
-    use_llm: ${ed === 'premium'}`;
+    use_llm: ${ed === 'premium'}
+    llm_timeout: 5s
+    stopword_files:
+      - "config/stopwords_en.txt"
+      - "config/stopwords_zh.txt"`;
 
   yaml += `
 
@@ -517,6 +631,7 @@ heartbeat:
   enabled: ${ed !== 'basic'}${ed !== 'basic' ? `
   interval: 6h
   contradiction_enabled: ${ed === 'premium'}
+  contradiction_max_comparisons: 50
   decay_audit_min_age_days: 90
   decay_audit_threshold: 0.1` : ''}
 
@@ -552,7 +667,8 @@ document:
   process_timeout: 10m
   max_file_size: 104857600
   cleanup_after_parse: true
-  allowed_types: [pdf, docx, pptx, xlsx, md, html, txt]
+  keep_images: true
+  allowed_types: [pdf, docx, pptx, xlsx, md, html, txt, png, jpg, jpeg]
   file_store:
     provider: local
     local:
@@ -571,16 +687,28 @@ document:
     keep_code_intact: true`;
   }
 
+  const hooksEnabled = document.getElementById('hooks_enabled').checked;
+
   yaml += `
 
 server:
   port: ${serverPort}
+  auth_enabled: ${document.getElementById('auth_enabled').checked}
 
 mcp:
   enabled: true
   port: ${mcpPort}
   default_team_id: "${teamId}"
   default_owner_id: "${ownerId}"
+
+hooks:
+  enabled: ${hooksEnabled}
+  mcp_url: "${val('hooks_mcp_url') || 'http://localhost:8081'}"
+  skip_tools: [Glob, Grep, ToolSearch, TaskCreate, TaskUpdate, TaskList, TaskGet, TodoWrite]
+  max_input_chars: ${val('hooks_max_input') || '1000'}
+  max_output_chars: ${val('hooks_max_output') || '500'}
+  inject_limit: ${val('hooks_inject_limit') || '20'}
+  summary_limit: ${val('hooks_summary_limit') || '50'}
 `;
 
   document.getElementById('output').textContent = yaml;
