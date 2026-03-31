@@ -28,10 +28,19 @@
   <a href="../../go.mod">
     <img src="https://img.shields.io/badge/Go-1.25+-00ADD8.svg?logo=go" alt="Go Version">
   </a>
+  <a href="https://goreportcard.com/report/github.com/MemeryGit/LocalMem">
+    <img src="https://goreportcard.com/badge/github.com/MemeryGit/LocalMem" alt="Go Report Card">
+  </a>
+  <a href="https://github.com/MemeryGit/LocalMem/actions/workflows/release.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MemeryGit/LocalMem/release.yml?label=CI&logo=github" alt="CI">
+  </a>
+  <a href="https://discord.gg/eG87YHjU">
+    <img src="https://img.shields.io/discord/1356309498498297856?color=5865F2&logo=discord&logoColor=white&label=Discord" alt="Discord">
+  </a>
 </p>
 
 <p align="center">
-  IClude 将 SQLite（结构化 + 全文检索）与 Qdrant（向量语义检索）相结合，提供三路混合检索、多轮 LLM 推理、知识图谱抽取和文档摄入功能 —— 全部集成在单个 Go 二进制文件中。
+  LocalMem 将 SQLite（结构化 + 全文检索）与 Qdrant（向量语义检索）相结合，提供三路混合检索、多轮 LLM 推理、知识图谱抽取和文档摄入功能 —— 全部集成在单个 Go 二进制文件中。
 </p>
 
 ---
@@ -88,7 +97,7 @@ docker-compose -f deploy/docker-compose.yml up
 
 ### 架构
 
-IClude 采用分层 Go 架构（`cmd/` + `internal/` + `pkg/`）：
+LocalMem 采用分层 Go 架构（`cmd/` + `internal/` + `pkg/`）：
 
 ```
 cmd/server/       → HTTP API 服务 (Gin, 端口 8080)
@@ -159,9 +168,9 @@ pip install iclude
 ```
 
 ```python
-from iclude import ICludeClient
+from iclude import LocalMemClient
 
-client = ICludeClient(base_url="http://localhost:8080")
+client = LocalMemClient(base_url="http://localhost:8080")
 client.save_memory(content="重要上下文", kind="note")
 results = client.retrieve(query="上下文")
 ```

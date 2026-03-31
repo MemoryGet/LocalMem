@@ -28,10 +28,19 @@
   <a href="../../go.mod">
     <img src="https://img.shields.io/badge/Go-1.25+-00ADD8.svg?logo=go" alt="Go Version">
   </a>
+  <a href="https://goreportcard.com/report/github.com/MemeryGit/LocalMem">
+    <img src="https://goreportcard.com/badge/github.com/MemeryGit/LocalMem" alt="Go Report Card">
+  </a>
+  <a href="https://github.com/MemeryGit/LocalMem/actions/workflows/release.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/MemeryGit/LocalMem/release.yml?label=CI&logo=github" alt="CI">
+  </a>
+  <a href="https://discord.gg/eG87YHjU">
+    <img src="https://img.shields.io/discord/1356309498498297856?color=5865F2&logo=discord&logoColor=white&label=Discord" alt="Discord">
+  </a>
 </p>
 
 <p align="center">
-  IClude는 SQLite(구조화 + 전문 검색)와 Qdrant(벡터 시맨틱 검색)를 결합하여 3방향 하이브리드 검색, 다중 라운드 LLM 추론, 지식 그래프 추출, 문서 수집 기능을 단일 Go 바이너리로 제공합니다.
+  LocalMem은 SQLite(구조화 + 전문 검색)와 Qdrant(벡터 시맨틱 검색)를 결합하여 3방향 하이브리드 검색, 다중 라운드 LLM 추론, 지식 그래프 추출, 문서 수집 기능을 단일 Go 바이너리로 제공합니다.
 </p>
 
 ---
