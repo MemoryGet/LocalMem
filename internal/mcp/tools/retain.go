@@ -36,7 +36,7 @@ type retainArgs struct {
 func (t *RetainTool) Definition() mcp.ToolDefinition {
 	return mcp.ToolDefinition{
 		Name:        "iclude_retain",
-		Description: "Save a memory to IClude. Use after learning a key fact, decision, or context that should persist across sessions.",
+		Description: "**Call before the session ends** to persist key decisions, facts, and outcomes from this conversation. Also use whenever a notable fact, preference, or decision emerges mid-conversation.",
 		InputSchema: json.RawMessage(`{
             "type":"object",
             "properties":{

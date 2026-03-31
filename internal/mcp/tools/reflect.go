@@ -33,7 +33,7 @@ type reflectArgs struct {
 func (t *ReflectTool) Definition() mcp.ToolDefinition {
 	return mcp.ToolDefinition{
 		Name:        "iclude_reflect",
-		Description: "Run multi-round LLM reasoning over stored memories to synthesize insights and answer complex questions. Returns a structured conclusion with reasoning trace and source memory IDs.",
+		Description: "Run multi-round LLM reasoning over stored memories. **Use when the question requires synthesizing multiple memories or cross-referencing facts** that a single search cannot answer. Returns a structured conclusion with reasoning trace and source memory IDs.",
 		InputSchema: json.RawMessage(`{
             "type":"object",
             "properties":{

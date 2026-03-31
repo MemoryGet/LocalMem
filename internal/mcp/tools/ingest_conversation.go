@@ -35,7 +35,7 @@ type ingestArgs struct {
 func (t *IngestConversationTool) Definition() mcp.ToolDefinition {
 	return mcp.ToolDefinition{
 		Name:        "iclude_ingest_conversation",
-		Description: "Ingest a conversation (array of role/content messages) into IClude memory. Creates memories for each turn and groups them under a session context.",
+		Description: "**Call at the end of a session** to save the full conversation for future recall. Ingests an array of role/content messages into IClude memory, creating memories for each turn grouped under a session context.",
 		InputSchema: json.RawMessage(`{
             "type":"object",
             "properties":{
