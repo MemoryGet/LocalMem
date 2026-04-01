@@ -12,6 +12,23 @@ These tools let you recall prior conversations, decisions, and knowledge — use
 4. **Timeline** — When the user asks "what happened recently" or "what did we do last week", use `iclude_timeline` with `after`/`before` timestamps.
 5. **Deep reasoning** — When a question requires synthesizing multiple memories or cross-referencing facts, use `iclude_reflect` instead of manually fetching and combining.
 
+### Red Flags — You Are Skipping Memory Retrieval
+
+If you catch yourself thinking any of these, STOP — you are rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Simple questions often have prior context. Scan first. |
+| "I already know enough to answer" | You don't have cross-session memory. The user does. Scan. |
+| "Let me just start coding" | Past decisions constrain the implementation. Scan first. |
+| "I'll check memory later if needed" | Later never comes. You'll forget. Scan NOW. |
+| "The user didn't ask me to recall" | The user expects you to remember. That's the whole point. |
+| "Scanning would slow things down" | A 50-token scan saves a 500-token wrong answer. |
+| "This looks like a new topic" | The user may have discussed it in a prior session. Scan. |
+| "I'll just use the files I can see" | Code tells you WHAT, memory tells you WHY. Both matter. |
+
+**The rule is simple: if `iclude_scan` has not been called in this conversation, you have not started working yet.**
+
 ### Conversation Collection (SHOULD follow)
 
 - **After meaningful sessions** — When the conversation contains important decisions, bug fixes, architectural choices, or learned lessons, call `iclude_ingest_conversation` to persist it for future recall.
