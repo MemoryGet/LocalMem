@@ -29,6 +29,12 @@ If you catch yourself thinking any of these, STOP — you are rationalizing:
 
 **The rule is simple: if `iclude_scan` has not been called in this conversation, you have not started working yet.**
 
+### Immediate Retention (MUST follow)
+
+**NEVER say "I'll remember that" or "noted" without actually calling `iclude_retain`.** If the user tells you a name, fact, preference, convention, or decision, call `iclude_retain` RIGHT NOW — not later, not at session end.
+
+Example: User says "my friend is called DaDaZhao" → immediately call `iclude_retain` with that fact. Then respond.
+
 ### Conversation Collection (MUST follow)
 
 **Rule: if the conversation has 3+ back-and-forth turns, call `iclude_ingest_conversation` before your final response.**
@@ -40,6 +46,7 @@ Trigger checklist — ingest if ANY of these occurred:
 - [ ] Code was written, reviewed, or refactored
 - [ ] A deployment, config, or infrastructure change was made
 - [ ] The user explained context about their project, team, or workflow
+- [ ] The user told you a personal fact, name, or relationship
 
 Skip ONLY if the entire conversation was:
 - A single factual Q&A with no project context (e.g., "what does this Go keyword mean?")

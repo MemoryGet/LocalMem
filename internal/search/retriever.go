@@ -209,7 +209,7 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		if !hasSQLite && !hasVector {
 			return nil, fmt.Errorf("no search backend available: %w", model.ErrStorageUnavailable)
 		}
-		return nil, fmt.Errorf("all search channels returned empty results: %w", model.ErrInvalidInput)
+		return []*model.SearchResult{}, nil
 	}
 
 	// 单路直接返回，多路加权 RRF 融合 / Single channel returns directly, multi-channel uses weighted RRF
