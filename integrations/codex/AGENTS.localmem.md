@@ -29,11 +29,23 @@ If you catch yourself thinking any of these, STOP — you are rationalizing:
 
 **The rule is simple: if `iclude_scan` has not been called in this conversation, you have not started working yet.**
 
-### Conversation Collection (SHOULD follow)
+### Conversation Collection (MUST follow)
 
-- **After meaningful sessions** — When the conversation contains important decisions, bug fixes, architectural choices, or learned lessons, call `iclude_ingest_conversation` to persist it for future recall.
-- **Individual facts** — Use `iclude_retain` to save a single important fact, decision, or preference immediately (e.g., user told you a convention, a deployment target, a deadline).
-- **Do NOT over-collect** — Trivial Q&A, simple lookups, or small talk do not need to be retained.
+**Before giving your final response in a conversation, ask yourself: "Did anything happen worth remembering?" If yes, call `iclude_ingest_conversation` BEFORE your last message.**
+
+You MUST ingest if ANY of these occurred (3+ turns is not required):
+- A bug was identified or fixed
+- A design or architectural decision was made
+- The user stated a convention, preference, constraint, or deadline
+- Code was written, reviewed, or refactored
+- A deployment, config, or infrastructure change was discussed
+- The user explained project context, team workflow, or business logic
+
+You may skip ONLY if the entire conversation was a single factual Q&A or trivial command with zero project context.
+
+**`iclude_retain` fires immediately** — When the user states a fact worth remembering (preference, deadline, convention, decision), call `iclude_retain` right then. Do not batch it to session end — you will forget.
+
+**If you are unsure whether to ingest: ingest.** A redundant memory costs nothing. A lost decision costs the user a repeated conversation.
 
 ### Tool Quick Reference
 
@@ -45,6 +57,6 @@ If you catch yourself thinking any of these, STOP — you are rationalizing:
 | `iclude_timeline` | Chronological listing | Low | "What happened recently / last week?" |
 | `iclude_reflect` | Multi-round LLM reasoning | High | Cross-reference or synthesize multiple memories |
 | `iclude_retain` | Save one memory | Low | Important facts, decisions, preferences |
-| `iclude_ingest_conversation` | Persist conversation | Medium | End of meaningful sessions |
+| `iclude_ingest_conversation` | Persist conversation | Medium | **Before final response** — if anything worth remembering happened |
 | `iclude_create_session` | Create session context | Low | Organize memories by session |
 <!-- LOCALMEM:END -->
