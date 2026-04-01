@@ -46,8 +46,14 @@ You MUST call `iclude_retain` immediately (not at session end) if:
 - The user shared an environment fact (e.g., "prod DB is at db.prod.internal:5432")
 - The user set a deadline or constraint
 
-You may skip ONLY if the conversation had zero project context:
-- Pure knowledge Q&A (e.g., "what does defer mean in Go?")
+You MUST also ingest if experiential knowledge was shared:
+- A debugging technique or workaround was discovered
+- A gotcha, pitfall, or "lesson learned" surfaced
+- A performance tuning approach or optimization trick was applied
+- A tool usage tip or best practice was discussed
+
+You may skip ONLY if the conversation was:
+- A textbook-level factual Q&A with no experiential insight (e.g., "what does defer mean in Go?")
 - Mechanical commands (e.g., "format this file")
 - Small talk or off-topic chat
 
