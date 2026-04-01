@@ -31,45 +31,21 @@ If you catch yourself thinking any of these, STOP — you are rationalizing:
 
 ### Conversation Collection (MUST follow)
 
-**Before your final response, ask: "Did this conversation touch the user's project?" If yes → ingest.**
+**Rule: if the conversation has 3+ back-and-forth turns, call `iclude_ingest_conversation` before your final response.**
 
-You MUST call `iclude_ingest_conversation` if ANY of these occurred:
-- A bug was analyzed or fixed
-- An architectural or design discussion happened (even without code changes)
-- Code was written, reviewed, or refactored
-- A code review surfaced issues or suggestions
-- A deployment, config, or infrastructure fact was shared
-- Project planning, phasing, or scheduling was discussed
+Trigger checklist — ingest if ANY of these occurred:
+- [ ] A bug was identified or fixed
+- [ ] An architectural or design decision was made
+- [ ] A new convention, preference, or constraint was stated by the user
+- [ ] Code was written, reviewed, or refactored
+- [ ] A deployment, config, or infrastructure change was made
+- [ ] The user explained context about their project, team, or workflow
 
-You MUST call `iclude_retain` immediately (not at session end) if:
-- The user stated a preference or convention (e.g., "commit messages in Chinese")
-- The user shared an environment fact (e.g., "prod DB is at db.prod.internal:5432")
-- The user set a deadline or constraint
+Skip ONLY if the entire conversation was:
+- A single factual Q&A with no project context (e.g., "what does this Go keyword mean?")
+- A trivial command request (e.g., "format this file")
 
-You MUST also ingest if experiential knowledge was shared:
-- A debugging technique or workaround was discovered
-- A gotcha, pitfall, or "lesson learned" surfaced
-- A performance tuning approach or optimization trick was applied
-- A tool usage tip or best practice was discussed
-
-You may skip ONLY if the conversation was:
-- A textbook-level factual Q&A with no experiential insight (e.g., "what does defer mean in Go?")
-- Mechanical commands (e.g., "format this file")
-- Small talk or off-topic chat
-
-**Tool chain must be included.** When calling `iclude_ingest_conversation`, append an assistant message at the end summarizing all tool actions taken during the session. Format:
-
-```
-[Tool Chain Summary]
-1. Read internal/api/router.go (identified missing auth check)
-2. Edit internal/api/router.go:45 (added requireIdentity middleware)
-3. Bash: go test ./testing/api/ (all passed)
-4. Read deploy/config.yaml (confirmed prod settings)
-```
-
-Include: file paths, line numbers, command outputs (pass/fail), and what each action achieved. This context is critical for future recall — without it, the memory only captures what was said, not what was done.
-
-**When in doubt, ingest.** A redundant memory costs nothing. A lost decision costs the user a repeated conversation.
+**Individual facts** — Use `iclude_retain` immediately (don't wait for session end) when the user states a preference, deadline, convention, or decision. These are easy to miss at session end.
 
 ### Tool Quick Reference
 
@@ -81,6 +57,6 @@ Include: file paths, line numbers, command outputs (pass/fail), and what each ac
 | `iclude_timeline` | Chronological listing | Low | "What happened recently / last week?" |
 | `iclude_reflect` | Multi-round LLM reasoning | High | Cross-reference or synthesize multiple memories |
 | `iclude_retain` | Save one memory | Low | Important facts, decisions, preferences |
-| `iclude_ingest_conversation` | Persist conversation | Medium | **Before final response** — if anything worth remembering happened |
+| `iclude_ingest_conversation` | Persist conversation | Medium | End of meaningful sessions |
 | `iclude_create_session` | Create session context | Low | Organize memories by session |
 <!-- LOCALMEM:END -->
