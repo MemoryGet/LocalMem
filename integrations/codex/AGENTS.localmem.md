@@ -31,21 +31,27 @@ If you catch yourself thinking any of these, STOP — you are rationalizing:
 
 ### Conversation Collection (MUST follow)
 
-**Before giving your final response in a conversation, ask yourself: "Did anything happen worth remembering?" If yes, call `iclude_ingest_conversation` BEFORE your last message.**
+**Before your final response, ask: "Did this conversation touch the user's project?" If yes → ingest.**
 
-You MUST ingest if ANY of these occurred (3+ turns is not required):
-- A bug was identified or fixed
-- A design or architectural decision was made
-- The user stated a convention, preference, constraint, or deadline
+You MUST call `iclude_ingest_conversation` if ANY of these occurred:
+- A bug was analyzed or fixed
+- An architectural or design discussion happened (even without code changes)
 - Code was written, reviewed, or refactored
-- A deployment, config, or infrastructure change was discussed
-- The user explained project context, team workflow, or business logic
+- A code review surfaced issues or suggestions
+- A deployment, config, or infrastructure fact was shared
+- Project planning, phasing, or scheduling was discussed
 
-You may skip ONLY if the entire conversation was a single factual Q&A or trivial command with zero project context.
+You MUST call `iclude_retain` immediately (not at session end) if:
+- The user stated a preference or convention (e.g., "commit messages in Chinese")
+- The user shared an environment fact (e.g., "prod DB is at db.prod.internal:5432")
+- The user set a deadline or constraint
 
-**`iclude_retain` fires immediately** — When the user states a fact worth remembering (preference, deadline, convention, decision), call `iclude_retain` right then. Do not batch it to session end — you will forget.
+You may skip ONLY if the conversation had zero project context:
+- Pure knowledge Q&A (e.g., "what does defer mean in Go?")
+- Mechanical commands (e.g., "format this file")
+- Small talk or off-topic chat
 
-**If you are unsure whether to ingest: ingest.** A redundant memory costs nothing. A lost decision costs the user a repeated conversation.
+**When in doubt, ingest.** A redundant memory costs nothing. A lost decision costs the user a repeated conversation.
 
 ### Tool Quick Reference
 
