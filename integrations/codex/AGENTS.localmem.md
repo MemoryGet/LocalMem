@@ -6,7 +6,7 @@ These tools let you recall prior conversations, decisions, and knowledge — use
 
 ### Retrieval Strategy (MUST follow)
 
-1. **Session start** — BEFORE answering the user's first message, call `iclude_scan` with the user's question as `query`. This recalls relevant prior context and costs ~10x fewer tokens than a full retrieval.
+1. **Session start** — BEFORE answering the user's first message, call `iclude_scan` with the user's question as `query`. Do NOT pass `scope` unless the user explicitly asks to search within a specific namespace — omitting scope searches ALL memories across all projects. This recalls relevant prior context and costs ~10x fewer tokens than a full retrieval.
 2. **Scan then Fetch** — Review the scan results (compact index: ID, title, score, tags). Call `iclude_fetch` only for items whose full content you actually need. Do NOT use `iclude_recall` unless you need all results with full content in one shot.
 3. **Mid-conversation** — When the user references past work, decisions, bugs, or context you don't have, call `iclude_scan` again with a targeted query.
 4. **Timeline** — When the user asks "what happened recently" or "what did we do last week", use `iclude_timeline` with `after`/`before` timestamps.
@@ -39,7 +39,7 @@ If you catch yourself thinking any of these, STOP — you are rationalizing:
 
 | Tool | Purpose | Token Cost | When to Use |
 |------|---------|------------|-------------|
-| `iclude_scan` | Compact index search | Low | **Always first** — session start + mid-conversation |
+| `iclude_scan` | Compact index search | Low | **Always first** — session start + mid-conversation. **Omit `scope` for cross-project search.** |
 | `iclude_fetch` | Full content by ID | Medium | After scan, for selected items only |
 | `iclude_recall` | Full search + content | High | Only when you need everything in one call |
 | `iclude_timeline` | Chronological listing | Low | "What happened recently / last week?" |
