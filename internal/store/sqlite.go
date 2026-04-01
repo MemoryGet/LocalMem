@@ -110,15 +110,24 @@ func sanitizeFTS5Query(query string) string {
 	)
 	cleaned := replacer.Replace(query)
 
-	// 将每个词包裹为短语防止被解释为操作符 / Wrap each token as phrase to prevent operator interpretation
+	// 过滤 FTS5 保留字并用 OR 连接（提高召回率）/ Filter reserved words and join with OR for better recall
 	words := strings.Fields(cleaned)
-	for i, w := range words {
+	var filtered []string
+	for _, w := range words {
+		if w == "" {
+			continue
+		}
 		upper := strings.ToUpper(w)
 		if upper == "AND" || upper == "OR" || upper == "NOT" || upper == "NEAR" {
-			words[i] = `"` + w + `"`
+			filtered = append(filtered, `"`+w+`"`)
+		} else {
+			filtered = append(filtered, w)
 		}
 	}
-	return strings.Join(words, " ")
+	if len(filtered) == 0 {
+		return cleaned
+	}
+	return strings.Join(filtered, " OR ")
 }
 
 // visibilityCondition 返回可见性 WHERE 子句和参数 / Return visibility WHERE clause and args
