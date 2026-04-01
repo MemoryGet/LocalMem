@@ -99,8 +99,60 @@ heartbeat:
     Warn "Config already exists, skipping"
 }
 
-# ── 配置 Codex CLI MCP / Configure Codex CLI MCP ──
+# ── 安装 AGENTS 指令源文件 / Install AGENTS source file ──
+$agentsSrc = "https://raw.githubusercontent.com/$REPO/main/integrations/codex/AGENTS.localmem.md"
+$agentsDest = "$INSTALL_DIR\codex-agents.md"
+Info "Downloading AGENTS.localmem.md..."
+try {
+    Invoke-WebRequest -Uri $agentsSrc -OutFile $agentsDest -UseBasicParsing
+} catch {
+    Warn "Download failed, using embedded fallback"
+    $fallback = @"
+<!-- LOCALMEM:BEGIN v1 -->
+## Memory System (LocalMem)
+
+You have access to a persistent cross-session memory system via MCP tools prefixed with ``iclude_``.
+
+### Retrieval Strategy (MUST follow)
+1. **Session start** — Call ``iclude_scan`` with user's question BEFORE answering.
+2. **Scan then Fetch** — Use ``iclude_fetch`` for items needing full content. Avoid ``iclude_recall``.
+3. **Mid-conversation** — Call ``iclude_scan`` again when user references unknown context.
+4. **Timeline** — Use ``iclude_timeline`` for "what happened recently" questions.
+5. **Deep reasoning** — Use ``iclude_reflect`` to synthesize multiple memories.
+
+### Conversation Collection (SHOULD follow)
+- After meaningful sessions, call ``iclude_ingest_conversation``.
+- Use ``iclude_retain`` to save individual important facts.
+- Do NOT over-collect trivial Q&A.
+<!-- LOCALMEM:END -->
+"@
+    Set-Content -Path $agentsDest -Value $fallback -Encoding UTF8
+}
+Info "AGENTS source installed to $agentsDest"
+
+# ── 注入 AGENTS.md（标记隔离）/ Inject into AGENTS.md with markers ──
 $codexDir = "$env:USERPROFILE\.codex"
+New-Item -ItemType Directory -Path $codexDir -Force | Out-Null
+$agentsFile = "$codexDir\AGENTS.md"
+$sourceContent = Get-Content -Path $agentsDest -Raw -ErrorAction SilentlyContinue
+
+if ($sourceContent) {
+    if (Test-Path $agentsFile) {
+        $existing = Get-Content -Path $agentsFile -Raw
+        if ($existing -match '(?s)<!-- LOCALMEM:BEGIN.*?<!-- LOCALMEM:END -->') {
+            $existing = $existing -replace '(?s)\r?\n?<!-- LOCALMEM:BEGIN.*?<!-- LOCALMEM:END -->\r?\n?', ''
+            Set-Content -Path $agentsFile -Value $existing.TrimEnd() -Encoding UTF8
+            Info "Removed old LocalMem block from AGENTS.md"
+        }
+    }
+    Add-Content -Path $agentsFile -Value ("`n" + $sourceContent) -Encoding UTF8
+    Info "LocalMem instructions injected into $agentsFile"
+}
+
+# ── 注入 developer_instructions / Inject developer_instructions ──
+# (handled after config.toml creation below)
+
+# ── 配置 Codex CLI MCP / Configure Codex CLI MCP ──
 New-Item -ItemType Directory -Path $codexDir -Force | Out-Null
 $codexFile = "$codexDir\config.toml"
 
@@ -128,6 +180,20 @@ if ((Test-Path $codexFile) -and (Get-Content $codexFile -Raw) -like "*iclude*") 
         Set-Content -Path $codexFile -Value ($codexHeader + $codexEntry.TrimStart()) -Encoding UTF8
     }
     Info "Codex CLI MCP config written to $codexFile"
+}
+
+# ── 注入 developer_instructions 到 config.toml ──
+if (Test-Path $codexFile) {
+    $codexContent = Get-Content -Path $codexFile -Raw
+    if ($codexContent -notmatch 'developer_instructions') {
+        $devInstr = 'developer_instructions = "You have LocalMem memory tools (iclude_*). ALWAYS call iclude_scan at conversation start before answering. Use scan->fetch pattern to save tokens."'
+        Set-Content -Path $codexFile -Value ($devInstr + "`n" + $codexContent) -Encoding UTF8
+        Info "developer_instructions injected into $codexFile"
+    } elseif ($codexContent -match 'iclude_scan') {
+        Info "developer_instructions already contains LocalMem guidance, skipping"
+    } else {
+        Warn "developer_instructions already set by user, skipping to avoid conflict"
+    }
 }
 
 Write-Host ""

@@ -140,6 +140,102 @@ YAML
     info "Config written to ${config_file}"
 }
 
+# ── 安装 AGENTS 指令源文件 / Install AGENTS source file ──
+install_agents_source() {
+    local src_url="https://raw.githubusercontent.com/${REPO}/main/integrations/codex/AGENTS.localmem.md"
+    local dest="$INSTALL_DIR/codex-agents.md"
+
+    info "Downloading AGENTS.localmem.md..."
+    if ! curl -fsSL -o "$dest" "$src_url"; then
+        # 回退：使用内嵌最小版本 / Fallback: embedded minimal version
+        warn "Download failed, using embedded fallback"
+        cat > "$dest" << 'FALLBACK'
+<!-- LOCALMEM:BEGIN v1 -->
+## Memory System (LocalMem)
+
+You have access to a persistent cross-session memory system via MCP tools prefixed with `iclude_`.
+
+### Retrieval Strategy (MUST follow)
+1. **Session start** — Call `iclude_scan` with user's question BEFORE answering.
+2. **Scan then Fetch** — Use `iclude_fetch` for items needing full content. Avoid `iclude_recall`.
+3. **Mid-conversation** — Call `iclude_scan` again when user references unknown context.
+4. **Timeline** — Use `iclude_timeline` for "what happened recently" questions.
+5. **Deep reasoning** — Use `iclude_reflect` to synthesize multiple memories.
+
+### Conversation Collection (SHOULD follow)
+- After meaningful sessions, call `iclude_ingest_conversation`.
+- Use `iclude_retain` to save individual important facts.
+- Do NOT over-collect trivial Q&A.
+<!-- LOCALMEM:END -->
+FALLBACK
+    fi
+    info "AGENTS source installed to ${dest}"
+}
+
+# ── 注入 AGENTS.md（标记隔离）/ Inject into AGENTS.md with markers ──
+inject_agents_md() {
+    local codex_dir="$HOME/.codex"
+    mkdir -p "$codex_dir"
+    local agents_file="$codex_dir/AGENTS.md"
+    local source_file="$INSTALL_DIR/codex-agents.md"
+    local begin_marker="<!-- LOCALMEM:BEGIN"
+    local end_marker="<!-- LOCALMEM:END -->"
+
+    if [ ! -f "$source_file" ]; then
+        warn "Source file ${source_file} not found, skipping AGENTS.md injection"
+        return
+    fi
+
+    if [ -f "$agents_file" ]; then
+        # 已有标记 → 删除旧区间 / Existing markers → remove old block
+        if grep -q "$begin_marker" "$agents_file" 2>/dev/null; then
+            # sed: 删除 BEGIN 行到 END 行之间的所有内容（含标记行）
+            sed -i.bak "/$begin_marker/,/$end_marker/d" "$agents_file"
+            info "Removed old LocalMem block from AGENTS.md"
+        fi
+    fi
+
+    # 追加源文件内容 / Append source file content
+    {
+        echo ""
+        cat "$source_file"
+    } >> "$agents_file"
+
+    # 清理多余空行 / Clean up trailing blank lines
+    sed -i.bak -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$agents_file"
+    rm -f "${agents_file}.bak"
+
+    info "LocalMem instructions injected into ${agents_file}"
+}
+
+# ── 注入 developer_instructions / Inject developer_instructions into config.toml ──
+inject_developer_instructions() {
+    local codex_dir="$HOME/.codex"
+    local config_file="$codex_dir/config.toml"
+    local instruction='developer_instructions = "You have LocalMem memory tools (iclude_*). ALWAYS call iclude_scan at conversation start before answering. Use scan->fetch pattern to save tokens."'
+
+    if [ ! -f "$config_file" ]; then
+        return
+    fi
+
+    if grep -q "developer_instructions" "$config_file" 2>/dev/null; then
+        if grep -q "iclude_scan" "$config_file" 2>/dev/null; then
+            info "developer_instructions already contains LocalMem guidance, skipping"
+            return
+        fi
+        warn "developer_instructions already set by user, skipping to avoid conflict"
+        return
+    fi
+
+    # 在文件顶部插入（在 [mcp_servers] 之前） / Insert near top, before [mcp_servers]
+    sed -i.bak "1i\\
+${instruction}\\
+" "$config_file"
+    rm -f "${config_file}.bak"
+
+    info "developer_instructions injected into ${config_file}"
+}
+
 # ── 配置 Codex CLI MCP / Configure Codex CLI MCP ──
 configure_codex() {
     local codex_dir="$HOME/.codex"
@@ -210,7 +306,10 @@ main() {
     download_binaries
     add_to_path
     generate_config
+    install_agents_source
     configure_codex
+    inject_agents_md
+    inject_developer_instructions
 
     echo ""
     info "Installation complete!"

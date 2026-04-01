@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-IClude is a local-first, hybrid storage enterprise memory system for AI applications. It combines SQLite (structured/full-text search) with Qdrant (vector semantic search). Go module name: `iclude`. Requires Go 1.25+.
+LocalMem is a local-first, hybrid storage enterprise memory system for AI applications. It combines SQLite (structured/full-text search) with Qdrant (vector semantic search). Go module name: `iclude`. Requires Go 1.25+.
 
 **Note:** The README.md lists PostgreSQL, Milvus, Elasticsearch, and Redis as requirements — this is aspirational/outdated. The actual implementation uses SQLite + Qdrant only.
 
@@ -55,11 +55,25 @@ internal/heartbeat/            → Autonomous inspection engine: decay audit, or
 internal/scheduler/            → In-process goroutine+ticker scheduler with overlap prevention and graceful shutdown
 internal/api/                  → Gin HTTP handlers, router, middleware, response helpers
 pkg/qdrant/client.go           → Reusable Qdrant HTTP client (stdlib only)
-pkg/tokenizer/                 → Pluggable FTS5 tokenizer (Simple CJK / Jieba HTTP / Noop)
+pkg/tokenizer/                 → Pluggable FTS5 tokenizer (Simple CJK / Jieba HTTP / Gse native / Noop)
 pkg/sqlbuilder/                → Lightweight WHERE/SELECT builder (replaces string concat)
 pkg/testreport/                → Test report recorder + HTML generator (embed template)
-sdks/python/iclude/            → Python SDK client for the IClude API
+sdks/python/iclude/            → Python SDK client for the LocalMem API
 deploy/                        → Docker + docker-compose deployment configs
+config/templates/              → 3-tier config templates (basic/standard/premium)
+tools/config-generator/        → Web-based config.yaml generator (pure HTML, no deps)
+integrations/claude/           → One-click install scripts for Claude Code (bash + PowerShell)
+integrations/codex/            → One-click install scripts for Codex CLI (bash + PowerShell)
+internal/mcp/
+  ├─ server.go     → HTTP+SSE server with session lifecycle
+  ├─ session.go    → Per-client session: identity, handshake, tool dispatch, star reminder
+  ├─ stdio.go      → Stdio transport (NDJSON, newline-delimited JSON-RPC 2.0)
+  ├─ protocol.go   → JSON-RPC types, MCP method constants, helper builders
+  ├─ registry.go   → Thread-safe tool/resource/prompt handler registry
+  ├─ handler.go    → Handler interfaces (ToolHandler, ResourceHandler, PromptHandler)
+  ├─ tools/        → 8 tool implementations (retain, recall, scan, fetch, reflect, timeline, ingest, create_session)
+  ├─ resources/    → 2 resources (recent memories, session context)
+  └─ prompts/      → 1 prompt (memory_context)
 internal/document/
   ├─ processor.go    → Document lifecycle (upload, async process, delete with cleanup)
   ├─ factory.go      → InitDocumentPipeline() factory (wires FileStore + Parsers + Chunker)
@@ -72,7 +86,15 @@ internal/document/
 
 **Dependency flow** (acyclic): `cmd/server → api → reflect, memory, search, document → store(interfaces) → model, pkg/*`
 
-**MCP server** (`cmd/mcp/`) is an independent binary. It exposes the same memory system over Model Context Protocol (SSE transport): `GET /sse` opens the event stream, `POST /messages` sends tool calls. Tools: `recall_memories`, `save_memory`, `reflect`, `ingest_conversation`, `timeline`. Prompts: `memory_context`. Configured via `mcp` section in `config.yaml` (`port`, `api_token`, `cors_allowed_origin`).
+**MCP server** (`cmd/mcp/`) is an independent binary. It exposes the same memory system over Model Context Protocol with two transports:
+- **stdio** (primary, for Codex/Claude Code): NDJSON over stdin/stdout. Logs go to stderr via `logger.SetStdioMode(true)`. Launch: `iclude-mcp --stdio --config config.yaml`
+- **SSE** (HTTP): `GET /sse` opens the event stream, `POST /messages` sends tool calls.
+
+MCP tools: `iclude_retain`, `iclude_recall`, `iclude_scan`, `iclude_fetch`, `iclude_reflect`, `iclude_timeline`, `iclude_ingest_conversation`, `iclude_create_session`. Resources: `Recent Memories`, `Session Context`. Prompts: `memory_context`.
+
+Session lifecycle: initialize handshake required (session marked ready after successful `initialize` response; `notifications/initialized` accepted but not required for compatibility with clients like Codex CLI). Star reminder triggers once after 50 tool calls per session.
+
+Configured via `mcp` section in `config.yaml` (`port`, `api_token`, `cors_allowed_origin`, `default_team_id`, `default_owner_id`).
 
 **LLM dependency**: `llm.Provider` is consumed by reflect, memory (Extractor), and search (graph fallback). It is initialized early in `main.go` and injected into all consumers.
 
@@ -120,13 +142,26 @@ Multi-round LLM reasoning over retrieved memories. Configured via `reflect` conf
 
 SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 31 columns. Migrations are versioned (V0→V1→V2→V3) in `sqlite_migration.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
 
+### MCP identity flow
+
+MCP tools receive identity from `session.identity` (set from `mcp.default_team_id` / `mcp.default_owner_id` in config). Identity is injected into context via `WithIdentity(ctx, identity)` and extracted by tools via `IdentityFromContext(ctx)`. All retrieval tools must pass both `TeamID` and `OwnerID` to `RetrieveRequest` for correct visibility filtering — omitting `OwnerID` causes private memories to be invisible.
+
+### Config templates
+
+Three-tier config system in `config/templates/`:
+- **basic** — SQLite-only, simple tokenizer, no external dependencies
+- **standard** — + Jieba tokenizer, knowledge graph, heartbeat, LLM fallback
+- **premium** — + Qdrant vector search, MMR, document ingestion, consolidation, contradiction detection
+
+Web generator: `tools/config-generator/index.html` (open in browser, select edition, customize, download).
+
 ### Config loading priority
 
 `.env` file → Viper defaults → environment variables → `config.yaml` (searched in `.`, `./config`, `./deploy`).
 
 ### Key config sections
 
-`storage` (sqlite/qdrant), `server` (port, auth), `llm` (openai/ollama provider + embedding), `reflect` (max_rounds, token_budget, round_timeout, auto_save), `extract` (max_entities, max_relations, normalize_enabled, timeout), `retrieval` (graph_enabled, graph_depth, fts_weight, qdrant_weight, graph_weight), `scheduler` (enabled, cleanup_interval, access_flush_interval, consolidation_interval), `heartbeat` (enabled, interval, contradiction_enabled, decay_audit_min_age_days).
+`storage` (sqlite/qdrant), `server` (port, auth), `llm` (openai/claude/ollama provider + embedding + fallback chain), `reflect` (max_rounds, token_budget, round_timeout, auto_save), `extract` (max_entities, max_relations, normalize_enabled, timeout), `retrieval` (graph_enabled, graph_depth, fts_weight, qdrant_weight, graph_weight, mmr, preprocess), `scheduler` (enabled, cleanup_interval, access_flush_interval, consolidation_interval), `heartbeat` (enabled, interval, contradiction_enabled, decay_audit_min_age_days), `consolidation` (enabled, min_age_days, similarity_threshold), `document` (enabled, docling/tika URLs, chunking), `mcp` (enabled, port, default_team_id, default_owner_id), `hooks` (enabled, mcp_url, skip_tools), `auth` (enabled, api_keys), `partitions` (enabled, catalog_path).
 
 ### Memory model
 
