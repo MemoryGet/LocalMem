@@ -43,9 +43,12 @@ func MergeRRFWithK(resultSets [][]*model.SearchResult, limit int, k int) []*mode
 		})
 	}
 
-	// 按 RRF 分数降序排列
+	// 按 RRF 分数降序排列，同分按 ID 字典序保证稳定 / Sort by score desc, tie-break by ID asc for stability
 	sort.Slice(merged, func(i, j int) bool {
-		return merged[i].Score > merged[j].Score
+		if merged[i].Score != merged[j].Score {
+			return merged[i].Score > merged[j].Score
+		}
+		return merged[i].Memory.ID < merged[j].Memory.ID
 	})
 
 	if limit > 0 && len(merged) > limit {
@@ -93,7 +96,10 @@ func MergeWeightedRRF(inputs []RRFInput, k int, limit int) []*model.SearchResult
 	}
 
 	sort.Slice(merged, func(i, j int) bool {
-		return merged[i].Score > merged[j].Score
+		if merged[i].Score != merged[j].Score {
+			return merged[i].Score > merged[j].Score
+		}
+		return merged[i].Memory.ID < merged[j].Memory.ID
 	})
 
 	if limit > 0 && len(merged) > limit {
