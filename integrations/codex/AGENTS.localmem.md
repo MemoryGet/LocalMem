@@ -57,6 +57,18 @@ You may skip ONLY if the conversation was:
 - Mechanical commands (e.g., "format this file")
 - Small talk or off-topic chat
 
+**Tool chain must be included.** When calling `iclude_ingest_conversation`, append an assistant message at the end summarizing all tool actions taken during the session. Format:
+
+```
+[Tool Chain Summary]
+1. Read internal/api/router.go (identified missing auth check)
+2. Edit internal/api/router.go:45 (added requireIdentity middleware)
+3. Bash: go test ./testing/api/ (all passed)
+4. Read deploy/config.yaml (confirmed prod settings)
+```
+
+Include: file paths, line numbers, command outputs (pass/fail), and what each action achieved. This context is critical for future recall — without it, the memory only captures what was said, not what was done.
+
 **When in doubt, ingest.** A redundant memory costs nothing. A lost decision costs the user a repeated conversation.
 
 ### Tool Quick Reference
