@@ -42,6 +42,15 @@ retrieval:
   qdrant_weight: 1.0
   graph_weight: 0.8
   access_alpha: 0.15
+  rerank:
+    enabled: false
+    provider: "overlap"
+    base_url: ""
+    api_key: "${RERANK_API_KEY}"
+    model: ""
+    top_k: 20
+    score_weight: 0.7
+    timeout: 5s
   mmr:
     enabled: false
   preprocess:

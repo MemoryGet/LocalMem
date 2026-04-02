@@ -72,6 +72,17 @@ retrieval:
   graph_entity_limit: 10
   access_alpha: 0.15     # 访问频率阻尼系数（0=不加权，越大越倾向高访问记忆）/ Access frequency damping (0=none)
 
+  # 精排（首轮使用 overlap provider，无外部依赖）/ Re-ranking
+  rerank:
+    enabled: false
+    provider: "overlap"
+    base_url: ""
+    api_key: "${RERANK_API_KEY}"
+    model: ""
+    top_k: 20
+    score_weight: 0.7
+    timeout: 5s
+
   # MMR 多样性重排（需要 Qdrant，SQLite-only 自动跳过）/ MMR diversity re-ranking (requires Qdrant)
   mmr:
     enabled: false       # 开启后 RRF 结果再经 MMR 多样性重排 / Enable MMR after RRF

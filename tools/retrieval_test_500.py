@@ -4,7 +4,9 @@ LocalMem 检索命中率测试 — 500 组查询
 生成 HTML 报告到 tools/retrieval_report.html
 """
 
+import argparse
 import json
+import sys
 import time
 import requests
 from datetime import datetime
@@ -12,6 +14,8 @@ from collections import defaultdict
 
 BASE = "http://localhost:8080/v1"
 HEADERS = {"Content-Type": "application/json"}
+REPORT_HTML = "tools/retrieval_report.html"
+REPORT_JSON = "tools/retrieval_results.json"
 
 # ──────────────────────────────────────────────
 # 1. 种子数据：80 条多样化记忆
@@ -687,8 +691,22 @@ def create_memory(mem: dict) -> str | None:
         return None
 
 
-def retrieve(query: str, limit: int = 10) -> list:
+def build_retrieve_payload(query: str, limit: int, rerank_mode: str) -> dict:
     payload = {"query": query, "limit": limit}
+
+    if rerank_mode == "off":
+        payload["rerank_enabled"] = False
+    elif rerank_mode in ("overlap", "remote"):
+        payload["rerank_enabled"] = True
+        payload["rerank_provider"] = rerank_mode
+    else:
+        raise ValueError(f"unsupported rerank mode: {rerank_mode}")
+
+    return payload
+
+
+def retrieve(query: str, limit: int = 10, rerank_mode: str = "off") -> list:
+    payload = build_retrieve_payload(query, limit, rerank_mode)
     for attempt in range(3):
         try:
             r = requests.post(f"{BASE}/retrieve", json=payload, headers=HEADERS, timeout=10)
@@ -719,9 +737,10 @@ def check_hit(results: list, expected_keyword: str) -> dict:
     return {"hit": False, "rank": -1, "score": 0, "matched_content": "", "source": ""}
 
 
-def run_tests():
+def run_tests(rerank_mode: str = "off"):
     print("=" * 60)
     print("LocalMem 检索命中率测试 — 500 组查询")
+    print(f"Rerank 模式: {rerank_mode}")
     print("=" * 60)
 
     # Step 1: Seed data
@@ -741,7 +760,7 @@ def run_tests():
     start_time = time.time()
 
     for i, (query, expected, category, difficulty) in enumerate(TEST_QUERIES):
-        search_results = retrieve(query)
+        search_results = retrieve(query, rerank_mode=rerank_mode)
         hit_info = check_hit(search_results, expected)
         results.append({
             "index": i + 1,
@@ -765,11 +784,11 @@ def run_tests():
 
     # Step 3: Generate report
     print(f"\n[3/3] 生成报告...")
-    generate_report(results, total_time, created)
+    generate_report(results, total_time, created, rerank_mode)
     print(f"\n完成! 耗时 {total_time:.1f}s")
 
 
-def generate_report(results: list, total_time: float, seed_count: int):
+def generate_report(results: list, total_time: float, seed_count: int, rerank_mode: str):
     total = len(results)
     hits = sum(1 for r in results if r["hit"])
     miss = total - hits
@@ -871,7 +890,7 @@ tr:hover {{ background: rgba(88,166,255,0.05); }}
 <body>
 <div class="container">
 <h1>LocalMem 检索命中率测试报告</h1>
-<p class="subtitle">生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 种子数据: {seed_count} 条 | 查询数: {total} | 耗时: {total_time:.1f}s</p>
+<p class="subtitle">生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 种子数据: {seed_count} 条 | 查询数: {total} | 耗时: {total_time:.1f}s | Rerank: {rerank_mode}</p>
 
 <div class="grid">
   <div class="card"><div class="label">总命中率</div><div class="value {'green' if hit_rate >= 80 else 'yellow' if hit_rate >= 60 else 'red'}">{hit_rate:.1f}%</div></div>
@@ -968,22 +987,22 @@ tr:hover {{ background: rgba(88,166,255,0.05); }}
   <td><span class="tag tag-{r['difficulty']}">{diff_labels.get(r['difficulty'], r['difficulty'])}</span></td>
 </tr>"""
 
-    html += """
+    html += f"""
 </tbody></table></div></div>
 
 <div class="section" style="text-align:center; color:var(--text2); font-size:13px;">
-  <p>LocalMem Retrieval Test Report | FTS5 (BM25, simple tokenizer) | SQLite only mode</p>
+  <p>LocalMem Retrieval Test Report | FTS5 (BM25, simple tokenizer) | SQLite only mode | Rerank: {rerank_mode}</p>
 </div>
 
 </div></body></html>"""
 
-    report_path = "tools/retrieval_report.html"
+    report_path = REPORT_HTML
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"  报告已生成: {report_path}")
 
     # Also dump JSON
-    json_path = "tools/retrieval_results.json"
+    json_path = REPORT_JSON
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump({
             "summary": {
@@ -996,6 +1015,7 @@ tr:hover {{ background: rgba(88,166,255,0.05); }}
                 "top5_rate": round(top5/total*100, 2),
                 "total_time_sec": round(total_time, 1),
                 "seed_count": seed_count,
+                "rerank_mode": rerank_mode,
             },
             "by_category": {cat: {"total": s["total"], "hits": s["hits"], "rate": round(s["hits"]/s["total"]*100, 2)} for cat, s in cat_stats.items()},
             "by_difficulty": {d: {"total": s["total"], "hits": s["hits"], "rate": round(s["hits"]/s["total"]*100, 2)} for d, s in diff_stats.items()},
@@ -1005,6 +1025,7 @@ tr:hover {{ background: rgba(88,166,255,0.05); }}
 
     # Print summary
     print(f"\n{'='*60}")
+    print(f"  Rerank 模式: {rerank_mode}")
     print(f"  总命中率: {hit_rate:.1f}% ({hits}/{total})")
     print(f"  Top-1: {top1/total*100:.1f}% | Top-3: {top3/total*100:.1f}% | Top-5: {top5/total*100:.1f}%")
     print(f"{'='*60}")
@@ -1023,5 +1044,33 @@ tr:hover {{ background: rgba(88,166,255,0.05); }}
     print(f"{'='*60}")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="LocalMem 500-query retrieval benchmark")
+    parser.add_argument(
+        "--rerank",
+        default="off",
+        choices=["off", "overlap", "remote"],
+        help="rerank mode to send in retrieve requests and annotate in reports",
+    )
+    parser.add_argument(
+        "--dump-dataset",
+        action="store_true",
+        help="print seed memories and test queries as JSON, then exit",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    run_tests()
+    args = parse_args()
+    if args.dump_dataset:
+        json.dump(
+            {
+                "seed_memories": SEED_MEMORIES,
+                "test_queries": TEST_QUERIES,
+            },
+            sys.stdout,
+            ensure_ascii=False,
+        )
+        sys.stdout.write("\n")
+        raise SystemExit(0)
+    run_tests(args.rerank)

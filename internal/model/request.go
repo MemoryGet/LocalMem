@@ -84,9 +84,11 @@ type RetrieveRequest struct {
 	GraphEnabled *bool          `json:"graph_enabled,omitempty"`
 
 	// Phase 2: MMR 多样性重排（覆盖全局配置）/ Per-request MMR override
-	MmrEnabled *bool    `json:"mmr_enabled,omitempty"` // nil=使用配置文件默认值 / nil=use config default
-	MmrLambda  *float64 `json:"mmr_lambda,omitempty"`  // 相关性 vs 多样性，推荐 0.7 / Relevance vs diversity
-	NoRetry    bool     `json:"-"`                     // 内部标记，防止自适应重试递归 / Internal flag to prevent adaptive retry recursion
+	MmrEnabled     *bool    `json:"mmr_enabled,omitempty"`     // nil=使用配置文件默认值 / nil=use config default
+	MmrLambda      *float64 `json:"mmr_lambda,omitempty"`      // 相关性 vs 多样性，推荐 0.7 / Relevance vs diversity
+	RerankEnabled  *bool    `json:"rerank_enabled,omitempty"`  // nil=使用配置文件默认值 / nil=use config default
+	RerankProvider string   `json:"rerank_provider,omitempty"` // overlap | remote
+	NoRetry        bool     `json:"-"`                         // 内部标记，防止自适应重试递归 / Internal flag to prevent adaptive retry recursion
 }
 
 // ListRequest 分页列表请求 / Paginated list request DTO

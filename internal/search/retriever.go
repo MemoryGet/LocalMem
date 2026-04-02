@@ -245,6 +245,12 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	// Backfill incomplete Memory objects (Qdrant results only contain ID)
 	results = r.backfillMemories(ctx, results)
 
+	// 精排（在类型/强度加权前执行，先提升文本相关性）
+	// Re-rank before kind/strength weighting to refine semantic/textual ordering first
+	if reranker := r.resolveReranker(req); reranker != nil && req.Query != "" {
+		results = reranker.Rerank(ctx, req.Query, results)
+	}
+
 	// 类型权重（skill/决策类提权）/ Kind-based weighting
 	results = applyKindWeights(results)
 
@@ -296,6 +302,20 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	}
 
 	return results, nil
+}
+
+// resolveReranker 解析当前请求应使用的 reranker / Resolve reranker for current request
+func (r *Retriever) resolveReranker(req *model.RetrieveRequest) Reranker {
+	rerankCfg := r.cfg.Rerank
+	if req != nil {
+		if req.RerankEnabled != nil {
+			rerankCfg.Enabled = *req.RerankEnabled
+		}
+		if strings.TrimSpace(req.RerankProvider) != "" {
+			rerankCfg.Provider = req.RerankProvider
+		}
+	}
+	return NewReranker(rerankCfg)
 }
 
 // Timeline 时间线查询 / Timeline query

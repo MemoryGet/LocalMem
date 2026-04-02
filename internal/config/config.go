@@ -176,8 +176,21 @@ type RetrievalConfig struct {
 	GraphFTSTop      int              `mapstructure:"graph_fts_top"`
 	GraphEntityLimit int              `mapstructure:"graph_entity_limit"`
 	AccessAlpha      float64          `mapstructure:"access_alpha"` // 访问频率阻尼系数 / Access frequency damping coefficient
+	Rerank           RerankConfig     `mapstructure:"rerank"`
 	MMR              MMRConfig        `mapstructure:"mmr"`
 	Preprocess       PreprocessConfig `mapstructure:"preprocess"`
+}
+
+// RerankConfig 精排配置 / Re-ranking configuration
+type RerankConfig struct {
+	Enabled     bool          `mapstructure:"enabled"`
+	Provider    string        `mapstructure:"provider"`     // overlap | remote
+	BaseURL     string        `mapstructure:"base_url"`     // 远程 rerank API 基址 / Remote rerank API base URL
+	APIKey      string        `mapstructure:"api_key"`      // 可选 Bearer token / Optional Bearer token
+	Model       string        `mapstructure:"model"`        // 远程模型名 / Remote model name
+	TopK        int           `mapstructure:"top_k"`        // 仅重排前 K 个候选 / Rerank top K candidates only
+	ScoreWeight float64       `mapstructure:"score_weight"` // 新分数权重（0~1）/ Weight for rerank score blend
+	Timeout     time.Duration `mapstructure:"timeout"`      // 远程请求超时 / Remote request timeout
 }
 
 // MMRConfig MMR 多样性重排配置 / MMR diversity re-ranking configuration
@@ -309,6 +322,14 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.graph_fts_top", 5)
 	viper.SetDefault("retrieval.graph_entity_limit", 10)
 	viper.SetDefault("retrieval.access_alpha", 0.15)
+	viper.SetDefault("retrieval.rerank.enabled", false)
+	viper.SetDefault("retrieval.rerank.provider", "overlap")
+	viper.SetDefault("retrieval.rerank.base_url", "")
+	viper.SetDefault("retrieval.rerank.api_key", "")
+	viper.SetDefault("retrieval.rerank.model", "")
+	viper.SetDefault("retrieval.rerank.top_k", 20)
+	viper.SetDefault("retrieval.rerank.score_weight", 0.7)
+	viper.SetDefault("retrieval.rerank.timeout", "5s")
 	viper.SetDefault("retrieval.mmr.enabled", false)
 	viper.SetDefault("retrieval.mmr.lambda", 0.7)
 	// Crystallization 默认值 / Crystallization defaults
@@ -415,6 +436,8 @@ func LoadConfig() error {
 	AppConfig.LLM.OpenAI.APIKey = os.ExpandEnv(AppConfig.LLM.OpenAI.APIKey)
 	AppConfig.LLM.OpenAI.BaseURL = os.ExpandEnv(AppConfig.LLM.OpenAI.BaseURL)
 	AppConfig.LLM.Claude.APIKey = os.ExpandEnv(AppConfig.LLM.Claude.APIKey)
+	AppConfig.Retrieval.Rerank.APIKey = os.ExpandEnv(AppConfig.Retrieval.Rerank.APIKey)
+	AppConfig.Retrieval.Rerank.BaseURL = os.ExpandEnv(AppConfig.Retrieval.Rerank.BaseURL)
 
 	// 兼容旧配置 / Backward compatibility: server.auth_enabled → auth.enabled
 	if AppConfig.Server.AuthEnabled && !AppConfig.Auth.Enabled {

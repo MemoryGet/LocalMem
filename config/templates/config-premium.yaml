@@ -57,6 +57,15 @@ retrieval:
   graph_fts_top: 5
   graph_entity_limit: 10
   access_alpha: 0.15
+  rerank:
+    enabled: true
+    provider: "overlap"
+    base_url: ""
+    api_key: "${RERANK_API_KEY}"
+    model: ""
+    top_k: 20
+    score_weight: 0.7
+    timeout: 5s
   mmr:
     enabled: true  # MMR 多样性重排
     lambda: 0.7
