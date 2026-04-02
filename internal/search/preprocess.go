@@ -63,6 +63,45 @@ var intentMultipliers = map[QueryIntent]ChannelWeights{
 // [fix] 补充 last_quarter/past_few_days/前天/这几天/之前
 var temporalPatterns = regexp.MustCompile(`(?i)\b(recent|latest|last\s+week|last\s+month|last\s+quarter|yesterday|today|this\s+week|this\s+month|past\s+few\s+days)\b|最近|上周|上月|前天|昨天|今天|本周|本月|这几天|之前`)
 
+// temporalWindowRules 时间窗口映射规则（按优先级排序）/ Temporal window mapping rules (ordered by priority)
+var temporalWindowRules = []struct {
+	pattern *regexp.Regexp
+	days    int // window size in days
+	offset  int // center offset in days (negative = past)
+}{
+	// Day-level (specific)
+	{regexp.MustCompile(`(?i)\b(today)\b|今天`), 1, 0},
+	{regexp.MustCompile(`(?i)\b(yesterday)\b|昨天`), 1, -1},
+	{regexp.MustCompile(`前天`), 1, -2},
+
+	// Week-level
+	{regexp.MustCompile(`(?i)\b(this\s+week)\b|本周|这周|这几天|最近几天`), 7, 0},
+	{regexp.MustCompile(`(?i)\b(last\s+week)\b|上周|上一周`), 7, -7},
+
+	// Month-level
+	{regexp.MustCompile(`(?i)\b(this\s+month)\b|本月|这个月`), 30, 0},
+	{regexp.MustCompile(`(?i)\b(last\s+month)\b|上月|上个月`), 30, -30},
+	{regexp.MustCompile(`(?i)\b(last\s+quarter)\b|上季度`), 90, -90},
+	{regexp.MustCompile(`(?i)\b(recent\s+months?|past\s+few\s+months?)\b|最近几个月`), 90, 0},
+
+	// Year-level
+	{regexp.MustCompile(`(?i)\b(this\s+year)\b|今年`), 365, 0},
+	{regexp.MustCompile(`(?i)\b(last\s+year)\b|去年`), 365, -365},
+}
+
+// ResolveTemporalWindow 根据查询语义解析时间窗口 / Resolve dynamic time window from query semantics
+func ResolveTemporalWindow(query string, now time.Time) (center time.Time, window time.Duration) {
+	for _, rule := range temporalWindowRules {
+		if rule.pattern.MatchString(query) {
+			center = now.AddDate(0, 0, rule.offset)
+			window = time.Duration(rule.days) * 24 * time.Hour
+			return
+		}
+	}
+	// Default: 30 days centered on now / 默认 30 天
+	return now, 30 * 24 * time.Hour
+}
+
 // 关联关键词 / Relational keywords
 // [fix] 移除 "about"（误判率高），补充 depends_on/dependencies_of/之间/依赖
 var relationalPatterns = regexp.MustCompile(`(?i)\b(related\s+to|associated\s+with|connected\s+to|regarding|depends\s+on|dependencies\s+of)\b|相关|关于|有关|关联|之间|依赖`)
@@ -133,8 +172,9 @@ func (p *Preprocessor) Process(ctx context.Context, query string, scope string) 
 	if plan.Intent == IntentTemporal {
 		plan.Temporal = true
 		now := time.Now().UTC()
-		plan.TemporalCenter = &now
-		plan.TemporalRange = 7 * 24 * time.Hour
+		center, window := ResolveTemporalWindow(query, now)
+		plan.TemporalCenter = &center
+		plan.TemporalRange = window
 	}
 
 	// 步骤 5: LLM 增强（可选）/ Step 5: Optional LLM enhancement
