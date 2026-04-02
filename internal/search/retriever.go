@@ -251,8 +251,19 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		results = reranker.Rerank(ctx, req.Query, results)
 	}
 
-	// 类型权重（skill/决策类提权）/ Kind-based weighting
-	results = applyKindWeights(results)
+	// 类型+层级权重（skill/决策类提权 + memory_class 加权）/ Kind + class weighting
+	results = ApplyKindAndClassWeights(results)
+
+	// Filter by memory_class if specified / 按 memory_class 过滤
+	if req.MemoryClass != "" {
+		filtered := make([]*model.SearchResult, 0, len(results))
+		for _, r := range results {
+			if r.Memory != nil && r.Memory.MemoryClass == req.MemoryClass {
+				filtered = append(filtered, r)
+			}
+		}
+		results = filtered
+	}
 
 	// 强度加权（在 MMR 前执行，使过期/弱记忆在多样性选择前降分）
 	// Apply strength weighting before MMR so expired/weak memories are scored down before diversity selection
@@ -524,8 +535,18 @@ var subKindWeights = map[string]float64{
 	"case":    1.3,
 }
 
-// applyKindWeights 按记忆类型加权 / Weight results by memory kind
-func applyKindWeights(results []*model.SearchResult) []*model.SearchResult {
+// classWeights 记忆层级权重 / Memory class weights
+var classWeights = map[string]float64{
+	"procedural": 1.5,
+	"semantic":   1.2,
+	"episodic":   1.0,
+}
+
+// weightCap 最大权重上限，防止叠乘过度放大 / Max weight cap to prevent over-amplification
+const weightCap = 2.0
+
+// ApplyKindAndClassWeights 按 kind + memory_class 加权 / Weight results by kind and memory class
+func ApplyKindAndClassWeights(results []*model.SearchResult) []*model.SearchResult {
 	for _, r := range results {
 		if r.Memory == nil {
 			continue
@@ -536,6 +557,12 @@ func applyKindWeights(results []*model.SearchResult) []*model.SearchResult {
 		}
 		if sw, ok := subKindWeights[r.Memory.SubKind]; ok {
 			w *= sw
+		}
+		if cw, ok := classWeights[r.Memory.MemoryClass]; ok {
+			w *= cw
+		}
+		if w > weightCap {
+			w = weightCap
 		}
 		r.Score *= w
 	}
