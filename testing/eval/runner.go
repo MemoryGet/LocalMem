@@ -2,23 +2,209 @@
 package eval
 
 import (
+	"context"
+	"fmt"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"iclude/internal/config"
+	"iclude/internal/memory"
+	"iclude/internal/model"
+	"iclude/internal/search"
+	"iclude/internal/store"
+	"iclude/pkg/tokenizer"
 )
 
-// NewTestRunner 创建用于测试的运行器和清理函数 /
-// Creates a runner and cleanup function for tests.
-// 此为占位实现，待 Task 3 完成后替换 / Placeholder until Task 3 is implemented.
-func NewTestRunner(t *testing.T) (*Runner, func()) {
-	t.Helper()
-	t.Skip("runner not yet implemented (Task 3 pending)")
-	return nil, func() {}
+// Runner 评测运行器 / Evaluation runner
+type Runner struct {
+	memStore  store.MemoryStore
+	manager   *memory.Manager
+	retriever *search.Retriever
+	dbPath    string
 }
 
-// Runner 评测运行器 / Evaluation runner.
-// 此为占位实现，待 Task 3 完成后替换 / Placeholder until Task 3 is implemented.
-type Runner struct{}
+// NewTestRunner 创建测试用临时运行器（FTS 模式，preprocess=false）/
+// Creates a temporary runner for testing using FTS mode (preprocess=false).
+// Returns the runner and a cleanup function.
+func NewTestRunner(t *testing.T) (*Runner, func()) {
+	t.Helper()
 
-// Run 执行评测 / Executes the evaluation.
-func (r *Runner) Run(_ interface{}, _ *EvalDataset, _ string) (*EvalReport, error) {
-	return nil, nil
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "eval_test.db")
+
+	r, cleanup, err := NewRunner(dbPath, "fts")
+	if err != nil {
+		t.Fatalf("NewTestRunner: failed to create runner: %v", err)
+	}
+	return r, cleanup
+}
+
+// NewRunner 创建指定模式的评测运行器 / Creates an evaluation runner for the specified mode.
+// Modes: "fts" (FTS-only), "hybrid" (FTS + preprocess), "hybrid+rerank" (FTS + preprocess + overlap rerank).
+func NewRunner(dbPath string, mode string) (*Runner, func(), error) {
+	ctx := context.Background()
+
+	tok := tokenizer.NewNoopTokenizer()
+	bm25Weights := [3]float64{1.0, 0.5, 0.3}
+
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, bm25Weights, tok)
+	if err != nil {
+		return nil, nil, fmt.Errorf("NewRunner: create sqlite store: %w", err)
+	}
+
+	if err := memStore.Init(ctx); err != nil {
+		return nil, nil, fmt.Errorf("NewRunner: init sqlite store: %w", err)
+	}
+
+	mgr := memory.NewManager(memStore, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
+
+	cfg := buildRetrievalConfig(mode)
+	var retriever *search.Retriever
+	if mode == "fts" {
+		retriever = search.NewRetriever(memStore, nil, nil, nil, nil, cfg, nil, nil)
+	} else {
+		// hybrid 和 hybrid+rerank 使用预处理器 / hybrid and hybrid+rerank use preprocessor
+		preprocessor := search.NewPreprocessor(nil, nil, nil, cfg)
+		retriever = search.NewRetriever(memStore, nil, nil, nil, nil, cfg, preprocessor, nil)
+	}
+
+	r := &Runner{
+		memStore:  memStore,
+		manager:   mgr,
+		retriever: retriever,
+		dbPath:    dbPath,
+	}
+	return r, func() {}, nil
+}
+
+// buildRetrievalConfig 根据模式构建检索配置 / Build retrieval config for the given mode
+func buildRetrievalConfig(mode string) config.RetrievalConfig {
+	cfg := config.RetrievalConfig{
+		FTSWeight:   1.0,
+		GraphWeight: 0.8,
+		AccessAlpha: 0.15,
+		Preprocess: config.PreprocessConfig{
+			Enabled: false,
+		},
+		Rerank: config.RerankConfig{
+			Enabled: false,
+		},
+	}
+
+	switch mode {
+	case "hybrid":
+		cfg.Preprocess.Enabled = true
+	case "hybrid+rerank":
+		cfg.Preprocess.Enabled = true
+		cfg.Rerank = config.RerankConfig{
+			Enabled:     true,
+			Provider:    "overlap",
+			TopK:        20,
+			ScoreWeight: 0.7,
+		}
+	}
+	return cfg
+}
+
+// Run 播种记忆并运行所有评测用例 / Seeds memories and runs all evaluation cases.
+// Returns an EvalReport with aggregated metrics.
+func (r *Runner) Run(ctx context.Context, ds *EvalDataset, mode string) (*EvalReport, error) {
+	start := time.Now()
+
+	// 播种记忆 / Seed memories
+	for i, seed := range ds.SeedMemories {
+		req := &model.CreateMemoryRequest{
+			Content: seed.Content,
+			Kind:    seed.Kind,
+			SubKind: seed.SubKind,
+			Scope:   "eval/test",
+		}
+		if _, err := r.manager.Create(ctx, req); err != nil {
+			return nil, fmt.Errorf("Run: seed memory %d: %w", i, err)
+		}
+	}
+
+	// 运行查询用例 / Run query cases
+	cases := make([]CaseResult, 0, len(ds.Cases))
+	for _, ec := range ds.Cases {
+		req := &model.RetrieveRequest{
+			Query: ec.Query,
+			Limit: 10,
+		}
+		results, err := r.retriever.Retrieve(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("Run: retrieve for query %q: %w", ec.Query, err)
+		}
+
+		hit, rank, score := checkHit(results, ec.Expected)
+		cr := CaseResult{
+			Query:       ec.Query,
+			Expected:    strings.Join(ec.Expected, "|"),
+			Category:    ec.Category,
+			Difficulty:  ec.Difficulty,
+			Hit:         hit,
+			Rank:        rank,
+			Score:       score,
+			ResultCount: len(results),
+		}
+		cases = append(cases, cr)
+	}
+
+	metrics := Aggregate(cases)
+
+	report := &EvalReport{
+		Mode:         mode,
+		Dataset:      ds.Name,
+		Timestamp:    time.Now(),
+		Metrics:      metrics,
+		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
+		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
+		Cases:        cases,
+		Duration:     time.Since(start),
+		GitCommit:    resolveGitCommit(),
+	}
+	return report, nil
+}
+
+// checkHit 检查检索结果中是否命中期望关键词 / Check if any expected keyword appears in results.
+// Returns (hit, rank 1-based, score). Returns (false, -1, 0) on miss.
+func checkHit(results []*model.SearchResult, expected []string) (bool, int, float64) {
+	for i, res := range results {
+		content := strings.ToLower(res.Memory.Content)
+		abstract := strings.ToLower(res.Memory.Abstract)
+		for _, kw := range expected {
+			kw = strings.ToLower(kw)
+			if strings.Contains(content, kw) || strings.Contains(abstract, kw) {
+				return true, i + 1, res.Score
+			}
+		}
+	}
+	return false, -1, 0
+}
+
+// groupAggregate 按键函数分组并计算聚合指标 / Group cases by key function and aggregate each group.
+func groupAggregate(cases []CaseResult, keyFn func(CaseResult) string) map[string]AggregateMetrics {
+	groups := make(map[string][]CaseResult)
+	for _, c := range cases {
+		key := keyFn(c)
+		groups[key] = append(groups[key], c)
+	}
+
+	result := make(map[string]AggregateMetrics, len(groups))
+	for key, group := range groups {
+		result[key] = Aggregate(group)
+	}
+	return result
+}
+
+// resolveGitCommit 获取当前 git commit hash / Get current git commit hash
+func resolveGitCommit() string {
+	out, err := exec.Command("git", "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
