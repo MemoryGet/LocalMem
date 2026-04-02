@@ -102,6 +102,10 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 				}
 			}
 		}
+
+		// B2#7: LRU 缓存（1000 条，约 6MB for 1536-dim float32）/ Wrap with LRU cache
+		embedder = embed.NewCachedEmbedder(embedder, 1000)
+		logger.Info("embedding LRU cache enabled", zap.Int("max_size", 1000))
 	}
 
 	// 存储初始化
