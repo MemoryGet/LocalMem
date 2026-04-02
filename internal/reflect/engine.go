@@ -121,6 +121,9 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 	var lastConclusion string
 	currentQuery := req.Question
 
+	// B3#8: 累积前几轮的 reasoning + 证据摘要 / Accumulate prior rounds' reasoning and evidence summaries
+	var priorRounds []priorRoundSummary
+
 	for round := 1; round <= maxRounds; round++ {
 		// 检查上下文取消 / Check context cancellation
 		if err := ctx.Err(); err != nil {
@@ -179,10 +182,17 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 			}
 		}
 
-		// 构建 LLM 请求 / Build LLM request
+		// 构建 LLM 请求（含历史轮次摘要）/ Build LLM request with prior round summaries
 		memoriesText := formatMemoriesForLLM(results)
-		userContent := fmt.Sprintf("Question: %s\n\nRound: %d/%d\n\nRetrieved memories:\n%s",
-			req.Question, round, maxRounds, memoriesText)
+		var userContent string
+		if len(priorRounds) > 0 {
+			historyText := formatPriorRounds(priorRounds)
+			userContent = fmt.Sprintf("Question: %s\n\nRound: %d/%d\n\n--- Prior reasoning ---\n%s\n--- Current retrieval (query: %s) ---\n%s",
+				req.Question, round, maxRounds, historyText, currentQuery, memoriesText)
+		} else {
+			userContent = fmt.Sprintf("Question: %s\n\nRound: %d/%d\n\nRetrieved memories:\n%s",
+				req.Question, round, maxRounds, memoriesText)
+		}
 
 		messages := []llm.ChatMessage{
 			{Role: "system", Content: systemPrompt},
@@ -260,6 +270,14 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 			zap.String("parse_method", parseMethod),
 			zap.Int("tokens_used", chatResp.TotalTokens),
 		)
+
+		// B3#8: 累积本轮摘要 / Accumulate this round's summary for next round
+		priorRounds = append(priorRounds, priorRoundSummary{
+			Round:     round,
+			Query:     currentQuery,
+			Reasoning: output.Reasoning,
+			Evidence:  summarizeEvidence(results, 3), // 保留 top-3 证据摘要 / Keep top-3 evidence summaries
+		})
 
 		if output.Action == "conclusion" {
 			lastConclusion = output.Conclusion
@@ -390,6 +408,48 @@ func formatMemoriesForLLM(results []*model.SearchResult) string {
 			i+1, r.Score, r.Source, timeStr, r.Memory.Content)
 	}
 	return sb.String()
+}
+
+// priorRoundSummary 前轮摘要 / Summary of a prior reflect round
+type priorRoundSummary struct {
+	Round     int
+	Query     string
+	Reasoning string
+	Evidence  string
+}
+
+// formatPriorRounds 格式化历史轮次 / Format prior rounds for LLM context
+func formatPriorRounds(rounds []priorRoundSummary) string {
+	var sb strings.Builder
+	for _, r := range rounds {
+		fmt.Fprintf(&sb, "Round %d (query: %s):\n  Reasoning: %s\n  Key evidence: %s\n\n",
+			r.Round, r.Query, r.Reasoning, r.Evidence)
+	}
+	return sb.String()
+}
+
+// summarizeEvidence 提取 top-N 检索结果的简短摘要 / Extract brief summaries from top-N results
+func summarizeEvidence(results []*model.SearchResult, topN int) string {
+	if len(results) == 0 {
+		return "(none)"
+	}
+	n := topN
+	if n > len(results) {
+		n = len(results)
+	}
+	var parts []string
+	for i := 0; i < n; i++ {
+		if results[i].Memory == nil {
+			continue
+		}
+		content := results[i].Memory.Content
+		runes := []rune(content)
+		if len(runes) > 80 {
+			content = string(runes[:80]) + "..."
+		}
+		parts = append(parts, fmt.Sprintf("[%.2f] %s", results[i].Score, content))
+	}
+	return strings.Join(parts, " | ")
 }
 
 // dedup 字符串切片去重 / Deduplicate a string slice preserving order
