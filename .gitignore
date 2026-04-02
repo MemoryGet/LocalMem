@@ -18,3 +18,4 @@ data/
 *.swo
 dist/
 .env
+testing/eval/testdata/longmemeval-s.json

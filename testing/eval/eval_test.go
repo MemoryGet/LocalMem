@@ -198,6 +198,31 @@ func TestEvalJiebaFull500(t *testing.T) {
 	t.Logf("Jieba baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
 }
 
+// TestLongMemEvalS 运行 LongMemEval _s 变体（48 sessions/question，含干扰）
+func TestLongMemEvalS(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "longmemeval-s.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-s.json not found")
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval _s questions", len(entries))
+
+	tmpDir := t.TempDir()
+	report, err := eval.RunLongMemEval(context.Background(), entries, tmpDir)
+	require.NoError(t, err)
+
+	// 覆盖 mode 标记
+	report.Mode = "fts (simple) — LongMemEval _s"
+	report.Dataset = "longmemeval-s"
+
+	eval.PrintReport(report)
+
+	require.NoError(t, eval.SaveBaseline(report, "longmemeval-s-fts-v1", "baselines"))
+	t.Logf("LongMemEval _s baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
 // TestLongMemEvalOracle 运行 LongMemEval oracle 数据集（Simple tokenizer, FTS-only）
 func TestLongMemEvalOracle(t *testing.T) {
 	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
