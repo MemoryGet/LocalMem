@@ -95,6 +95,10 @@ type Memory struct {
 	// V6: 身份与归属 / Identity & Ownership
 	OwnerID    string `json:"owner_id,omitempty"`   // 创建者 ID / Creator ID
 	Visibility string `json:"visibility,omitempty"` // private / team / public
+
+	// V12: 记忆演化层级 / Memory evolution layer
+	MemoryClass string   `json:"memory_class,omitempty"` // episodic(default) / semantic / procedural
+	DerivedFrom []string `json:"derived_from,omitempty"` // 来源记忆 ID 列表 / Source memory IDs (JSON array)
 }
 
 // SearchResult 检索结果 / Search result with score

@@ -14,7 +14,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 11
+const latestVersion = 12
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -136,6 +136,13 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 	if version < 11 {
 		if err := migrateV10ToV11(db); err != nil {
 			return fmt.Errorf("V10→V11 migration failed: %w", err)
+		}
+	}
+
+	// V11→V12: 记忆演化层级 / Memory evolution layer (memory_class + derived_from)
+	if version < 12 {
+		if err := migrateV11ToV12(db); err != nil {
+			return fmt.Errorf("V11→V12 migration failed: %w", err)
 		}
 	}
 
@@ -909,6 +916,49 @@ func migrateV10ToV11(db *sql.DB) error {
 	}
 
 	logger.Info("migration V10→V11 completed: memory_tags reverse index + document indexes")
+	return tx.Commit()
+}
+
+// migrateV11ToV12 记忆演化层级 / Memory evolution layer (memory_class + derived_from)
+func migrateV11ToV12(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 新增列（幂等）/ Add columns idempotently
+	alterColumns := []string{
+		`ALTER TABLE memories ADD COLUMN memory_class TEXT NOT NULL DEFAULT 'episodic'`,
+		`ALTER TABLE memories ADD COLUMN derived_from TEXT`,
+	}
+	for _, stmt := range alterColumns {
+		if _, err := tx.Exec(stmt); err != nil {
+			if isColumnExistsError(err) {
+				continue
+			}
+			return fmt.Errorf("failed to alter table: %w", err)
+		}
+	}
+
+	// 根据 kind 回填 memory_class / Backfill memory_class based on kind
+	if _, err := tx.Exec(`UPDATE memories SET memory_class = 'procedural' WHERE kind = 'mental_model' AND memory_class = 'episodic'`); err != nil {
+		return fmt.Errorf("failed to backfill procedural: %w", err)
+	}
+	if _, err := tx.Exec(`UPDATE memories SET memory_class = 'semantic' WHERE kind = 'consolidated' AND memory_class = 'episodic'`); err != nil {
+		return fmt.Errorf("failed to backfill semantic: %w", err)
+	}
+
+	// 索引 / Index
+	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_memories_memory_class ON memories(memory_class)`); err != nil {
+		return fmt.Errorf("failed to create memory_class index: %w", err)
+	}
+
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (12, datetime('now'))`); err != nil {
+		return fmt.Errorf("V11→V12 schema_version: %w", err)
+	}
+
+	logger.Info("migration V11→V12 completed: memory_class + derived_from columns")
 	return tx.Commit()
 }
 

@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -47,10 +48,20 @@ func (s *SQLiteMemoryStore) Create(ctx context.Context, mem *model.Memory) error
 	if mem.Visibility == "" {
 		mem.Visibility = model.VisibilityPrivate
 	}
+	if mem.MemoryClass == "" {
+		mem.MemoryClass = "episodic"
+	}
 
 	metadataJSON, err := marshalMetadata(mem.Metadata)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	var derivedFromJSON *string
+	if len(mem.DerivedFrom) > 0 {
+		b, _ := json.Marshal(mem.DerivedFrom)
+		s := string(b)
+		derivedFromJSON = &s
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -60,7 +71,7 @@ func (s *SQLiteMemoryStore) Create(ctx context.Context, mem *model.Memory) error
 	defer tx.Rollback()
 
 	query := `INSERT INTO memories (` + memoryColumns + `)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = tx.ExecContext(ctx, query,
 		mem.ID, mem.Content, metadataJSON, mem.TeamID,
@@ -72,6 +83,7 @@ func (s *SQLiteMemoryStore) Create(ctx context.Context, mem *model.Memory) error
 		mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
 		mem.RetentionTier, mem.MessageRole, mem.TurnNumber, mem.ContentHash, mem.ConsolidatedInto,
 		mem.OwnerID, mem.Visibility,
+		mem.MemoryClass, derivedFromJSON,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert memory: %w", err)
@@ -102,7 +114,7 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 	defer tx.Rollback()
 
 	insertQuery := `INSERT INTO memories (` + memoryColumns + `)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	insertStmt, err := tx.PrepareContext(ctx, insertQuery)
 	if err != nil {
 		return fmt.Errorf("failed to prepare insert statement: %w", err)
@@ -135,10 +147,20 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 		if mem.Visibility == "" {
 			mem.Visibility = model.VisibilityPrivate
 		}
+		if mem.MemoryClass == "" {
+			mem.MemoryClass = "episodic"
+		}
 
 		metadataJSON, err := marshalMetadata(mem.Metadata)
 		if err != nil {
 			return fmt.Errorf("failed to marshal metadata: %w", err)
+		}
+
+		var derivedFromJSON *string
+		if len(mem.DerivedFrom) > 0 {
+			b, _ := json.Marshal(mem.DerivedFrom)
+			str := string(b)
+			derivedFromJSON = &str
 		}
 
 		_, err = insertStmt.ExecContext(ctx,
@@ -151,6 +173,7 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 			mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
 			mem.RetentionTier, mem.MessageRole, mem.TurnNumber, mem.ContentHash, mem.ConsolidatedInto,
 			mem.OwnerID, mem.Visibility,
+			mem.MemoryClass, derivedFromJSON,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to insert memory %s: %w", mem.ID, err)
@@ -207,12 +230,20 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 		return fmt.Errorf("failed to delete old FTS5 entry: %w", err)
 	}
 
+	var derivedFromJSON *string
+	if len(mem.DerivedFrom) > 0 {
+		b, _ := json.Marshal(mem.DerivedFrom)
+		str := string(b)
+		derivedFromJSON = &str
+	}
+
 	query := `UPDATE memories SET content = ?, metadata = ?, team_id = ?, embedding_id = ?, parent_id = ?,
 		is_latest = ?, updated_at = ?,
 		uri = ?, context_id = ?, kind = ?, sub_kind = ?, scope = ?, abstract = ?, summary = ?,
 		happened_at = ?, source_type = ?, source_ref = ?, document_id = ?, chunk_index = ?,
 		strength = ?, decay_rate = ?, last_accessed_at = ?, reinforced_count = ?, expires_at = ?,
-		retention_tier = ?, message_role = ?, turn_number = ?, owner_id = ?, visibility = ?
+		retention_tier = ?, message_role = ?, turn_number = ?, owner_id = ?, visibility = ?,
+		memory_class = ?, derived_from = ?
 		WHERE id = ?`
 
 	result, err := tx.ExecContext(ctx, query,
@@ -222,6 +253,7 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 		timeToNull(mem.HappenedAt), mem.SourceType, mem.SourceRef, mem.DocumentID, mem.ChunkIndex,
 		mem.Strength, mem.DecayRate, timeToNull(mem.LastAccessedAt), mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
 		mem.RetentionTier, mem.MessageRole, mem.TurnNumber, mem.OwnerID, mem.Visibility,
+		mem.MemoryClass, derivedFromJSON,
 		mem.ID,
 	)
 	if err != nil {
