@@ -245,11 +245,19 @@ func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.
 		return fmt.Errorf("consolidation output too short (cluster %d), skipping to preserve data integrity", idx)
 	}
 
+	// Collect source IDs for derived_from tracing / 收集来源 ID 用于溯源
+	sourceIDs := make([]string, len(cluster))
+	for i, m := range cluster {
+		sourceIDs[i] = m.ID
+	}
+
 	// 创建归纳记忆 / Create consolidated memory
 	consolidated := &model.Memory{
 		Content:       consolidatedContent,
 		RetentionTier: model.TierPermanent,
 		Kind:          inheritKind,
+		MemoryClass:   "semantic",
+		DerivedFrom:   sourceIDs,
 		Strength:      math.Min(maxStrength*1.1, 1.0),
 		SourceType:    "consolidation",
 		Scope:         inheritScope,
