@@ -208,3 +208,51 @@ func resolveGitCommit() string {
 	}
 	return strings.TrimSpace(string(out))
 }
+
+// PrintReport 终端输出评测报告 / Print evaluation report to terminal
+func PrintReport(report *EvalReport) {
+	fmt.Printf("\n=== Eval: %s | %s ===\n", report.Mode, report.Dataset)
+	m := report.Metrics
+	fmt.Printf("  HitRate:  %5.1f%%  MRR: %.3f  NDCG@10: %.3f\n", m.HitRate, m.MRR, m.NDCG10)
+	fmt.Printf("  Recall@1: %5.1f%%  @3: %.1f%%  @5: %.1f%%  @10: %.1f%%\n",
+		m.RecallAt1*100, m.RecallAt3*100, m.RecallAt5*100, m.RecallAt10*100)
+	fmt.Printf("  Duration: %s | Cases: %d\n", report.Duration.Round(time.Millisecond), m.Total)
+
+	if len(report.ByCategory) > 0 {
+		fmt.Printf("\n  By Category:\n")
+		for cat, cm := range report.ByCategory {
+			fmt.Printf("    %-12s %5.1f%% (MRR %.3f, %d cases)\n", cat+":", cm.HitRate, cm.MRR, cm.Total)
+		}
+	}
+	if len(report.ByDifficulty) > 0 {
+		fmt.Printf("\n  By Difficulty:\n")
+		for diff, dm := range report.ByDifficulty {
+			fmt.Printf("    %-8s %5.1f%% (MRR %.3f, %d cases)\n", diff+":", dm.HitRate, dm.MRR, dm.Total)
+		}
+	}
+	fmt.Println()
+}
+
+// PrintComparison 输出基线对比 / Print baseline comparison
+func PrintComparison(current, baseline *EvalReport, regressions []Regression) {
+	fmt.Printf("  vs baseline %s:\n", baseline.Mode)
+	printDelta := func(name string, cur, base float64, pct bool) {
+		symbol := "✓"
+		for _, r := range regressions {
+			if r.Metric == name {
+				symbol = "✗ REGRESSION"
+				break
+			}
+		}
+		delta := cur - base
+		if pct {
+			fmt.Printf("    %-10s %5.1f%% → %5.1f%% (%+.1f) %s\n", name+":", base, cur, delta, symbol)
+		} else {
+			fmt.Printf("    %-10s %.3f → %.3f (%+.3f) %s\n", name+":", base, cur, delta, symbol)
+		}
+	}
+	printDelta("HitRate", current.Metrics.HitRate, baseline.Metrics.HitRate, true)
+	printDelta("MRR", current.Metrics.MRR, baseline.Metrics.MRR, false)
+	printDelta("NDCG@10", current.Metrics.NDCG10, baseline.Metrics.NDCG10, false)
+	fmt.Println()
+}
