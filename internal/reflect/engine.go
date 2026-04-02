@@ -304,14 +304,28 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 	// 去重来源 / Deduplicate sources
 	resp.Sources = dedup(resp.Sources)
 
+	// Collect evidence IDs across all rounds for derived_from / 收集所有轮次的证据 ID
+	var evidenceIDs []string
+	seen := make(map[string]bool)
+	for _, round := range resp.Trace {
+		for _, id := range round.RetrievedIDs {
+			if id != "" && !seen[id] {
+				seen[id] = true
+				evidenceIDs = append(evidenceIDs, id)
+			}
+		}
+	}
+
 	// 自动保存 / Auto-save conclusion as new memory
 	if autoSave && resp.Result != "" && e.manager != nil {
 		createReq := &model.CreateMemoryRequest{
-			Content:    resp.Result,
-			Kind:       "mental_model",
-			SourceType: "reflect",
-			Scope:      req.Scope,
-			TeamID:     req.TeamID,
+			Content:     resp.Result,
+			Kind:        "mental_model",
+			MemoryClass: "procedural",
+			DerivedFrom: evidenceIDs,
+			SourceType:  "reflect",
+			Scope:       req.Scope,
+			TeamID:      req.TeamID,
 			Metadata: map[string]any{
 				"question":     req.Question,
 				"rounds_used":  resp.Metadata.RoundsUsed,
