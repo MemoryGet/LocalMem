@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -85,33 +86,93 @@ func (c *Consolidator) Run(ctx context.Context) error {
 	return nil
 }
 
-// selectCandidates 选取候选记忆 / Select candidate memories for consolidation
+// selectCandidates 时间轮转 + 随机采样选取候选 / Select candidates via time-window rotation + random sampling
+// 将 [minAgeDays, now] 区间分为多个窗口，每个窗口随机采样，确保新旧记忆都有机会被归纳
 func (c *Consolidator) selectCandidates(ctx context.Context, cfg config.ConsolidationConfig) ([]*model.Memory, error) {
-	// 简化实现：通过 List 获取，按条件过滤（系统身份查看所有公开+团队记忆）
-	sysIdentity := &model.Identity{TeamID: "default", OwnerID: model.SystemOwnerID}
-	memories, err := c.memStore.List(ctx, sysIdentity, 0, cfg.MaxMemoriesPerRun)
-	if err != nil {
-		return nil, err
+	now := time.Now()
+	cutoff := now.AddDate(0, 0, -cfg.MinAgeDays)
+	maxPerRun := cfg.MaxMemoriesPerRun
+	if maxPerRun <= 0 {
+		maxPerRun = 100
 	}
 
-	cutoff := time.Now().AddDate(0, 0, -cfg.MinAgeDays)
-	var candidates []*model.Memory
-	for _, m := range memories {
-		if m.CreatedAt.After(cutoff) {
-			continue
-		}
-		if m.RetentionTier == model.TierPermanent || m.RetentionTier == model.TierEphemeral {
-			continue
-		}
-		if m.ConsolidatedInto != "" {
-			continue
-		}
-		if m.Kind == "consolidated" {
-			continue
-		}
-		candidates = append(candidates, m)
+	// 将时间范围分为 windows（每窗口 7 天）/ Split time range into 7-day windows
+	windowSize := 7 * 24 * time.Hour
+	totalDuration := cutoff.Sub(now.AddDate(-1, 0, 0)) // 最远回溯 1 年 / Look back 1 year max
+	if totalDuration < windowSize {
+		totalDuration = windowSize
 	}
-	return candidates, nil
+
+	perWindow := maxPerRun / 4 // 每窗口采样数 / Samples per window
+	if perWindow < 10 {
+		perWindow = 10
+	}
+
+	var allCandidates []*model.Memory
+
+	// 从最近的合格时间往回遍历窗口 / Iterate windows from most recent eligible backward
+	windowEnd := cutoff
+	windowStart := cutoff.Add(-windowSize)
+	oldest := now.AddDate(-1, 0, 0)
+
+	for windowEnd.After(oldest) && len(allCandidates) < maxPerRun {
+		if windowStart.Before(oldest) {
+			windowStart = oldest
+		}
+
+		memories, err := c.memStore.ListTimeline(ctx, &model.TimelineRequest{
+			After:  &windowStart,
+			Before: &windowEnd,
+			Limit:  perWindow * 3, // 多拉一些用于过滤后采样 / Over-fetch for filtering
+		})
+		if err != nil {
+			logger.Warn("consolidation: window query failed",
+				zap.Time("start", windowStart),
+				zap.Time("end", windowEnd),
+				zap.Error(err),
+			)
+			windowEnd = windowStart
+			windowStart = windowStart.Add(-windowSize)
+			continue
+		}
+
+		// 过滤不合格记忆 / Filter ineligible memories
+		var eligible []*model.Memory
+		for _, m := range memories {
+			if m.RetentionTier == model.TierPermanent || m.RetentionTier == model.TierEphemeral {
+				continue
+			}
+			if m.ConsolidatedInto != "" || m.Kind == "consolidated" {
+				continue
+			}
+			eligible = append(eligible, m)
+		}
+
+		// 随机采样 / Random sample from eligible
+		if len(eligible) > perWindow {
+			rand.Shuffle(len(eligible), func(i, j int) {
+				eligible[i], eligible[j] = eligible[j], eligible[i]
+			})
+			eligible = eligible[:perWindow]
+		}
+
+		allCandidates = append(allCandidates, eligible...)
+
+		// 滑动窗口 / Slide window
+		windowEnd = windowStart
+		windowStart = windowStart.Add(-windowSize)
+	}
+
+	// 最终截断 / Final cap
+	if len(allCandidates) > maxPerRun {
+		allCandidates = allCandidates[:maxPerRun]
+	}
+
+	logger.Info("consolidation: candidates selected",
+		zap.Int("total", len(allCandidates)),
+		zap.Int("max_per_run", maxPerRun),
+	)
+	return allCandidates, nil
 }
 
 // consolidateLLMTimeout 单次归纳 LLM 超时 / Per-call timeout for consolidation LLM
