@@ -146,12 +146,15 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 		}
 		seenQueries[currentQuery] = true
 
+		// B2#5: 动态 Top-K / Adaptive Top-K based on round, budget, and prior evidence quality
+		limit := adaptiveTopK(round, maxRounds, totalTokens, tokenBudget, priorRounds)
+
 		// 检索记忆 / Retrieve memories
 		retrieveReq := &model.RetrieveRequest{
 			Query:   currentQuery,
 			TeamID:  req.TeamID,
 			OwnerID: req.OwnerID,
-			Limit:   10,
+			Limit:   limit,
 		}
 		if req.Scope != "" {
 			retrieveReq.Filters = &model.SearchFilters{Scope: req.Scope}
@@ -408,6 +411,41 @@ func formatMemoriesForLLM(results []*model.SearchResult) string {
 			i+1, r.Score, r.Source, timeStr, r.Memory.Content)
 	}
 	return sb.String()
+}
+
+// adaptiveTopK 根据轮次、预算和前轮质量动态调整检索数量 / Dynamically adjust retrieval limit
+// 第 1 轮宽搜（15），后续轮次收窄（8），预算不足时进一步缩减
+func adaptiveTopK(round, maxRounds, usedTokens, tokenBudget int, priorRounds []priorRoundSummary) int {
+	// 基础值：第 1 轮宽搜，后续精确 / Base: wide search in round 1, narrow later
+	base := 15
+	if round > 1 {
+		base = 8
+	}
+
+	// 预算因子：剩余预算不足 30% 时缩减 / Budget factor: reduce when < 30% budget remains
+	if tokenBudget > 0 && usedTokens > 0 {
+		remaining := float64(tokenBudget-usedTokens) / float64(tokenBudget)
+		if remaining < 0.3 {
+			base = base * 2 / 3 // 缩减 1/3
+		}
+		if remaining < 0.1 {
+			base = base / 2 // 缩减一半
+		}
+	}
+
+	// 最终轮收窄：最后一轮只取最相关的 / Last round: minimal retrieval
+	if round == maxRounds {
+		base = 5
+	}
+
+	// 下限 3，上限 20 / Clamp [3, 20]
+	if base < 3 {
+		base = 3
+	}
+	if base > 20 {
+		base = 20
+	}
+	return base
 }
 
 // priorRoundSummary 前轮摘要 / Summary of a prior reflect round
