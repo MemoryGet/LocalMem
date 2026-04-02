@@ -253,6 +253,7 @@ type PreprocessConfig struct {
 	UseLLM        bool          `mapstructure:"use_llm"`
 	LLMTimeout    time.Duration `mapstructure:"llm_timeout"`
 	StopwordFiles []string      `mapstructure:"stopword_files"` // 外部停用词文件路径 / External stopword file paths
+	SynonymFiles  []string      `mapstructure:"synonym_files"`  // 同义词词典文件路径 / Synonym dictionary file paths
 }
 
 // AppConfig 全局配置单例 / Global config singleton
@@ -409,6 +410,11 @@ func LoadConfig() error {
 	if err != nil {
 		return fmt.Errorf("unable to decode config into struct: %w", err)
 	}
+
+	// 展开配置中的 ${ENV_VAR} 引用 / Expand ${ENV_VAR} references in config values
+	AppConfig.LLM.OpenAI.APIKey = os.ExpandEnv(AppConfig.LLM.OpenAI.APIKey)
+	AppConfig.LLM.OpenAI.BaseURL = os.ExpandEnv(AppConfig.LLM.OpenAI.BaseURL)
+	AppConfig.LLM.Claude.APIKey = os.ExpandEnv(AppConfig.LLM.Claude.APIKey)
 
 	// 兼容旧配置 / Backward compatibility: server.auth_enabled → auth.enabled
 	if AppConfig.Server.AuthEnabled && !AppConfig.Auth.Enabled {

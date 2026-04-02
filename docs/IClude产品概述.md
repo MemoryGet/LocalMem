@@ -1,5 +1,9 @@
 # IClude 开源记忆体系统开发文档
 
+> 读者分流：
+> - 面向用户/合作方优先看 [对外产品路线图](/root/LocalMem/docs/对外产品路线图.md)
+> - 面向研发推进优先看 [内部研发路线图](/root/LocalMem/docs/内部研发路线图.md)
+
 ## 目录
 
 0. [项目宗旨](#0-项目宗旨)
@@ -24,7 +28,7 @@ IClude 项目的宗旨是成为一套万物皆可数据化的记忆体系统。
 
 ## 1. 项目概述
 
-IClude 是一个开源、本地优先、可混合存储的企业级记忆体系统，旨在为 AI 应用提供长期、结构化、可演化的记忆能力。它允许企业将日常工作中的对话、文档、决策等碎片化知识沉淀为可检索的记忆，并支持通过语义搜索和图谱关联快速召回相关知识。通过本地记忆数据获取问题关键数据解决AI上下文过大问题。
+IClude 是一个开源、本地优先、可混合存储的记忆体系统，旨在为 AI 应用提供长期、结构化、可演化的记忆能力。它首先服务日常用户和开发者场景，让对话、文档、决策等碎片化知识沉淀为可检索记忆；企业级能力作为后续独立路线逐步补齐。通过本地记忆数据获取问题关键数据，解决 AI 上下文过大问题。
 
 本项目采用 **SQLite + Qdrant** 的混合存储架构，并支持灵活的后端开关——你可以单独使用 SQLite（仅结构化/全文检索）、单独使用 Qdrant（仅向量检索），或两者并用实现混合检索。系统设计遵循"一人公司"原则，分阶段演进，从简单 MVP 逐步扩展至企业级能力。
 
@@ -256,16 +260,16 @@ iclude/
 
 > **竞品参照**：[vectorize-io/hindsight](https://github.com/vectorize-io/hindsight)（仿生记忆系统，LongMemEval SOTA 91.4%）
 >
-> Phase 2~3 融合了 Hindsight 对比后识别的 7 项借鉴能力（标记为 B1~B7），使 IClude 从"被动存取"进化为"主动学习"的记忆系统。
+> 当前已完成 Phase 2 的核心能力建设；后续围绕 Hindsight 对比识别出的 7 项借鉴能力（B1~B7），拆分为 Benchmark Track 与 Enterprise Track 两条独立路线。
 
 ### 7.1 总体阶段规划
 
 | 阶段 | 时间 | 核心目标 | 关键成果 |
 |------|------|----------|----------|
 | **Phase 1** | 4-6 周 | MVP 核心验证 | 混合存储 + 分层架构 + 生命周期 + 全功能 API ✅ 已完成 |
-| **Phase 2** | 2-3 月 | 智能记忆 | Reflect 反思 + 自动实体抽取 + 图谱检索 + SDK |
-| **Phase 3** | 3-4 月 | 认知进化 | 记忆演化链 + Cross-encoder 重排 + 管理后台 + MCP |
-| **Phase 4** | 持续演进 | 企业就绪 | 高可用 + 安全加固 + 商业化 |
+| **Phase 2** | 已完成 | 日常用户可交付 | Reflect 反思 + 自动实体抽取 + 图谱检索 + Token 裁剪 |
+| **Benchmark Track** | 6-8 周 | 对标 Hindsight 91.4% | LongMemEval 评测闭环 + 精排 + Reflect 利用率优化 |
+| **Enterprise Track** | 持续演进 | 企业就绪 | 认证权限 + 管理后台 + 监控 + 多租户 + 商业化 |
 
 ### 7.2 Phase 1：MVP 核心验证 ✅ 已完成
 
@@ -292,7 +296,7 @@ iclude/
 - ✅ 完整测试覆盖（store/memory/search/api 四层）
 - ✅ 配置文件 + 部署脚本
 
-### 7.3 Phase 2：智能记忆版（2-3 个月）
+### 7.3 Phase 2：智能记忆版 ✅ 已完成
 
 **目标**：从"被动存取"升级为"主动学习"——让记忆系统能自动抽取知识、反思已有记忆、利用图谱关联检索
 
@@ -358,82 +362,55 @@ iclude/
 - ✅ 自动实体抽取（auto_extract）
 - ✅ 三路 RRF 检索（FTS5 + Qdrant + Graph）
 - ✅ Token 感知裁剪
-- ✅ Go/Node.js SDK
 - ✅ 异步 Embedding + 事务批量写入
-- ✅ 基础监控
 - ✅ LLM 对话模型增强（thinking 角色、tool_call/tool_result 拆分、消息父子关联、Context 防冲突）
+- 🟡 Python SDK 已完善；Go/Node.js SDK 移至 Enterprise Track
+- 🟡 监控能力保留在 Enterprise Track，不作为日常用户交付阻塞项
 
-### 7.4 Phase 3：认知进化版（3-4 个月）
+### 7.4 Benchmark Track：对标 Hindsight 91.4%
 
-**目标**：实现记忆的自动演化（事实→经验→心智模型），精排提升检索质量，提供管理后台和 MCP 集成
-
-**核心：让记忆系统像人脑一样"越用越聪明"**
-
-**开发任务**：
-
-1. **🟡 Cross-encoder 重排 [B4]（2 周）**
-   - 新增 `Reranker` 接口：`Rerank(ctx, query, results) → results`
-   - 实现：LLM Reranker（调用外部 LLM 对 query+document 打分）
-   - 可选：轻量 cross-encoder 模型本地推理
-   - 集成点：RRF 融合 → Reranker 精排 → 强度加权 → Token 裁剪 → 返回
-
-2. **🟡 记忆自动演化链 [B6]（3 周）**
-   - 三层记忆演化模型：
-     - **Layer 1 — World（事实）**：原始记忆（kind=fact/note），直接 retain 写入
-     - **Layer 2 — Experiences（经验）**：多条事实 consolidate 后的观察（kind=observation, source_type=consolidate）
-     - **Layer 3 — Mental Models（心智模型）**：Reflect 产生的深度理解（kind=mental_model, source_type=reflect）
-   - 自动 consolidation 定时任务：扫描新增事实 → LLM 总结 → 生成 observation
-   - Recall 优先级：Mental Model > Observation > Raw Fact
-   - 新增字段：`layer`（1/2/3），`derived_from`（溯源记忆 ID 列表）
-
-3. **🟢 Memory Bank 行为配置 [B7]（1 周）**
-   - Context metadata 增加结构化行为字段：
-     - `mission`：知识优先级指导（如"关注技术决策和架构变更"）
-     - `directives`：合规护栏（如"不保留个人隐私信息"）
-     - `disposition`：风格倾向（如"偏保守，倾向引用原文"）
-   - Reflect 操作时自动读取当前 Context 的行为配置，影响 LLM 推理提示词
-
-4. **MCP Server 集成（2 周）**
-   - 实现 Model Context Protocol 服务端
-   - 暴露 retain/recall/reflect 三大工具
-   - Claude Code / Gemini CLI 等模型可直接调用 IClude 记忆
-   - 新增 `cmd/mcp/main.go`
-
-5. **管理后台（3 周）**
-   - 简单 Web 后台（Vue / React）
-   - 记忆浏览/搜索/编辑/删除
-   - 知识图谱可视化（实体+关系网络图）
-   - 记忆演化链路追踪（fact → observation → mental_model 溯源）
-   - 数据导入导出
-
-6. **认证与权限（2 周）**
-   - JWT / OAuth2 用户认证
-   - 基于团队/角色的访问控制
-   - Context 树的权限控制（读/写/管理三级）
-
-**Phase 3 交付物**：
-
-- ✅ Cross-encoder 重排（可选）
-- ✅ 三层记忆自动演化（事实→经验→心智模型）
-- ✅ Memory Bank 行为配置
-- ✅ MCP Server（Claude/Gemini 可直接调用）
-- ✅ 管理后台（测试版）
-- ✅ 用户认证与权限
-- ✅ 商业化路线图
-
-### 7.5 Phase 4：企业就绪版（持续演进）
-
-**目标**：达到企业级性能与安全要求，支持私有化部署，实现商业闭环
+**目标**：在不改变“Phase 2 已可交付给日常用户”这一前提下，持续提升 LongMemEval 表现，把 IClude 做成真正有竞争力的开源记忆系统。
 
 **开发任务**：
 
-- **高性能向量检索**：可选升级至 Qdrant 集群或 Milvus
-- **分布式存储**：支持 PostgreSQL + pgvector 作为备选后端
-- **高可用架构**：核心服务无状态，可水平扩展
-- **安全加固**：传输加密、静态加密、审计日志
-- **企业功能**：SSO、SLA 支持、定制开发
-- **LongMemEval 基准测试**：对标 Hindsight 的 91.4%，建立可复现的评测流程
-- **多租户物理隔离**：每个租户独立 SQLite 文件 + Qdrant collection
+1. **LongMemEval 评测闭环**
+   - 新增 `testing/eval/`，支持官方数据集跑批
+   - 统一输出 accuracy / recall@k / MRR / NDCG / category breakdown
+   - 固化 full-context、hybrid retrieval、reflect 三条基线
+
+2. **Cross-encoder 重排 [B4]**
+   - 新增 `Reranker` 接口
+   - 管道升级为：三路检索 → RRF → Cross-encoder → 强度加权 → Token 裁剪
+   - 支持本地轻量模型或远程 rerank API
+
+3. **Reflect 利用率增强**
+   - 多轮 Reflect 累积前几轮 reasoning + 证据摘要
+   - Top-K 按 intent / token budget 动态调整
+   - 引入精确 token 计算，减少误裁剪
+
+4. **时间与演化增强**
+   - Temporal query 动态时间窗口
+   - Consolidation 候选改为时间轮转 + 随机采样
+   - 补齐三层记忆演化：fact → observation → mental_model
+
+**Benchmark Track 成功标准**：
+
+- 第一阶段：LongMemEval ≥ 80%
+- 第二阶段：LongMemEval ≥ 85%
+- 长期技术标杆：逼近 Hindsight 91.4%
+
+### 7.5 Enterprise Track：企业版路线
+
+**目标**：服务企业部署、权限治理、安全合规和可视化运维；该路线独立排期，不阻塞 Benchmark Track。
+
+**开发任务**：
+
+- **认证与权限**：JWT / API Key 双模式、团队角色、Context 树访问控制
+- **管理后台**：记忆浏览、搜索编辑、图谱可视化、演化链路追踪、导入导出
+- **监控与运维**：Prometheus 指标、压测、pprof、告警基础设施
+- **多租户与隔离**：按租户拆分 SQLite 文件与向量集合
+- **企业交付能力**：SSO、SLA、私有化部署、定制支持
+- **分布式后端**：PostgreSQL + pgvector、Qdrant 集群、Milvus 选配
 
 ---
 
@@ -584,10 +561,11 @@ services:
 
 ---
 
-**文档版本**：v2.0
+**文档版本**：v2.1
 
-**最后更新**：2026-03-19
+**最后更新**：2026-04-01
 
 **变更记录**：
+- v2.1 (2026-04-01)：明确 Phase 2 为日常用户可交付版本；路线拆分为 Benchmark Track（对标 Hindsight 91.4%）与 Enterprise Track（企业能力建设）；修正文档中的交付口径
 - v2.0 (2026-03-19)：Phase 1 标记已完成，Phase 2~3 融合 Hindsight 竞品对比的 7 项借鉴能力（Reflect/自动实体抽取/图谱检索/Cross-encoder/Token裁剪/记忆演化/行为配置），新增 MCP Server 规划
 - v1.0 (2026-03-08)：初始版本

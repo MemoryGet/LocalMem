@@ -104,16 +104,6 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		if plan.SemanticQuery != "" {
 			semanticQuery = plan.SemanticQuery
 		}
-		// [fix] temporal 意图注入时间过滤 / Inject time filter for temporal intent
-		if plan.Temporal && filters == nil {
-			recent := time.Now().UTC().Add(-7 * 24 * time.Hour)
-			filters = &model.SearchFilters{HappenedAfter: &recent}
-		} else if plan.Temporal && filters != nil && filters.HappenedAfter == nil {
-			recent := time.Now().UTC().Add(-7 * 24 * time.Hour)
-			filtersCopy := *filters
-			filtersCopy.HappenedAfter = &recent
-			filters = &filtersCopy
-		}
 	}
 
 	// 收集各路检索结果 / Collect results from each channel
@@ -139,6 +129,26 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 				ftsWeight = 1.0
 			}
 			rrfInputs = append(rrfInputs, RRFInput{Results: textResults, Weight: ftsWeight})
+		}
+	}
+
+	// HyDE 通道：用 LLM 假设性回答做 FTS 检索，0.8 折扣权重 / HyDE channel with hypothetical doc
+	if hasSQLite && plan != nil && plan.HyDEDoc != "" {
+		var hydeResults []*model.SearchResult
+		var hydeErr error
+		if filters != nil {
+			hydeResults, hydeErr = r.memStore.SearchTextFiltered(ctx, plan.HyDEDoc, filters, limit)
+		} else {
+			hydeResults, hydeErr = r.memStore.SearchText(ctx, plan.HyDEDoc, r.resolveIdentity(req), limit)
+		}
+		if hydeErr != nil {
+			logger.Debug("HyDE search failed", zap.Error(hydeErr))
+		} else if len(hydeResults) > 0 {
+			hydeWeight := 0.8
+			if plan != nil && plan.Weights.FTS > 0 {
+				hydeWeight *= plan.Weights.FTS
+			}
+			rrfInputs = append(rrfInputs, RRFInput{Results: hydeResults, Weight: hydeWeight})
 		}
 	}
 
@@ -205,6 +215,14 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		}
 	}
 
+	// 时间通道（独立参与 RRF 融合）/ Temporal channel as independent RRF input
+	if plan != nil && plan.Temporal && plan.TemporalCenter != nil && hasSQLite {
+		temporalResults := r.temporalRetrieve(ctx, req, plan, limit)
+		if len(temporalResults) > 0 {
+			rrfInputs = append(rrfInputs, RRFInput{Results: temporalResults, Weight: 1.2})
+		}
+	}
+
 	if len(rrfInputs) == 0 {
 		if !hasSQLite && !hasVector {
 			return nil, fmt.Errorf("no search backend available: %w", model.ErrStorageUnavailable)
@@ -227,6 +245,9 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	// Backfill incomplete Memory objects (Qdrant results only contain ID)
 	results = r.backfillMemories(ctx, results)
 
+	// 类型权重（skill/决策类提权）/ Kind-based weighting
+	results = applyKindWeights(results)
+
 	// 强度加权（在 MMR 前执行，使过期/弱记忆在多样性选择前降分）
 	// Apply strength weighting before MMR so expired/weak memories are scored down before diversity selection
 	results = memory.ApplyStrengthWeighting(results, r.cfg.AccessAlpha)
@@ -243,6 +264,26 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	}
 	if mmrEnabled && r.vecStore != nil {
 		results = MMRRerank(ctx, results, r.vecStore, mmrLambda, limit)
+	}
+
+	// 自适应重试：置信度低时放宽条件重查 / Adaptive retry: relax constraints when confidence is low
+	if len(results) > 0 && results[0].Score < 0.3 && req.Query != "" && filters != nil && !req.NoRetry {
+		logger.Debug("adaptive retry: low confidence, retrying without time filter",
+			zap.Float64("top_score", results[0].Score),
+		)
+		retryReq := *req
+		retryFilters := *filters
+		retryFilters.HappenedAfter = nil
+		retryFilters.HappenedBefore = nil
+		if retryFilters.MinStrength > 0 {
+			retryFilters.MinStrength *= 0.6
+		}
+		retryReq.Filters = &retryFilters
+		retryReq.NoRetry = true
+		retryResults, err := r.Retrieve(ctx, &retryReq)
+		if err == nil && len(retryResults) > 0 && retryResults[0].Score > results[0].Score {
+			results = retryResults
+		}
 	}
 
 	// 异步记录访问 / Async-track access hits
@@ -449,6 +490,38 @@ func (r *Retriever) llmExtractEntities(ctx context.Context, query string, scope 
 	return matchedIDs
 }
 
+// kindWeights 记忆类型权重 / Memory kind weights
+var kindWeights = map[string]float64{
+	"skill":   1.5,
+	"profile": 1.2,
+	"fact":    1.0,
+	"note":    1.0,
+}
+
+// subKindWeights 子类型权重加成 / Sub-kind weight boost
+var subKindWeights = map[string]float64{
+	"pattern": 1.3,
+	"case":    1.3,
+}
+
+// applyKindWeights 按记忆类型加权 / Weight results by memory kind
+func applyKindWeights(results []*model.SearchResult) []*model.SearchResult {
+	for _, r := range results {
+		if r.Memory == nil {
+			continue
+		}
+		w := 1.0
+		if kw, ok := kindWeights[r.Memory.Kind]; ok {
+			w = kw
+		}
+		if sw, ok := subKindWeights[r.Memory.SubKind]; ok {
+			w *= sw
+		}
+		r.Score *= w
+	}
+	return results
+}
+
 // EstimateTokens 估算文本token数 / Estimate token count for text
 // 委托给 pkg/tokenutil 统一实现 / Delegates to shared tokenutil package
 func EstimateTokens(text string) int {
@@ -492,6 +565,73 @@ func (r *Retriever) resolveEmbedding(ctx context.Context, provided []float32, qu
 		return nil, fmt.Errorf("embedding generation failed: %w", err)
 	}
 	return embedding, nil
+}
+
+// temporalRetrieve 时间通道检索 / Temporal channel retrieval with distance-decay scoring
+func (r *Retriever) temporalRetrieve(ctx context.Context, req *model.RetrieveRequest, plan *QueryPlan, limit int) []*model.SearchResult {
+	center := *plan.TemporalCenter
+	rangeD := plan.TemporalRange
+	if rangeD <= 0 {
+		rangeD = 7 * 24 * time.Hour
+	}
+
+	expandedRange := rangeD * 3
+	after := center.Add(-expandedRange)
+	before := center.Add(expandedRange)
+
+	timelineReq := &model.TimelineRequest{
+		TeamID:  req.TeamID,
+		OwnerID: req.OwnerID,
+		After:   &after,
+		Before:  &before,
+		Limit:   limit * 2,
+	}
+
+	memories, err := r.memStore.ListTimeline(ctx, timelineReq)
+	if err != nil {
+		logger.Warn("temporal retrieve failed", zap.Error(err))
+		return nil
+	}
+
+	rangeDays := rangeD.Hours() / 24
+	if rangeDays < 1 {
+		rangeDays = 1
+	}
+
+	var results []*model.SearchResult
+	for _, mem := range memories {
+		var ts time.Time
+		if mem.HappenedAt != nil && !mem.HappenedAt.IsZero() {
+			ts = *mem.HappenedAt
+		} else {
+			ts = mem.CreatedAt
+		}
+		daysAway := center.Sub(ts).Hours() / 24
+		if daysAway < 0 {
+			daysAway = -daysAway
+		}
+
+		var score float64
+		if daysAway <= rangeDays {
+			score = 1.0
+		} else {
+			score = 1.0 / (1.0 + daysAway/rangeDays)
+		}
+
+		results = append(results, &model.SearchResult{
+			Memory: mem,
+			Score:  score,
+			Source: "temporal",
+		})
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+	if len(results) > limit {
+		results = results[:limit]
+	}
+	return results
 }
 
 // backfillMemories 回填空壳 Memory 对象 / Backfill incomplete Memory objects from MemoryStore

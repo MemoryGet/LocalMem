@@ -37,13 +37,16 @@ type ChannelWeights struct {
 
 // QueryPlan 预处理后的查询计划 / Pre-processed query plan
 type QueryPlan struct {
-	OriginalQuery string
-	SemanticQuery string
-	Keywords      []string
-	Entities      []string // 匹配到的实体 ID / Matched entity IDs
-	Intent        QueryIntent
-	Weights       ChannelWeights
-	Temporal      bool // 是否需要时间排序 / Whether temporal sorting is needed
+	OriginalQuery  string
+	SemanticQuery  string
+	Keywords       []string
+	Entities       []string // 匹配到的实体 ID / Matched entity IDs
+	Intent         QueryIntent
+	Weights        ChannelWeights
+	Temporal       bool
+	TemporalCenter *time.Time    // 时间查询的中心点 / Center point for temporal queries
+	TemporalRange  time.Duration // 时间查询的范围 / Duration range for temporal queries
+	HyDEDoc        string        // LLM 生成的假设性回答文档 / Hypothetical Document for HyDE retrieval
 }
 
 // intentMultipliers 意图→权重系数映射 / Intent to weight multiplier mapping
@@ -70,23 +73,26 @@ var exploratoryPatterns = regexp.MustCompile(`(?i)\b(how|why|what|when|where|whi
 
 // Preprocessor 查询预处理器 / Query preprocessor
 type Preprocessor struct {
-	tokenizer  tokenizer.Tokenizer
-	graphStore store.GraphStore      // 可为 nil / may be nil
-	llm        llm.Provider          // 可为 nil / may be nil
-	stopFilter *tokenizer.StopFilter // 停用词过滤器 / Stop word filter
-	cfg        config.RetrievalConfig
+	tokenizer   tokenizer.Tokenizer
+	graphStore  store.GraphStore       // 可为 nil / may be nil
+	llm         llm.Provider           // 可为 nil / may be nil
+	stopFilter  *tokenizer.StopFilter  // 停用词过滤器 / Stop word filter
+	synonymDict *tokenizer.SynonymDict // 同义词词典 / Synonym dictionary
+	cfg         config.RetrievalConfig
 }
 
 // NewPreprocessor 创建预处理器 / Create a new preprocessor
 // 自动从 cfg.Preprocess.StopwordFiles 加载停用词，加载失败时使用内置默认词表
 func NewPreprocessor(tok tokenizer.Tokenizer, graphStore store.GraphStore, llm llm.Provider, cfg config.RetrievalConfig) *Preprocessor {
 	sf := tokenizer.NewStopFilter(cfg.Preprocess.StopwordFiles...)
+	sd := tokenizer.NewSynonymDict(cfg.Preprocess.SynonymFiles...)
 	return &Preprocessor{
-		tokenizer:  tok,
-		graphStore: graphStore,
-		llm:        llm,
-		stopFilter: sf,
-		cfg:        cfg,
+		tokenizer:   tok,
+		graphStore:  graphStore,
+		llm:         llm,
+		stopFilter:  sf,
+		synonymDict: sd,
+		cfg:         cfg,
 	}
 }
 
@@ -107,6 +113,11 @@ func (p *Preprocessor) Process(ctx context.Context, query string, scope string) 
 	keywords := p.extractKeywords(ctx, query)
 	plan.Keywords = keywords
 
+	// 步骤 1.5: 同义词扩展 / Step 1.5: Synonym expansion
+	if p.synonymDict != nil && len(plan.Keywords) > 0 {
+		plan.Keywords = p.expandSynonyms(plan.Keywords)
+	}
+
 	// 步骤 2: 实体快速匹配 / Step 2: Fast entity matching
 	if p.graphStore != nil {
 		plan.Entities = p.matchEntities(ctx, keywords, scope)
@@ -121,6 +132,9 @@ func (p *Preprocessor) Process(ctx context.Context, query string, scope string) 
 	// 步骤 4.5: temporal 标记 / Mark temporal for retriever to inject time sorting
 	if plan.Intent == IntentTemporal {
 		plan.Temporal = true
+		now := time.Now().UTC()
+		plan.TemporalCenter = &now
+		plan.TemporalRange = 7 * 24 * time.Hour
 	}
 
 	// 步骤 5: LLM 增强（可选）/ Step 5: Optional LLM enhancement
@@ -148,6 +162,29 @@ func (p *Preprocessor) extractKeywords(ctx context.Context, query string) []stri
 		}
 	}
 	return keywords
+}
+
+// expandSynonyms 使用同义词词典扩展关键词 / Expand keywords using synonym dictionary
+// 限制扩展后总关键词不超过 30 个，避免 FTS 查询过长
+func (p *Preprocessor) expandSynonyms(keywords []string) []string {
+	seen := make(map[string]bool)
+	var expanded []string
+	for _, kw := range keywords {
+		lower := strings.ToLower(kw)
+		if !seen[lower] {
+			seen[lower] = true
+			expanded = append(expanded, kw)
+		}
+	}
+	for _, kw := range keywords {
+		for _, syn := range p.synonymDict.Expand(kw) {
+			if !seen[syn] && len(expanded) < 30 {
+				seen[syn] = true
+				expanded = append(expanded, syn)
+			}
+		}
+	}
+	return expanded
 }
 
 // matchEntities 实体快速匹配（使用索引查询替代全量扫描）/ Match keywords against graph entities via indexed queries
@@ -249,9 +286,16 @@ func (p *Preprocessor) llmEnhance(ctx context.Context, plan *QueryPlan) {
 		Messages: []llm.ChatMessage{
 			{
 				Role: "system",
-				Content: `You are a query preprocessor. Given a search query, output JSON:
-{"rewritten_query": "semantically expanded query for vector search", "intent": "keyword|semantic|temporal|relational|general", "keywords": ["optional", "extra", "keywords"]}
-Respond ONLY with valid JSON.`,
+				Content: `You are a bilingual (Chinese/English) query preprocessor for a memory retrieval system.
+Given a search query, output JSON with these fields:
+- "rewritten_query": semantically expanded version of the query
+- "intent": one of "keyword|semantic|temporal|relational|general"
+- "keywords": additional search keywords that MUST include:
+  1. Chinese translations if query is in English (e.g. "database migration" → ["数据库","迁移"])
+  2. English terms if query is in Chinese (e.g. "数据库迁移" → ["database","migration"])
+  3. Synonyms and closely related terms (e.g. "宠物" → ["猫","狗","养"])
+  4. Domain-specific expansions (e.g. "部署" → ["docker","容器","compose"])
+Respond ONLY with valid JSON, no markdown.`,
 			},
 			{Role: "user", Content: plan.OriginalQuery},
 		},
@@ -290,6 +334,23 @@ Respond ONLY with valid JSON.`,
 				existing[strings.ToLower(kw)] = true
 			}
 		}
+	}
+
+	// HyDE: 生成假设性回答文档 / Generate Hypothetical Document Embedding
+	hydeCtx, hydeCancel := context.WithTimeout(context.Background(), timeout)
+	defer hydeCancel()
+
+	hydeResp, hydeErr := p.llm.Chat(hydeCtx, &llm.ChatRequest{
+		Messages: []llm.ChatMessage{
+			{Role: "system", Content: "你是一个记忆系统。根据用户的问题，写出一段可能存在于记忆库中的文档片段（50-100字）。直接输出内容，不加前缀。用中文回答。"},
+			{Role: "user", Content: plan.OriginalQuery},
+		},
+		Temperature: &temp,
+	})
+	if hydeErr != nil {
+		logger.Debug("preprocess: HyDE generation failed", zap.Error(hydeErr))
+	} else if hydeResp.Content != "" {
+		plan.HyDEDoc = strings.TrimSpace(hydeResp.Content)
 	}
 }
 

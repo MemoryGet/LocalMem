@@ -190,13 +190,32 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		}
 	}
 
-	// 异步生成摘要（content 短则直接用 content，否则调 LLM）/ Async abstract generation
+	// 同步生成丰富摘要（确保 FTS 索引包含摘要关联词）/ Sync rich abstract generation for FTS indexing
 	if mem.Abstract == "" && m.llm != nil {
 		if len([]rune(mem.Content)) <= 50 {
 			mem.Abstract = mem.Content
-			_ = m.memStore.Update(ctx, mem)
 		} else {
-			m.asyncGenerateAbstract(mem.ID, mem.Content)
+			abstract, err := m.generateAbstract(ctx, mem.Content)
+			if err != nil {
+				logger.Warn("sync abstract generation failed, using content truncation",
+					zap.String("memory_id", mem.ID),
+					zap.Error(err),
+				)
+				runes := []rune(mem.Content)
+				if len(runes) > 100 {
+					runes = runes[:100]
+				}
+				mem.Abstract = string(runes)
+			} else {
+				mem.Abstract = abstract
+			}
+		}
+		// 更新 SQLite（含 FTS 索引）
+		if err := m.memStore.Update(ctx, mem); err != nil {
+			logger.Warn("failed to update memory with abstract",
+				zap.String("memory_id", mem.ID),
+				zap.Error(err),
+			)
 		}
 	}
 
@@ -281,7 +300,7 @@ func (m *Manager) generateAbstract(ctx context.Context, content string) (string,
 	temp := 0.1
 	resp, err := m.llm.Chat(ctx, &llm.ChatRequest{
 		Messages: []llm.ChatMessage{
-			{Role: "system", Content: "用一句话（≤100字）概括以下内容的核心信息，直接输出摘要，不加前缀。"},
+			{Role: "system", Content: "生成一段丰富的检索摘要（≤150字），要求：\n1. 概括核心信息\n2. 补充隐含的上位概念和关联词（如\"小橘是橘猫\"→补充\"宠物、猫咪、养猫\"）\n3. 包含中英文关键术语（如\"数据库迁移\"→\"database migration\"）\n4. 添加可能的搜索意图词（如\"部署在阿里云\"→\"服务器、云服务、hosting\"）\n直接输出摘要，不加前缀或解释。"},
 			{Role: "user", Content: content},
 		},
 		Temperature: &temp,
@@ -290,8 +309,8 @@ func (m *Manager) generateAbstract(ctx context.Context, content string) (string,
 		return "", fmt.Errorf("llm chat failed: %w", err)
 	}
 	abstract := strings.TrimSpace(resp.Content)
-	if len([]rune(abstract)) > 150 {
-		abstract = string([]rune(abstract)[:150])
+	if len([]rune(abstract)) > 200 {
+		abstract = string([]rune(abstract)[:200])
 	}
 	return abstract, nil
 }

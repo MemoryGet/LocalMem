@@ -1,0 +1,71 @@
+# LocalMem 同义词词典 / Synonym Dictionary
+# 格式: 主词=同义词1 同义词2 ... / Format: key=syn1 syn2 ...
+
+# ── 通用概念 ──
+宠物=猫 狗 养 动物 猫咪
+运动=篮球 足球 跑步 健身 锻炼
+出差=旅行 出行 商务 travel trip
+生日=出生 birthday 过生日 年龄
+朋友=好友 同学 friend 伙伴
+书=读 阅读 book 看书 在读
+截止日期=deadline 期限 到期 之前必须完成
+目标=OKR target goal 指标
+会议=开会 例会 周会 meeting
+团队=成员 同事 team 人员 colleague
+
+# ── 技术概念 ──
+数据库=database db 存储 storage
+迁移=migration 升级 变更 切换
+服务器=server 主机 host 云服务
+部署=deploy 上线 发布 容器 docker
+框架=framework 库 library
+日志=log logging 记录
+搜索=search 检索 查询 查找 retrieve
+分词=tokenize segment 切词 token
+向量=vector embedding 嵌入
+索引=index 全文 fts 检索
+端口=port 监听 listen
+接口=interface api endpoint 方法
+配置=config setting 设置 参数
+测试=test 验证 检查 check
+安全=security 授权 认证 auth 权限
+性能=performance 优化 速度 快
+缓存=cache 内存 memory mmap
+并发=concurrent 多线程 goroutine 竞态
+错误=error bug 异常 exception 问题
+重构=refactor 重写 优化 改进
+文档=document doc 文件 资料
+
+# ── 项目特定 ──
+记忆=memory 知识 信息 数据
+衰减=decay 过期 遗忘 消失 失效
+强度=strength 权重 重要性 优先级
+摘要=abstract summary 概括 总结
+分块=chunk 切分 分割 split
+心跳=heartbeat 健康检查 巡检 监控
+合并=consolidation merge 归纳 去重
+抽取=extract 提取 识别 NLP NER
+图谱=graph 关系 实体 entity relation
+反思=reflect 推理 reasoning 思考
+双写=dual-write 冗余 备份 一致性
+融合=fusion rrf 合并 merge rank
+中间件=middleware 管道 pipeline 拦截器
+限流=rate-limit 限速 throttle
+白名单=allowlist whitelist 许可
+幂等=idempotent 重跑 安全 重复执行
+竞态=race toctou 并发冲突
+级联=cascade 关联删除 子记录
+回滚=rollback 恢复 撤销 undo
+
+# ── 工具/产品 ──
+暗色主题=dark-mode 深色 夜间模式 dark theme
+极简=minimal 简洁 简约 clean
+终端=terminal 命令行 cli shell
+编辑器=editor ide vscode 开发工具
+版本控制=git github 代码管理
+
+# ── 角色/身份 ──
+全栈=fullstack 后端 前端 开发者 工程师
+产品经理=pm product-manager 产品
+技术负责人=tech-lead 架构师 负责人
+算法工程师=ai ml 机器学习 深度学习

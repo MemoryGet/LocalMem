@@ -10,7 +10,7 @@ storage:
         abstract: 5.0    # 摘要权重
         summary: 3.0     # 概述权重
     tokenizer:
-      provider: "simple"           # noop(不分词) | simple(内置Unicode分词) | jieba(结巴HTTP服务)
+      provider: "simple"           # noop(不分词) | simple(内置Unicode分词) | gse(原生Go分词) | jieba(结巴HTTP服务)
       jieba_url: "http://localhost:8866"  # 仅 provider=jieba 时需要
   qdrant:
     enabled: false
@@ -80,11 +80,13 @@ retrieval:
   # 查询预处理 / Query preprocessing
   preprocess:
     enabled: true        # 开启关键词提取、意图识别 / Enable keyword extraction and intent detection
-    use_llm: false       # 是否用 LLM 做语义改写（false=规则+词表）/ Use LLM for semantic rewrite
+    use_llm: true        # 是否用 LLM 做语义改写（false=规则+词表）/ Use LLM for semantic rewrite
     llm_timeout: 5s      # LLM 预处理超时 / LLM preprocessing timeout
     stopword_files:
       - "config/stopwords_en.txt"
       - "config/stopwords_zh.txt"
+    synonym_files:
+      - "config/synonym_zh.txt"
 
 # Scheduler 后台调度器 / Background scheduler
 scheduler:

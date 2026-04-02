@@ -8,9 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"iclude/internal/logger"
 	"iclude/internal/model"
 	"iclude/pkg/tokenizer"
 
+	"go.uber.org/zap"
 	_ "modernc.org/sqlite"
 )
 
@@ -88,7 +90,95 @@ func (s *SQLiteMemoryStore) DB() interface{} {
 
 // Init 初始化存储（执行迁移）/ Initialize storage (run migrations)
 func (s *SQLiteMemoryStore) Init(ctx context.Context) error {
-	return Migrate(s.db, s.tokenizer)
+	if err := Migrate(s.db, s.tokenizer); err != nil {
+		return err
+	}
+
+	// 检测分词器是否变更，变更则自动重建 FTS / Detect tokenizer change and rebuild FTS
+	if err := s.checkTokenizerChange(ctx); err != nil {
+		return fmt.Errorf("tokenizer change check failed: %w", err)
+	}
+
+	return nil
+}
+
+// checkTokenizerChange 检测分词器变更并重建 FTS 索引 / Detect tokenizer change and rebuild FTS index
+func (s *SQLiteMemoryStore) checkTokenizerChange(ctx context.Context) error {
+	var stored string
+	err := s.db.QueryRow(`SELECT value FROM meta WHERE key='tokenizer'`).Scan(&stored)
+	if err != nil {
+		// meta 表不存在或无记录，跳过 / meta table missing or no record, skip
+		return nil
+	}
+
+	current := "simple"
+	if s.tokenizer != nil {
+		current = s.tokenizer.Name()
+	}
+
+	if stored == current {
+		return nil
+	}
+
+	logger.Info("tokenizer changed, rebuilding FTS index",
+		zap.String("from", stored),
+		zap.String("to", current),
+	)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin FTS rebuild transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 重建 FTS5 / Rebuild FTS5
+	if _, err := tx.Exec(`DROP TABLE IF EXISTS memories_fts`); err != nil {
+		return fmt.Errorf("failed to drop FTS5 table: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE VIRTUAL TABLE memories_fts USING fts5(
+		content, abstract, summary,
+		content=memories, content_rowid=rowid
+	)`); err != nil {
+		return fmt.Errorf("failed to create FTS5 table: %w", err)
+	}
+
+	rows, err := tx.Query(`SELECT rowid, content, COALESCE(abstract,''), COALESCE(summary,'') FROM memories WHERE deleted_at IS NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to query memories for FTS rebuild: %w", err)
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		var rowid int64
+		var content, abstract, summary string
+		if err := rows.Scan(&rowid, &content, &abstract, &summary); err != nil {
+			return fmt.Errorf("failed to scan row: %w", err)
+		}
+		tc, _ := s.tokenizer.Tokenize(ctx, content)
+		ta, _ := s.tokenizer.Tokenize(ctx, abstract)
+		ts, _ := s.tokenizer.Tokenize(ctx, summary)
+		if _, err := tx.Exec(`INSERT INTO memories_fts(rowid, content, abstract, summary) VALUES(?,?,?,?)`,
+			rowid, tc, ta, ts); err != nil {
+			return fmt.Errorf("failed to insert FTS row (rowid=%d): %w", rowid, err)
+		}
+		count++
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("FTS rebuild iteration error: %w", err)
+	}
+
+	// 更新 meta / Update meta
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO meta(key, value) VALUES('tokenizer', ?)`, current); err != nil {
+		return fmt.Errorf("failed to update tokenizer meta: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit FTS rebuild: %w", err)
+	}
+
+	logger.Info("FTS index rebuilt for new tokenizer", zap.String("tokenizer", current), zap.Int("memories", count))
+	return nil
 }
 
 // Close 关闭数据库连接 / Close the database connection
@@ -104,13 +194,11 @@ func sanitizeFTS5Query(query string) string {
 	if query == "" {
 		return query
 	}
-	// 移除 FTS5 特殊字符和操作符 / Remove FTS5 special chars
 	replacer := strings.NewReplacer(
 		`"`, ``, `*`, ``, `(`, ``, `)`, ``, `^`, ``, `-`, ` `, `+`, ` `,
 	)
 	cleaned := replacer.Replace(query)
 
-	// 过滤 FTS5 保留字并用 OR 连接（提高召回率）/ Filter reserved words and join with OR for better recall
 	words := strings.Fields(cleaned)
 	var filtered []string
 	for _, w := range words {
@@ -127,7 +215,47 @@ func sanitizeFTS5Query(query string) string {
 	if len(filtered) == 0 {
 		return cleaned
 	}
-	return strings.Join(filtered, " OR ")
+
+	parts := make([]string, len(filtered))
+	copy(parts, filtered)
+
+	// 二元组增强：3+ 词时追加相邻词对短语 / Bigram boost for 3+ word queries
+	if len(filtered) >= 3 {
+		for i := 0; i < len(filtered)-1; i++ {
+			parts = append(parts, `"`+filtered[i]+" "+filtered[i+1]+`"`)
+		}
+	}
+
+	return strings.Join(parts, " OR ")
+}
+
+// extractQueryWords 提取查询中的有效词（去重、小写化）/ Extract unique lowercased words from query
+func extractQueryWords(query string) []string {
+	seen := make(map[string]bool)
+	var words []string
+	for _, w := range strings.Fields(query) {
+		lower := strings.ToLower(w)
+		if lower != "" && !seen[lower] {
+			seen[lower] = true
+			words = append(words, lower)
+		}
+	}
+	return words
+}
+
+// wordCoverage 计算文档对查询词的覆盖率 / Calculate query word coverage ratio in document
+func wordCoverage(doc string, queryWords []string) float64 {
+	if len(queryWords) == 0 {
+		return 0
+	}
+	docLower := strings.ToLower(doc)
+	matched := 0
+	for _, w := range queryWords {
+		if strings.Contains(docLower, w) {
+			matched++
+		}
+	}
+	return float64(matched) / float64(len(queryWords))
 }
 
 // visibilityCondition 返回可见性 WHERE 子句和参数 / Return visibility WHERE clause and args

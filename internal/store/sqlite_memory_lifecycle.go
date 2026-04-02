@@ -347,15 +347,19 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 	}
 	defer rows.Close()
 
+	queryWords := extractQueryWords(query)
 	var results []*model.SearchResult
 	for rows.Next() {
 		mem, rank, err := s.scanMemoryWithRank(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan search result: %w", err)
 		}
+		bm25Score := -rank
+		coverageScore := wordCoverage(mem.Content+" "+mem.Abstract, queryWords)
+		hybridScore := 0.7*bm25Score + 0.3*coverageScore*bm25Score
 		results = append(results, &model.SearchResult{
 			Memory: mem,
-			Score:  -rank,
+			Score:  hybridScore,
 			Source: "sqlite",
 		})
 	}
@@ -434,15 +438,19 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 	}
 	defer rows.Close()
 
+	queryWords := extractQueryWords(query)
 	var results []*model.SearchResult
 	for rows.Next() {
 		mem, rank, err := s.scanMemoryWithRank(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan filtered search result: %w", err)
 		}
+		bm25Score := -rank
+		coverageScore := wordCoverage(mem.Content+" "+mem.Abstract, queryWords)
+		hybridScore := 0.7*bm25Score + 0.3*coverageScore*bm25Score
 		results = append(results, &model.SearchResult{
 			Memory: mem,
-			Score:  -rank,
+			Score:  hybridScore,
 			Source: "sqlite",
 		})
 	}
