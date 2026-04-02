@@ -1,0 +1,5167 @@
+{
+  "mode": "fts (jieba)",
+  "dataset": "retrieval-500",
+  "timestamp": "2026-04-02T16:24:16.792899114+08:00",
+  "metrics": {
+    "total": 500,
+    "hit_rate": 73,
+    "mrr": 0.6428769841269841,
+    "ndcg@5": 0.6572336810382454,
+    "ndcg@10": 0.6643215568657458,
+    "recall@1": 0.592,
+    "recall@3": 0.694,
+    "recall@5": 0.708,
+    "recall@10": 0.73
+  },
+  "by_category": {
+    "compound": {
+      "total": 60,
+      "hit_rate": 88.33333333333333,
+      "mrr": 0.8638888888888888,
+      "ndcg@5": 0.868848829226191,
+      "ndcg@10": 0.868848829226191,
+      "recall@1": 0.85,
+      "recall@3": 0.8833333333333333,
+      "recall@5": 0.8833333333333333,
+      "recall@10": 0.8833333333333333
+    },
+    "context": {
+      "total": 50,
+      "hit_rate": 56.00000000000001,
+      "mrr": 0.405079365079365,
+      "ndcg@5": 0.4304743802857166,
+      "ndcg@10": 0.4431616468656629,
+      "recall@1": 0.32,
+      "recall@3": 0.52,
+      "recall@5": 0.52,
+      "recall@10": 0.56
+    },
+    "cross_lang": {
+      "total": 40,
+      "hit_rate": 27.500000000000004,
+      "mrr": 0.275,
+      "ndcg@5": 0.275,
+      "ndcg@10": 0.275,
+      "recall@1": 0.275,
+      "recall@3": 0.275,
+      "recall@5": 0.275,
+      "recall@10": 0.275
+    },
+    "entity": {
+      "total": 50,
+      "hit_rate": 100,
+      "mrr": 1,
+      "ndcg@5": 1,
+      "ndcg@10": 1,
+      "recall@1": 1,
+      "recall@3": 1,
+      "recall@5": 1,
+      "recall@10": 1
+    },
+    "exact": {
+      "total": 80,
+      "hit_rate": 91.25,
+      "mrr": 0.9125,
+      "ndcg@5": 0.9125,
+      "ndcg@10": 0.9125,
+      "recall@1": 0.9125,
+      "recall@3": 0.9125,
+      "recall@5": 0.9125,
+      "recall@10": 0.9125
+    },
+    "fuzzy": {
+      "total": 60,
+      "hit_rate": 73.33333333333333,
+      "mrr": 0.5947222222222223,
+      "ndcg@5": 0.6241113073679578,
+      "ndcg@10": 0.6289290544732559,
+      "recall@1": 0.5166666666666667,
+      "recall@3": 0.6666666666666666,
+      "recall@5": 0.7166666666666667,
+      "recall@10": 0.7333333333333333
+    },
+    "implicit": {
+      "total": 40,
+      "hit_rate": 37.5,
+      "mrr": 0.19384920634920633,
+      "ndcg@5": 0.21309297535714578,
+      "ndcg@10": 0.23785723825977917,
+      "recall@1": 0.1,
+      "recall@3": 0.3,
+      "recall@5": 0.3,
+      "recall@10": 0.375
+    },
+    "negation": {
+      "total": 20,
+      "hit_rate": 85,
+      "mrr": 0.7541666666666667,
+      "ndcg@5": 0.7780803155822426,
+      "ndcg@10": 0.7780803155822426,
+      "recall@1": 0.7,
+      "recall@3": 0.8,
+      "recall@5": 0.85,
+      "recall@10": 0.85
+    },
+    "synonym": {
+      "total": 80,
+      "hit_rate": 72.5,
+      "mrr": 0.5610069444444444,
+      "ndcg@5": 0.58563498888508,
+      "ndcg@10": 0.6015566395753515,
+      "recall@1": 0.45,
+      "recall@3": 0.6625,
+      "recall@5": 0.675,
+      "recall@10": 0.725
+    },
+    "temporal": {
+      "total": 20,
+      "hit_rate": 80,
+      "mrr": 0.5974999999999999,
+      "ndcg@5": 0.6289694436225425,
+      "ndcg@10": 0.6467798029779436,
+      "recall@1": 0.5,
+      "recall@3": 0.65,
+      "recall@5": 0.75,
+      "recall@10": 0.8
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "total": 174,
+      "hit_rate": 91.37931034482759,
+      "mrr": 0.9109195402298851,
+      "ndcg@5": 0.9116720100779968,
+      "ndcg@10": 0.9116720100779968,
+      "recall@1": 0.9080459770114943,
+      "recall@3": 0.9137931034482759,
+      "recall@5": 0.9137931034482759,
+      "recall@10": 0.9137931034482759
+    },
+    "hard": {
+      "total": 144,
+      "hit_rate": 42.36111111111111,
+      "mrr": 0.2808421516754851,
+      "ndcg@5": 0.2997961850823706,
+      "ndcg@10": 0.31556150354437446,
+      "recall@1": 0.20833333333333334,
+      "recall@3": 0.3611111111111111,
+      "recall@5": 0.375,
+      "recall@10": 0.4236111111111111
+    },
+    "medium": {
+      "total": 182,
+      "hit_rate": 79.67032967032966,
+      "mrr": 0.6730616605616606,
+      "ndcg@5": 0.6967871434818124,
+      "ndcg@10": 0.7037856712577559,
+      "recall@1": 0.5934065934065934,
+      "recall@3": 0.7472527472527473,
+      "recall@5": 0.7747252747252747,
+      "recall@10": 0.7967032967032966
+    }
+  },
+  "cases": [
+    {
+      "query": "暗色主题",
+      "expected": "暗色主题",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 17.796423000120466,
+      "result_count": 2
+    },
+    {
+      "query": "dark mode",
+      "expected": "dark mode",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 19.038859894168073,
+      "result_count": 1
+    },
+    {
+      "query": "Vim 键位",
+      "expected": "Vim 键位",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 19.100817545978085,
+      "result_count": 1
+    },
+    {
+      "query": "oh-my-zsh",
+      "expected": "oh-my-zsh",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 48.36511584569301,
+      "result_count": 1
+    },
+    {
+      "query": "powerlevel10k",
+      "expected": "powerlevel10k",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.577848691185824,
+      "result_count": 1
+    },
+    {
+      "query": "Go 语言开发后端",
+      "expected": "Go 语言",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 70.01681362991538,
+      "result_count": 8
+    },
+    {
+      "query": "Spring Boot",
+      "expected": "Spring Boot",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 19.155694244355107,
+      "result_count": 1
+    },
+    {
+      "query": "美式咖啡",
+      "expected": "美式咖啡",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 19.27397612247224,
+      "result_count": 1
+    },
+    {
+      "query": "SQLite 本地存储",
+      "expected": "SQLite",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 33.8685362217192,
+      "result_count": 7
+    },
+    {
+      "query": "极简设计",
+      "expected": "极简设计",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 16.96779792692276,
+      "result_count": 3
+    },
+    {
+      "query": "tmux 终端",
+      "expected": "tmux",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 18.016193230024495,
+      "result_count": 2
+    },
+    {
+      "query": "Markdown 文档",
+      "expected": "Markdown",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 16.967797154347643,
+      "result_count": 3
+    },
+    {
+      "query": "阿里云 ECS",
+      "expected": "阿里云 ECS",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 35.26750497318689,
+      "result_count": 2
+    },
+    {
+      "query": "PostgreSQL 迁移",
+      "expected": "PostgreSQL",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 12.282554911772577,
+      "result_count": 5
+    },
+    {
+      "query": "Qdrant 向量数据库",
+      "expected": "Qdrant",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 34.12095990193763,
+      "result_count": 10
+    },
+    {
+      "query": "iclude 模块名",
+      "expected": "iclude",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 13.794978274261439,
+      "result_count": 4
+    },
+    {
+      "query": "BM25 算法",
+      "expected": "BM25",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 13.721363058557673,
+      "result_count": 3
+    },
+    {
+      "query": "8080 端口",
+      "expected": "8080",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.338978658158954,
+      "result_count": 2
+    },
+    {
+      "query": "Gin 框架",
+      "expected": "Gin 框架",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.921353314820147,
+      "result_count": 2
+    },
+    {
+      "query": "Zap 日志",
+      "expected": "Zap",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.226600662774823,
+      "result_count": 3
+    },
+    {
+      "query": "text-embedding-3-small",
+      "expected": "text-embedding-3-small",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 52.93619534462053,
+      "result_count": 8
+    },
+    {
+      "query": "WAL 模式",
+      "expected": "WAL",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.226598812613235,
+      "result_count": 3
+    },
+    {
+      "query": "Vue 3 Vite",
+      "expected": "Vue 3",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 35.0195811569387,
+      "result_count": 9
+    },
+    {
+      "query": "RRF 算法",
+      "expected": "RRF",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 18.270330778799973,
+      "result_count": 3
+    },
+    {
+      "query": "simple tokenizer",
+      "expected": "simple tokenizer",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 20.254781416754135,
+      "result_count": 1
+    },
+    {
+      "query": "reflect 反思引擎",
+      "expected": "reflect",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 48.80328963597955,
+      "result_count": 3
+    },
+    {
+      "query": "数据库迁移 V0",
+      "expected": "迁移",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 31.61182972391749,
+      "result_count": 8
+    },
+    {
+      "query": "FTS5 OR 逻辑",
+      "expected": "OR",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 38.75111960393745,
+      "result_count": 5
+    },
+    {
+      "query": "MCP stdio",
+      "expected": "stdio",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 16.25771408019197,
+      "result_count": 4
+    },
+    {
+      "query": "dual-write",
+      "expected": "dual-write",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 19.27943346655404,
+      "result_count": 2
+    },
+    {
+      "query": "指数衰减",
+      "expected": "指数衰减",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 10.375990503235498,
+      "result_count": 2
+    },
+    {
+      "query": "Docling Tika",
+      "expected": "Docling",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 18.494570971223915,
+      "result_count": 3
+    },
+    {
+      "query": "LLM 三级 fallback",
+      "expected": "fallback",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 50.484717968698774,
+      "result_count": 2
+    },
+    {
+      "query": "busy_timeout",
+      "expected": "busy_timeout",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 59.34251123787651,
+      "result_count": 1
+    },
+    {
+      "query": "io.LimitReader",
+      "expected": "LimitReader",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "defer recover",
+      "expected": "recover",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 30.38216077614088,
+      "result_count": 1
+    },
+    {
+      "query": "GetRelation 方法",
+      "expected": "GetRelation",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 25.466929421224975,
+      "result_count": 4
+    },
+    {
+      "query": "scanDest 结构体",
+      "expected": "scanDest",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 71.40643500585945,
+      "result_count": 2
+    },
+    {
+      "query": "scope 授权",
+      "expected": "scope",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 27.57366901206377,
+      "result_count": 2
+    },
+    {
+      "query": "TOCTOU 竞态",
+      "expected": "TOCTOU",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 30.201256239619475,
+      "result_count": 1
+    },
+    {
+      "query": "张伟 后端",
+      "expected": "张伟",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 26.031509455414007,
+      "result_count": 4
+    },
+    {
+      "query": "李明 前端",
+      "expected": "李明",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.9815284643947715,
+      "result_count": 2
+    },
+    {
+      "query": "王芳 产品",
+      "expected": "王芳",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.865690680359855,
+      "result_count": 1
+    },
+    {
+      "query": "陈浩 朋友",
+      "expected": "陈浩",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 18.36666867169384,
+      "result_count": 1
+    },
+    {
+      "query": "技术周会",
+      "expected": "技术周会",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.226587636084862,
+      "result_count": 3
+    },
+    {
+      "query": "4月15日 MCP",
+      "expected": "4月15日",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 54.32543597316944,
+      "result_count": 6
+    },
+    {
+      "query": "Q2 召回率",
+      "expected": "召回率",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 27.934771954716545,
+      "result_count": 3
+    },
+    {
+      "query": "v1.0 正式版",
+      "expected": "v1.0",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "OPENAI_API_KEY",
+      "expected": "OPENAI_API_KEY",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 48.28154910075468,
+      "result_count": 4
+    },
+    {
+      "query": "docker-compose",
+      "expected": "docker-compose",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.612410816337892,
+      "result_count": 2
+    },
+    {
+      "query": "GitHub Actions",
+      "expected": "GitHub Actions",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.921336372884978,
+      "result_count": 2
+    },
+    {
+      "query": "五层架构",
+      "expected": "五层",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.218887443011653,
+      "result_count": 1
+    },
+    {
+      "query": "MemoryStore 18方法",
+      "expected": "MemoryStore",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 46.109727170902346,
+      "result_count": 4
+    },
+    {
+      "query": "config.yaml 优先级",
+      "expected": "config.yaml",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "retention_tier",
+      "expected": "retention_tier",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 36.08699733900201,
+      "result_count": 2
+    },
+    {
+      "query": "Heartbeat 心跳",
+      "expected": "Heartbeat",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.674473499992622,
+      "result_count": 1
+    },
+    {
+      "query": "全栈开发",
+      "expected": "全栈",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.834316252260244,
+      "result_count": 5
+    },
+    {
+      "query": "5年后端经验",
+      "expected": "5年",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "Rust 重写",
+      "expected": "Rust",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 19.45104779437577,
+      "result_count": 1
+    },
+    {
+      "query": "mem_Tao",
+      "expected": "mem_Tao",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 39.275426875490126,
+      "result_count": 1
+    },
+    {
+      "query": "ingest_conversation",
+      "expected": "ingest_conversation",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 31.926092173317777,
+      "result_count": 1
+    },
+    {
+      "query": "Python SDK",
+      "expected": "Python SDK",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.180119255508833,
+      "result_count": 2
+    },
+    {
+      "query": "配置生成器",
+      "expected": "配置生成器",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 11.289872936658119,
+      "result_count": 8
+    },
+    {
+      "query": "实体抽取",
+      "expected": "实体抽取",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 17.824714450682244,
+      "result_count": 2
+    },
+    {
+      "query": "Codex CLI",
+      "expected": "Codex CLI",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.290804955832773,
+      "result_count": 2
+    },
+    {
+      "query": "小橘 橘猫",
+      "expected": "小橘",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 19.155653533030087,
+      "result_count": 1
+    },
+    {
+      "query": "打篮球",
+      "expected": "打篮球",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.757468005659948,
+      "result_count": 1
+    },
+    {
+      "query": "日本东京",
+      "expected": "东京",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.963044023920634,
+      "result_count": 1
+    },
+    {
+      "query": "DDIA",
+      "expected": "DDIA",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.348347418165297,
+      "result_count": 1
+    },
+    {
+      "query": "生日 10月",
+      "expected": "10月15日",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 6
+    },
+    {
+      "query": "MarkdownChunker",
+      "expected": "MarkdownChunker",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 8.030805514739276,
+      "result_count": 1
+    },
+    {
+      "query": "token 预算",
+      "expected": "token",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 16.061802010815583,
+      "result_count": 1
+    },
+    {
+      "query": "Content 权重",
+      "expected": "权重",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 13.38668810431494,
+      "result_count": 2
+    },
+    {
+      "query": "MaxOpen=5",
+      "expected": "MaxOpen",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "Rate limiter",
+      "expected": "Rate limiter",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.76949089448241,
+      "result_count": 1
+    },
+    {
+      "query": "Consolidation",
+      "expected": "Consolidation",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.790288533782487,
+      "result_count": 1
+    },
+    {
+      "query": "中间件链 CORS",
+      "expected": "CORS",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 39.34884555830631,
+      "result_count": 2
+    },
+    {
+      "query": "[]rune 中文",
+      "expected": "rune",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "幂等 迁移",
+      "expected": "幂等",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 37.16763581527318,
+      "result_count": 4
+    },
+    {
+      "query": "OOM Docling",
+      "expected": "OOM",
+      "category": "exact",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 26.443556521615516,
+      "result_count": 3
+    },
+    {
+      "query": "深色模式 编辑器",
+      "expected": "暗色主题",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 8.091487735467464,
+      "result_count": 4
+    },
+    {
+      "query": "夜间模式",
+      "expected": "暗色主题",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "代码编辑器键盘映射",
+      "expected": "Vim 键位",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "终端工具美化",
+      "expected": "powerlevel10k",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "后端开发语言选择",
+      "expected": "Go 语言",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 19.042526641767523,
+      "result_count": 7
+    },
+    {
+      "query": "不喜欢啰嗦的编程语言",
+      "expected": "Java",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 17.756344117282943,
+      "result_count": 10
+    },
+    {
+      "query": "早晨饮品习惯",
+      "expected": "美式咖啡",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "本地数据库选型",
+      "expected": "SQLite",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.623176547889708,
+      "result_count": 9
+    },
+    {
+      "query": "UI 设计风格",
+      "expected": "极简设计",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 22.514057784199565,
+      "result_count": 3
+    },
+    {
+      "query": "终端窗口分屏工具",
+      "expected": "tmux",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.86542253941142,
+      "result_count": 4
+    },
+    {
+      "query": "写作文档格式",
+      "expected": "Markdown",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 5.213840119484924,
+      "result_count": 3
+    },
+    {
+      "query": "云服务器地区",
+      "expected": "阿里云",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 10.014696930321447,
+      "result_count": 2
+    },
+    {
+      "query": "数据库技术栈变更",
+      "expected": "PostgreSQL",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 9,
+      "score": 2.9543883939854565,
+      "result_count": 10
+    },
+    {
+      "query": "向量搜索引擎",
+      "expected": "Qdrant",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.519311498782478,
+      "result_count": 1
+    },
+    {
+      "query": "全文检索排名算法",
+      "expected": "BM25",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 4.216280625106746,
+      "result_count": 3
+    },
+    {
+      "query": "HTTP 服务端口号",
+      "expected": "8080",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 4.603554483862792,
+      "result_count": 5
+    },
+    {
+      "query": "Web 框架选型",
+      "expected": "Gin",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.587053317468984,
+      "result_count": 1
+    },
+    {
+      "query": "结构化日志组件",
+      "expected": "Zap",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 15.545634187370558,
+      "result_count": 3
+    },
+    {
+      "query": "文本向量化模型",
+      "expected": "embedding",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 4.028438210319268,
+      "result_count": 4
+    },
+    {
+      "query": "数据库日志模式",
+      "expected": "WAL",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.416568683439203,
+      "result_count": 10
+    },
+    {
+      "query": "测试可视化界面",
+      "expected": "Vue 3",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 3.9792950808637015,
+      "result_count": 4
+    },
+    {
+      "query": "多路结果融合算法",
+      "expected": "RRF",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 19.964281216063004,
+      "result_count": 3
+    },
+    {
+      "query": "分词器选择",
+      "expected": "tokenizer",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.0891451499114355,
+      "result_count": 1
+    },
+    {
+      "query": "思考推理模块",
+      "expected": "reflect",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "Schema 升级方案",
+      "expected": "迁移",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.2386348287061075,
+      "result_count": 2
+    },
+    {
+      "query": "搜索词组合策略",
+      "expected": "OR",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 6.276686815001598,
+      "result_count": 2
+    },
+    {
+      "query": "AI 工具集成协议",
+      "expected": "MCP",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 7.175098649432283,
+      "result_count": 6
+    },
+    {
+      "query": "双写一致性策略",
+      "expected": "dual-write",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 6.276685754782963,
+      "result_count": 2
+    },
+    {
+      "query": "记忆衰退机制",
+      "expected": "衰减",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.315204753822289,
+      "result_count": 2
+    },
+    {
+      "query": "文档解析工具链",
+      "expected": "Docling",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 17.681169217153467,
+      "result_count": 8
+    },
+    {
+      "query": "数据库死锁问题",
+      "expected": "锁死",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 9,
+      "score": 5.659949547654947,
+      "result_count": 9
+    },
+    {
+      "query": "内存溢出问题",
+      "expected": "OOM",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "搜索召回率低",
+      "expected": "召回率",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 37.704279104142536,
+      "result_count": 4
+    },
+    {
+      "query": "协程异常处理",
+      "expected": "goroutine",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "接口方法缺失",
+      "expected": "GetRelation",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 16.471377758549096,
+      "result_count": 4
+    },
+    {
+      "query": "数据库升级回放失败",
+      "expected": "幂等",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 6,
+      "score": 3.910551266921748,
+      "result_count": 9
+    },
+    {
+      "query": "重复代码问题",
+      "expected": "scanDest",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 10.264800235885927,
+      "result_count": 2
+    },
+    {
+      "query": "权限检查遗漏",
+      "expected": "scope",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 8.976984933513416,
+      "result_count": 2
+    },
+    {
+      "query": "并发数据竞争",
+      "expected": "TOCTOU",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "后端负责人",
+      "expected": "张伟",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 18.22197371433578,
+      "result_count": 4
+    },
+    {
+      "query": "前端开发者",
+      "expected": "李明",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.587044589075078,
+      "result_count": 1
+    },
+    {
+      "query": "产品负责人",
+      "expected": "王芳",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 5.5529664807922625,
+      "result_count": 2
+    },
+    {
+      "query": "大学同学",
+      "expected": "陈浩",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.4283047521479935,
+      "result_count": 1
+    },
+    {
+      "query": "每周例会时间",
+      "expected": "周五",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "MCP 测试截止日期",
+      "expected": "4月15日",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 9.60540029285051,
+      "result_count": 7
+    },
+    {
+      "query": "季度 OKR 目标",
+      "expected": "Q2",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.517959558020813,
+      "result_count": 2
+    },
+    {
+      "query": "版本发布日期",
+      "expected": "5月1日",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 4.798943340692592,
+      "result_count": 3
+    },
+    {
+      "query": "API 密钥存储位置",
+      "expected": "OPENAI_API_KEY",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 5.275897377322353,
+      "result_count": 4
+    },
+    {
+      "query": "容器编排配置",
+      "expected": "docker-compose",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 5,
+      "score": 3.026462417384504,
+      "result_count": 9
+    },
+    {
+      "query": "持续集成流水线",
+      "expected": "GitHub Actions",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "系统分层设计",
+      "expected": "五层",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.218852929571556,
+      "result_count": 4
+    },
+    {
+      "query": "存储接口数量",
+      "expected": "MemoryStore",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 5.950048631279262,
+      "result_count": 3
+    },
+    {
+      "query": "配置文件加载规则",
+      "expected": "config.yaml",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.656467168176174,
+      "result_count": 1
+    },
+    {
+      "query": "记忆保留级别",
+      "expected": "retention_tier",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 6.315193822798301,
+      "result_count": 3
+    },
+    {
+      "query": "定时检查任务",
+      "expected": "Heartbeat",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "开发者技术栈",
+      "expected": "全栈",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "工作年限",
+      "expected": "5年",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "性能优化语言",
+      "expected": "Rust",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.623156573062287,
+      "result_count": 3
+    },
+    {
+      "query": "git 用户名",
+      "expected": "mem_Tao",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 9.818809809546403,
+      "result_count": 2
+    },
+    {
+      "query": "对话批量存储工具",
+      "expected": "ingest_conversation",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 16.031919403526448,
+      "result_count": 3
+    },
+    {
+      "query": "客户端开发库",
+      "expected": "Python SDK",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 5
+    },
+    {
+      "query": "配置可视化工具",
+      "expected": "配置生成器",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.854670964554252,
+      "result_count": 9
+    },
+    {
+      "query": "NLP 信息提取",
+      "expected": "实体抽取",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "CLI 插件集成",
+      "expected": "Codex CLI",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 12.761381703105599,
+      "result_count": 3
+    },
+    {
+      "query": "宠物猫",
+      "expected": "小橘",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "运动爱好",
+      "expected": "打篮球",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "海外出差",
+      "expected": "东京",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.5870377000188,
+      "result_count": 1
+    },
+    {
+      "query": "在读技术书",
+      "expected": "DDIA",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.543810307465842,
+      "result_count": 4
+    },
+    {
+      "query": "出生日期",
+      "expected": "10月15日",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "文档分块策略",
+      "expected": "MarkdownChunker",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 4.887835632061139,
+      "result_count": 5
+    },
+    {
+      "query": "上下文窗口大小限制",
+      "expected": "token",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "BM25 字段权重",
+      "expected": "权重",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 29.12817947293177,
+      "result_count": 3
+    },
+    {
+      "query": "数据库连接配置",
+      "expected": "MaxOpen",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 3.0828702117247215,
+      "result_count": 10
+    },
+    {
+      "query": "接口限流配置",
+      "expected": "Rate limiter",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 8,
+      "score": 3.0081107392668156,
+      "result_count": 10
+    },
+    {
+      "query": "记忆合并功能",
+      "expected": "Consolidation",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 15.228956517663262,
+      "result_count": 5
+    },
+    {
+      "query": "请求处理管道",
+      "expected": "中间件",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "Unicode 长度计算",
+      "expected": "rune",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "响应体大小限制",
+      "expected": "LimitReader",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 59.59840850778959,
+      "result_count": 3
+    },
+    {
+      "query": "异步任务安全",
+      "expected": "recover",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "并发写入冲突",
+      "expected": "UNIQUE 约束",
+      "category": "synonym",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 10.57036443456345,
+      "result_count": 3
+    },
+    {
+      "query": "我平时用什么主题",
+      "expected": "暗色主题",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 5.793842482551446,
+      "result_count": 10
+    },
+    {
+      "query": "我用的什么编辑器插件",
+      "expected": "Vim",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 6.466334303909597,
+      "result_count": 10
+    },
+    {
+      "query": "我的终端长什么样",
+      "expected": "powerlevel10k",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "我为什么选 Go",
+      "expected": "Go 语言",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 6.00771578072781,
+      "result_count": 5
+    },
+    {
+      "query": "我讨厌什么语言",
+      "expected": "Java",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "我早上喝什么",
+      "expected": "美式咖啡",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 13.49165761201197,
+      "result_count": 2
+    },
+    {
+      "query": "为什么不用大数据库",
+      "expected": "SQLite",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 4,
+      "score": 3.045026230344095,
+      "result_count": 10
+    },
+    {
+      "query": "我喜欢什么样的 UI",
+      "expected": "极简设计",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 6.640286439263004,
+      "result_count": 10
+    },
+    {
+      "query": "我用什么写文章",
+      "expected": "Markdown",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "服务器在哪里",
+      "expected": "阿里云",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.566485936763137,
+      "result_count": 10
+    },
+    {
+      "query": "为什么换了数据库",
+      "expected": "PostgreSQL",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 6.550304314594963,
+      "result_count": 10
+    },
+    {
+      "query": "向量库跑在哪",
+      "expected": "Qdrant",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.7958426924362385,
+      "result_count": 10
+    },
+    {
+      "query": "搜索是怎么排序的",
+      "expected": "BM25",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 4.68530691064161,
+      "result_count": 10
+    },
+    {
+      "query": "服务跑在哪个端口",
+      "expected": "8080",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 9.719188983066605,
+      "result_count": 10
+    },
+    {
+      "query": "用的什么 web 框架",
+      "expected": "Gin",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.385165677139786,
+      "result_count": 10
+    },
+    {
+      "query": "怎么打日志的",
+      "expected": "Zap",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 4.371502467365279,
+      "result_count": 10
+    },
+    {
+      "query": "embedding 用的啥",
+      "expected": "embedding",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.144319870294634,
+      "result_count": 10
+    },
+    {
+      "query": "数据库性能怎么调的",
+      "expected": "WAL",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 4,
+      "score": 3.0450220496844693,
+      "result_count": 10
+    },
+    {
+      "query": "前端用什么框架",
+      "expected": "Vue 3",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 8.406787058482397,
+      "result_count": 10
+    },
+    {
+      "query": "搜索结果怎么合在一起的",
+      "expected": "RRF",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.175056102770768,
+      "result_count": 10
+    },
+    {
+      "query": "为什么不用结巴分词",
+      "expected": "jieba",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "reflect 为什么单独放",
+      "expected": "循环依赖",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.972384553224596,
+      "result_count": 2
+    },
+    {
+      "query": "数据库怎么升级的",
+      "expected": "迁移",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 3.063823331878706,
+      "result_count": 10
+    },
+    {
+      "query": "搜索为什么用 OR",
+      "expected": "OR",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 20.709861982515847,
+      "result_count": 10
+    },
+    {
+      "query": "Qdrant 写失败怎么办",
+      "expected": "dual-write",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 15.624337420510695,
+      "result_count": 4
+    },
+    {
+      "query": "记忆会不会过期",
+      "expected": "衰减",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 6.315164657046052,
+      "result_count": 3
+    },
+    {
+      "query": "PDF 怎么解析的",
+      "expected": "Docling",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 22.47682802910469,
+      "result_count": 10
+    },
+    {
+      "query": "之前数据库卡住过吗",
+      "expected": "锁死",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 10,
+      "score": 5.6599132676627555,
+      "result_count": 10
+    },
+    {
+      "query": "遇到过内存炸了没",
+      "expected": "OOM",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 7
+    },
+    {
+      "query": "搜索不准怎么回事",
+      "expected": "召回率",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 8.976929455594036,
+      "result_count": 2
+    },
+    {
+      "query": "goroutine 挂了怎么办",
+      "expected": "recover",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 12.912277886025684,
+      "result_count": 6
+    },
+    {
+      "query": "接口少方法怎么处理的",
+      "expected": "GetRelation",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 16.47126855568538,
+      "result_count": 10
+    },
+    {
+      "query": "数据库重跑会崩吗",
+      "expected": "幂等",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 37.030999494796575,
+      "result_count": 8
+    },
+    {
+      "query": "有重复代码怎么改的",
+      "expected": "scanDest",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 20.529461047813417,
+      "result_count": 10
+    },
+    {
+      "query": "权限漏洞怎么回事",
+      "expected": "scope",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "并发写有什么问题",
+      "expected": "TOCTOU",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 7
+    },
+    {
+      "query": "项目里谁管后端",
+      "expected": "张伟",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 8.028482920127843,
+      "result_count": 7
+    },
+    {
+      "query": "谁写前端",
+      "expected": "李明",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "产品需求谁定的",
+      "expected": "王芳",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 12.955755207069123,
+      "result_count": 10
+    },
+    {
+      "query": "我最好的朋友是谁",
+      "expected": "陈浩",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 40.71105834116962,
+      "result_count": 10
+    },
+    {
+      "query": "每周什么时候开会",
+      "expected": "周五",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "MCP 什么时候要测完",
+      "expected": "4月15日",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 4,
+      "score": 4.80266563798357,
+      "result_count": 4
+    },
+    {
+      "query": "今年的检索目标是什么",
+      "expected": "95%",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 15.485516024526792,
+      "result_count": 10
+    },
+    {
+      "query": "正式版什么时候发",
+      "expected": "5月1日",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.51925925225555,
+      "result_count": 1
+    },
+    {
+      "query": "API key 放哪了",
+      "expected": "OPENAI_API_KEY",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 19.865148815016322,
+      "result_count": 8
+    },
+    {
+      "query": "怎么用 Docker 部署",
+      "expected": "docker-compose",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.8089085083223075,
+      "result_count": 10
+    },
+    {
+      "query": "CI 用的什么",
+      "expected": "GitHub Actions",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.784214244271142,
+      "result_count": 10
+    },
+    {
+      "query": "系统架构是怎样的",
+      "expected": "五层",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.218797831889083,
+      "result_count": 10
+    },
+    {
+      "query": "有多少个存储接口",
+      "expected": "8",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 11.304344942389008,
+      "result_count": 7
+    },
+    {
+      "query": "配置是怎么加载的",
+      "expected": "config.yaml",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 8.739272242297416,
+      "result_count": 10
+    },
+    {
+      "query": "记忆能保存多久",
+      "expected": "retention_tier",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.31514447494998,
+      "result_count": 2
+    },
+    {
+      "query": "有什么后台任务",
+      "expected": "Heartbeat",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "我是做什么的",
+      "expected": "全栈",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "我工作多久了",
+      "expected": "5年",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 7
+    },
+    {
+      "query": "我在学什么新语言",
+      "expected": "Rust",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "我家有宠物吗",
+      "expected": "小橘",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "周末都干嘛",
+      "expected": "打篮球",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "最近要出差吗",
+      "expected": "东京",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 10.444795177656747,
+      "result_count": 3
+    },
+    {
+      "query": "最近在看什么书",
+      "expected": "DDIA",
+      "category": "fuzzy",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 35.41792387465384,
+      "result_count": 10
+    },
+    {
+      "query": "我什么时候过生日",
+      "expected": "10月15日",
+      "category": "fuzzy",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "What theme does the user prefer",
+      "expected": "暗色主题",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "database migration reason",
+      "expected": "PostgreSQL",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "vector database setup",
+      "expected": "Qdrant",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "full text search algorithm",
+      "expected": "BM25",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "HTTP framework choice",
+      "expected": "Gin",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 4.995974765277739,
+      "result_count": 3
+    },
+    {
+      "query": "logging library",
+      "expected": "Zap",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "embedding model name",
+      "expected": "embedding",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.724028574602474,
+      "result_count": 2
+    },
+    {
+      "query": "frontend testing dashboard",
+      "expected": "Vue 3",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "result fusion algorithm",
+      "expected": "RRF",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 8.200021439743521,
+      "result_count": 1
+    },
+    {
+      "query": "tokenizer selection",
+      "expected": "tokenizer",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 8.608149246475607,
+      "result_count": 1
+    },
+    {
+      "query": "reflection engine design",
+      "expected": "reflect",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "memory decay model",
+      "expected": "衰减",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "document parsing pipeline",
+      "expected": "Docling",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "concurrent write issue",
+      "expected": "锁死",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "out of memory problem",
+      "expected": "OOM",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "search recall improvement",
+      "expected": "召回率",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "goroutine panic recovery",
+      "expected": "recover",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 27.34352375862561,
+      "result_count": 1
+    },
+    {
+      "query": "interface missing method",
+      "expected": "GetRelation",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "idempotent migration",
+      "expected": "幂等",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "code duplication refactor",
+      "expected": "scanDest",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "authorization check missing",
+      "expected": "scope",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "race condition TOCTOU",
+      "expected": "TOCTOU",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 12.080316064259641,
+      "result_count": 1
+    },
+    {
+      "query": "backend tech lead",
+      "expected": "张伟",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "product manager name",
+      "expected": "王芳",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "best friend info",
+      "expected": "陈浩",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "weekly meeting schedule",
+      "expected": "周五",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "Q2 OKR target",
+      "expected": "Q2",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.346177987302567,
+      "result_count": 1
+    },
+    {
+      "query": "release date v1.0",
+      "expected": "v1.0",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "API key storage",
+      "expected": "OPENAI_API_KEY",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 19.865085741153603,
+      "result_count": 3
+    },
+    {
+      "query": "CI/CD pipeline setup",
+      "expected": "GitHub Actions",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "system layer architecture",
+      "expected": "五层",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "config loading priority",
+      "expected": "config.yaml",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.464467052679884,
+      "result_count": 1
+    },
+    {
+      "query": "memory retention levels",
+      "expected": "retention_tier",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 11.310890641198782,
+      "result_count": 4
+    },
+    {
+      "query": "background health check",
+      "expected": "Heartbeat",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "user tech stack",
+      "expected": "全栈",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "user GitHub username",
+      "expected": "mem_Tao",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.829768821258608,
+      "result_count": 2
+    },
+    {
+      "query": "pet cat info",
+      "expected": "小橘",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "birthday date",
+      "expected": "10月15日",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "book currently reading",
+      "expected": "DDIA",
+      "category": "cross_lang",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "business trip plan",
+      "expected": "东京",
+      "category": "cross_lang",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "Go 语言 微服务 并发",
+      "expected": "Go 语言",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 58.56138552455816,
+      "result_count": 7
+    },
+    {
+      "query": "SQLite WAL 连接池",
+      "expected": "WAL",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 2,
+      "score": 11.346203160769146,
+      "result_count": 7
+    },
+    {
+      "query": "暗色主题 编辑器 终端",
+      "expected": "暗色主题",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 45.111451169242564,
+      "result_count": 3
+    },
+    {
+      "query": "BM25 权重 content abstract",
+      "expected": "BM25",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 27.77767400665024,
+      "result_count": 2
+    },
+    {
+      "query": "Gin Zap 中间件",
+      "expected": "Gin",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 13.595861660759175,
+      "result_count": 2
+    },
+    {
+      "query": "RRF 多路检索 k=60",
+      "expected": "RRF",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "Docling Tika fallback",
+      "expected": "Docling",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 37.891675396943825,
+      "result_count": 4
+    },
+    {
+      "query": "MCP stdio SSE 协议",
+      "expected": "MCP",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 45.66966539962276,
+      "result_count": 4
+    },
+    {
+      "query": "SQLite Qdrant 双写",
+      "expected": "dual-write",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 12.640848325625527,
+      "result_count": 9
+    },
+    {
+      "query": "Docker Compose Qdrant Docling",
+      "expected": "docker-compose",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 44.309646141429596,
+      "result_count": 5
+    },
+    {
+      "query": "张伟 Go 分布式",
+      "expected": "张伟",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 13.617340970213561,
+      "result_count": 4
+    },
+    {
+      "query": "陈浩 腾讯 算法",
+      "expected": "陈浩",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 25.551635981824123,
+      "result_count": 3
+    },
+    {
+      "query": "Go TypeScript 全栈",
+      "expected": "全栈",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 25.860064603139904,
+      "result_count": 4
+    },
+    {
+      "query": "阿里云 上海 ECS",
+      "expected": "阿里云",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 35.26685352144175,
+      "result_count": 2
+    },
+    {
+      "query": "FTS5 OR 中文 召回率",
+      "expected": "OR",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 74.84485331829599,
+      "result_count": 6
+    },
+    {
+      "query": "goroutine panic recover",
+      "expected": "recover",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 45.57243686255236,
+      "result_count": 1
+    },
+    {
+      "query": "TOCTOU SELECT INSERT 并发",
+      "expected": "TOCTOU",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 41.9035060255524,
+      "result_count": 3
+    },
+    {
+      "query": "Vue Vite 5173",
+      "expected": "Vue 3",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 22.762770770367126,
+      "result_count": 2
+    },
+    {
+      "query": "Vim VS Code IDEA 键位",
+      "expected": "Vim",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 56.050542191159465,
+      "result_count": 1
+    },
+    {
+      "query": "zsh oh-my-zsh powerlevel10k",
+      "expected": "oh-my-zsh",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 67.9953526815596,
+      "result_count": 1
+    },
+    {
+      "query": "日本 东京 AI 会议",
+      "expected": "东京",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 38.86524097321833,
+      "result_count": 2
+    },
+    {
+      "query": "DDIA 数据密集型应用",
+      "expected": "DDIA",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.945961323402522,
+      "result_count": 1
+    },
+    {
+      "query": "小橘 橘猫 3岁",
+      "expected": "小橘",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 39.17758330062272,
+      "result_count": 8
+    },
+    {
+      "query": "4月15日 MCP 测试 deadline",
+      "expected": "4月15日",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 55.47651755255881,
+      "result_count": 9
+    },
+    {
+      "query": "5月1日 v1.0 发布 SDK",
+      "expected": "v1.0",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "GraphStore GetRelation 归属验证",
+      "expected": "GetRelation",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 72.24050441500599,
+      "result_count": 2
+    },
+    {
+      "query": "scanDest scanMemory 重构",
+      "expected": "scanDest",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 43.9913784256726,
+      "result_count": 1
+    },
+    {
+      "query": "tag_handler scope 安全评分",
+      "expected": "tag_handler",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 114.14258978011419,
+      "result_count": 2
+    },
+    {
+      "query": "io.LimitReader Docling OOM",
+      "expected": "LimitReader",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "busy_timeout 并发 SQLite 锁",
+      "expected": "busy_timeout",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 80.83807335289143,
+      "result_count": 8
+    },
+    {
+      "query": "用户偏好 Go 不喜欢 Java",
+      "expected": "Go 语言",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 28.02457906262974,
+      "result_count": 10
+    },
+    {
+      "query": "tmux screen 终端多窗口",
+      "expected": "tmux",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 46.92619387190527,
+      "result_count": 2
+    },
+    {
+      "query": "Markdown 不用 Word 文档",
+      "expected": "Markdown",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 24.500178463582923,
+      "result_count": 4
+    },
+    {
+      "query": "PostgreSQL SQLite 迁移原因",
+      "expected": "PostgreSQL",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 21.152839808559392,
+      "result_count": 10
+    },
+    {
+      "query": "Embedding OpenAI 1536 维度",
+      "expected": "embedding",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 31.44883593023168,
+      "result_count": 2
+    },
+    {
+      "query": "reflect 独立包 循环依赖",
+      "expected": "reflect",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 69.17873277878047,
+      "result_count": 3
+    },
+    {
+      "query": "simple 分词 jieba 部署复杂",
+      "expected": "tokenizer",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 26.026866641727807,
+      "result_count": 4
+    },
+    {
+      "query": "V0 V11 迁移 幂等",
+      "expected": "幂等",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 66.57909832672667,
+      "result_count": 4
+    },
+    {
+      "query": "三层 fallback JSON 正则 LLM",
+      "expected": "fallback",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 57.08965408848083,
+      "result_count": 3
+    },
+    {
+      "query": "中文 rune 字节 chunk",
+      "expected": "rune",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 40.80105132348038,
+      "result_count": 3
+    },
+    {
+      "query": "Python SDK retain recall scan",
+      "expected": "Python SDK",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 62.487409119654814,
+      "result_count": 2
+    },
+    {
+      "query": "basic standard premium 模板",
+      "expected": "basic",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 46.56078322141327,
+      "result_count": 2
+    },
+    {
+      "query": "extract POST memories id",
+      "expected": "实体抽取",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 38.16254997852202,
+      "result_count": 2
+    },
+    {
+      "query": "Codex CLI integrations 集成",
+      "expected": "Codex CLI",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 37.33435407821386,
+      "result_count": 2
+    },
+    {
+      "query": "ingest conversation 批量 对话",
+      "expected": "ingest_conversation",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 47.88820222319725,
+      "result_count": 1
+    },
+    {
+      "query": "周六 篮球 体育馆",
+      "expected": "打篮球",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 9.757278126390501,
+      "result_count": 1
+    },
+    {
+      "query": "10月15日 生日",
+      "expected": "10月15日",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 6
+    },
+    {
+      "query": "8081 MCP SSE",
+      "expected": "8081",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 12.406908341968418,
+      "result_count": 4
+    },
+    {
+      "query": "test.db 测试数据库 独立",
+      "expected": "test.db",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "debug info 日志级别",
+      "expected": "日志级别",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 38.17038259774408,
+      "result_count": 3
+    },
+    {
+      "query": ".env OPENAI_API_KEY git",
+      "expected": "OPENAI_API_KEY",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "5年 阿里云 后端",
+      "expected": "阿里云",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 62.666679656607364,
+      "result_count": 10
+    },
+    {
+      "query": "Rust 重写 检索 性能",
+      "expected": "Rust",
+      "category": "compound",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 45.15383458427457,
+      "result_count": 4
+    },
+    {
+      "query": "mem_Tao GitHub 用户名",
+      "expected": "mem_Tao",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 67.44910401387426,
+      "result_count": 2
+    },
+    {
+      "query": "Heartbeat 衰减审计 孤儿清理",
+      "expected": "Heartbeat",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 62.69658866739673,
+      "result_count": 1
+    },
+    {
+      "query": "31字段 Memory 模型",
+      "expected": "31",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 23.958191340825145,
+      "result_count": 7
+    },
+    {
+      "query": "CORS RateLimit Auth Identity",
+      "expected": "CORS",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 56.56376454270487,
+      "result_count": 1
+    },
+    {
+      "query": "MarkdownChunker 标题 段落 递归",
+      "expected": "MarkdownChunker",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 48.18384632439062,
+      "result_count": 1
+    },
+    {
+      "query": "Consolidation 相似度 min_age",
+      "expected": "Consolidation",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 62.321031262091466,
+      "result_count": 1
+    },
+    {
+      "query": "retrieve 10req/s burst 20",
+      "expected": "Rate limiter",
+      "category": "compound",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "为什么搜索不准",
+      "expected": "召回率",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 8.976827563648294,
+      "result_count": 2
+    },
+    {
+      "query": "为什么不用外部数据库",
+      "expected": "SQLite",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 3.0449833173944567,
+      "result_count": 9
+    },
+    {
+      "query": "系统有几种搜索方式",
+      "expected": "三路",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 6
+    },
+    {
+      "query": "记忆会自动消失吗",
+      "expected": "衰减",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.485947214384199,
+      "result_count": 4
+    },
+    {
+      "query": "数据可靠性怎么保证",
+      "expected": "dual-write",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "搜索结果怎么排名",
+      "expected": "RRF",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 7.174963777908013,
+      "result_count": 3
+    },
+    {
+      "query": "为什么要做实体抽取",
+      "expected": "实体抽取",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 18.715548295875305,
+      "result_count": 10
+    },
+    {
+      "query": "文档怎么导入系统",
+      "expected": "Docling",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 5.68287593752525,
+      "result_count": 4
+    },
+    {
+      "query": "怎么跟 AI 工具集成",
+      "expected": "MCP",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 4.8577592368784,
+      "result_count": 5
+    },
+    {
+      "query": "系统安全性如何",
+      "expected": "scope",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "部署需要哪些组件",
+      "expected": "docker-compose",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 5
+    },
+    {
+      "query": "测试环境怎么搭",
+      "expected": "test.db",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "项目有 SDK 吗",
+      "expected": "Python SDK",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 5.484408715882923,
+      "result_count": 10
+    },
+    {
+      "query": "配置文件怎么管理",
+      "expected": "config.yaml",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "日志怎么查",
+      "expected": "Zap",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 4.371440219478632,
+      "result_count": 3
+    },
+    {
+      "query": "API 有速率限制吗",
+      "expected": "Rate limiter",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 8
+    },
+    {
+      "query": "大文件会不会出问题",
+      "expected": "LimitReader",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 5
+    },
+    {
+      "query": "并发安全怎么做",
+      "expected": "busy_timeout",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 9.029324226237627,
+      "result_count": 9
+    },
+    {
+      "query": "知识图谱是做什么的",
+      "expected": "GraphStore",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "中文搜索有什么坑",
+      "expected": "rune",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "怎么理解记忆的强度",
+      "expected": "strength",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "项目的 CI 流程",
+      "expected": "GitHub Actions",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 6.385070208946951,
+      "result_count": 10
+    },
+    {
+      "query": "反思引擎有什么用",
+      "expected": "reflect",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 20.464341622036205,
+      "result_count": 10
+    },
+    {
+      "query": "分块策略怎么设计",
+      "expected": "MarkdownChunker",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 4.88774736542415,
+      "result_count": 5
+    },
+    {
+      "query": "怎么避免重复记忆",
+      "expected": "Consolidation",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "过期记忆怎么处理",
+      "expected": "Heartbeat",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 5
+    },
+    {
+      "query": "项目的技术栈是什么",
+      "expected": "Go",
+      "category": "context",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 14.706371597963047,
+      "result_count": 10
+    },
+    {
+      "query": "有几种记忆类型",
+      "expected": "retention_tier",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 11.997936000085925,
+      "result_count": 4
+    },
+    {
+      "query": "请求处理流程是怎样的",
+      "expected": "中间件",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "为什么要三级 fallback",
+      "expected": "fallback",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 25.000189779020623,
+      "result_count": 4
+    },
+    {
+      "query": "怎么保证迁移安全",
+      "expected": "幂等",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 5.428342262678067,
+      "result_count": 6
+    },
+    {
+      "query": "代码规模有多大",
+      "expected": "Store",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "谁在用这个项目",
+      "expected": "Codex CLI",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "有没有前端界面",
+      "expected": "Vue 3",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.55285025260601,
+      "result_count": 1
+    },
+    {
+      "query": "向量搜索怎么做",
+      "expected": "Qdrant",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.519185378028651,
+      "result_count": 9
+    },
+    {
+      "query": "全文搜索引擎是什么",
+      "expected": "FTS5",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.388513729650404,
+      "result_count": 10
+    },
+    {
+      "query": "MCP 有哪些工具",
+      "expected": "ingest_conversation",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 10.760236319155167,
+      "result_count": 8
+    },
+    {
+      "query": "怎么配置不同环境",
+      "expected": "basic",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 7,
+      "score": 3.026400038265582,
+      "result_count": 10
+    },
+    {
+      "query": "对话记录怎么保存",
+      "expected": "ingest_conversation",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.586926465218062,
+      "result_count": 1
+    },
+    {
+      "query": "实体关系怎么提取",
+      "expected": "LLM",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 6.238494020037001,
+      "result_count": 3
+    },
+    {
+      "query": "数据一致性怎么保证",
+      "expected": "事务",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "接口有文档吗",
+      "expected": "API",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 8
+    },
+    {
+      "query": "系统扩展性如何",
+      "expected": "Qdrant",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "性能瓶颈在哪",
+      "expected": "SQLite",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "有没有缓存机制",
+      "expected": "mmap",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "怎么做自动化测试",
+      "expected": "test",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 3.9792032934712,
+      "result_count": 10
+    },
+    {
+      "query": "项目有几个二进制",
+      "expected": "cmd",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 8
+    },
+    {
+      "query": "用户的学习计划",
+      "expected": "Rust",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 15.701971285833094,
+      "result_count": 10
+    },
+    {
+      "query": "谁是技术决策者",
+      "expected": "张伟",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 6.194632671839459,
+      "result_count": 10
+    },
+    {
+      "query": "项目最近的变更",
+      "expected": "FTS5",
+      "category": "context",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 9,
+      "score": 1.8727163056464786,
+      "result_count": 10
+    },
+    {
+      "query": "张伟",
+      "expected": "张伟",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.932631176187912,
+      "result_count": 1
+    },
+    {
+      "query": "李明",
+      "expected": "李明",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.9813127174172696,
+      "result_count": 1
+    },
+    {
+      "query": "王芳",
+      "expected": "王芳",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.93263095196284,
+      "result_count": 1
+    },
+    {
+      "query": "陈浩",
+      "expected": "陈浩",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.183086229867587,
+      "result_count": 1
+    },
+    {
+      "query": "小橘",
+      "expected": "小橘",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.577577396754677,
+      "result_count": 1
+    },
+    {
+      "query": "SQLite",
+      "expected": "SQLite",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 4.682924214985348,
+      "result_count": 7
+    },
+    {
+      "query": "Qdrant",
+      "expected": "Qdrant",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 8.068839470402434,
+      "result_count": 3
+    },
+    {
+      "query": "Gin",
+      "expected": "Gin",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.025859636408233,
+      "result_count": 2
+    },
+    {
+      "query": "Zap",
+      "expected": "Zap",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.981310391700705,
+      "result_count": 1
+    },
+    {
+      "query": "Vue",
+      "expected": "Vue",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 6.939623104852185,
+      "result_count": 2
+    },
+    {
+      "query": "Vite",
+      "expected": "Vite",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.93262863606793,
+      "result_count": 1
+    },
+    {
+      "query": "Docker",
+      "expected": "Docker",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.2610291565933265,
+      "result_count": 2
+    },
+    {
+      "query": "GitHub",
+      "expected": "GitHub",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 8.5371143256724,
+      "result_count": 2
+    },
+    {
+      "query": "OpenAI",
+      "expected": "OpenAI",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 6.982472137531455,
+      "result_count": 2
+    },
+    {
+      "query": "阿里云",
+      "expected": "阿里云",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 16.354009427409167,
+      "result_count": 2
+    },
+    {
+      "query": "腾讯",
+      "expected": "腾讯",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.18308419496937,
+      "result_count": 1
+    },
+    {
+      "query": "东京",
+      "expected": "东京",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.981312822601172,
+      "result_count": 1
+    },
+    {
+      "query": "Rust",
+      "expected": "Rust",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.98908489573505,
+      "result_count": 1
+    },
+    {
+      "query": "Go",
+      "expected": "Go",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 5.984348828718793,
+      "result_count": 4
+    },
+    {
+      "query": "Java",
+      "expected": "Java",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.577569818079423,
+      "result_count": 1
+    },
+    {
+      "query": "TypeScript",
+      "expected": "TypeScript",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.519156027717278,
+      "result_count": 1
+    },
+    {
+      "query": "Python",
+      "expected": "Python",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 8.324237109989904,
+      "result_count": 1
+    },
+    {
+      "query": "Docling",
+      "expected": "Docling",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 8.11835492892917,
+      "result_count": 3
+    },
+    {
+      "query": "Tika",
+      "expected": "Tika",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 10.375701655042459,
+      "result_count": 1
+    },
+    {
+      "query": "BM25",
+      "expected": "BM25",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.6978627543652705,
+      "result_count": 1
+    },
+    {
+      "query": "RRF",
+      "expected": "RRF",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 10.249895961030973,
+      "result_count": 1
+    },
+    {
+      "query": "MCP",
+      "expected": "MCP",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 5.75477076656822,
+      "result_count": 4
+    },
+    {
+      "query": "FTS5",
+      "expected": "FTS5",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 5.754771952839397,
+      "result_count": 4
+    },
+    {
+      "query": "WAL",
+      "expected": "WAL",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.981307865844276,
+      "result_count": 1
+    },
+    {
+      "query": "DDIA",
+      "expected": "DDIA",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.348100740766059,
+      "result_count": 1
+    },
+    {
+      "query": "Codex",
+      "expected": "Codex",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.307953111661869,
+      "result_count": 2
+    },
+    {
+      "query": "Heartbeat",
+      "expected": "Heartbeat",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.837025537527268,
+      "result_count": 1
+    },
+    {
+      "query": "Vim",
+      "expected": "Vim",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.862822534452194,
+      "result_count": 1
+    },
+    {
+      "query": "tmux",
+      "expected": "tmux",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.636707464753844,
+      "result_count": 1
+    },
+    {
+      "query": "Markdown",
+      "expected": "Markdown",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.519150107780867,
+      "result_count": 1
+    },
+    {
+      "query": "powerlevel10k",
+      "expected": "powerlevel10k",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.577567423012768,
+      "result_count": 1
+    },
+    {
+      "query": "oh-my-zsh",
+      "expected": "oh-my-zsh",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 48.36369190598547,
+      "result_count": 1
+    },
+    {
+      "query": "MemoryStore",
+      "expected": "MemoryStore",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 9.775773826839382,
+      "result_count": 1
+    },
+    {
+      "query": "GraphStore",
+      "expected": "GraphStore",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 12.898981184784827,
+      "result_count": 2
+    },
+    {
+      "query": "MarkdownChunker",
+      "expected": "MarkdownChunker",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 8.030592834340212,
+      "result_count": 1
+    },
+    {
+      "query": "scanDest",
+      "expected": "scanDest",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.663657098992896,
+      "result_count": 1
+    },
+    {
+      "query": "mem_Tao",
+      "expected": "mem_Tao",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 39.27437181889242,
+      "result_count": 1
+    },
+    {
+      "query": "iclude",
+      "expected": "iclude",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 6.897289915216496,
+      "result_count": 2
+    },
+    {
+      "query": "Consolidation",
+      "expected": "Consolidation",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 7.790082312773577,
+      "result_count": 1
+    },
+    {
+      "query": "LimitReader",
+      "expected": "LimitReader",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.835211159518146,
+      "result_count": 1
+    },
+    {
+      "query": "TOCTOU",
+      "expected": "TOCTOU",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 15.100206477954012,
+      "result_count": 1
+    },
+    {
+      "query": "GetRelation",
+      "expected": "GetRelation",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 14.835211053626923,
+      "result_count": 1
+    },
+    {
+      "query": "tag_handler",
+      "expected": "tag_handler",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 55.14579410135746,
+      "result_count": 2
+    },
+    {
+      "query": "busy_timeout",
+      "expected": "busy_timeout",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 59.34083819158028,
+      "result_count": 1
+    },
+    {
+      "query": "text-embedding-3-small",
+      "expected": "text-embedding-3-small",
+      "category": "entity",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 52.93466606928433,
+      "result_count": 8
+    },
+    {
+      "query": "我有什么宠物",
+      "expected": "小橘",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "我周末有什么活动",
+      "expected": "打篮球",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "下次旅行去哪",
+      "expected": "东京",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.586913582595262,
+      "result_count": 1
+    },
+    {
+      "query": "有什么好书推荐",
+      "expected": "DDIA",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "我多大了",
+      "expected": "10月15日",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 7
+    },
+    {
+      "query": "我认识谁在大厂工作",
+      "expected": "腾讯",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 15.507749469292301,
+      "result_count": 10
+    },
+    {
+      "query": "团队有几个人",
+      "expected": "张伟",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "我会几种语言",
+      "expected": "Go",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.793719973341195,
+      "result_count": 2
+    },
+    {
+      "query": "项目最大的技术挑战",
+      "expected": "召回率",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "系统最脆弱的部分",
+      "expected": "SQLite",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "还有什么功能没做完",
+      "expected": "v1.0",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 8
+    },
+    {
+      "query": "需要注意的安全问题",
+      "expected": "scope",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 13.76364962323583,
+      "result_count": 10
+    },
+    {
+      "query": "影响搜索效果的因素",
+      "expected": "BM25",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 4.685208230853772,
+      "result_count": 10
+    },
+    {
+      "query": "数据丢失的风险",
+      "expected": "dual-write",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "部署时要注意什么",
+      "expected": "docker-compose",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "代码质量如何保证",
+      "expected": "GitHub Actions",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "用户体验怎么优化",
+      "expected": "极简设计",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 7,
+      "score": 2.47090886660914,
+      "result_count": 10
+    },
+    {
+      "query": "存储成本怎么控制",
+      "expected": "SQLite",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 6.622992334889097,
+      "result_count": 3
+    },
+    {
+      "query": "开发效率工具有哪些",
+      "expected": "tmux",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 8
+    },
+    {
+      "query": "文档管理方式",
+      "expected": "Markdown",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 5.213695098256902,
+      "result_count": 4
+    },
+    {
+      "query": "监控告警方案",
+      "expected": "Heartbeat",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "扩展性瓶颈",
+      "expected": "Qdrant",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "接口设计质量",
+      "expected": "MemoryStore",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 5.949899657970165,
+      "result_count": 4
+    },
+    {
+      "query": "测试覆盖情况",
+      "expected": "test",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 3.9791877831973954,
+      "result_count": 4
+    },
+    {
+      "query": "数据备份策略",
+      "expected": "SQLite",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 6.276517574550371,
+      "result_count": 2
+    },
+    {
+      "query": "代码风格规范",
+      "expected": "Zap",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "上线前要检查什么",
+      "expected": "scope",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 8.976749663851278,
+      "result_count": 3
+    },
+    {
+      "query": "历史遗留问题",
+      "expected": "V10",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "最近踩过的坑",
+      "expected": "OOM",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "性能调优手段",
+      "expected": "WAL",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "中文场景的特殊处理",
+      "expected": "rune",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 6,
+      "score": 8.031367311532964,
+      "result_count": 10
+    },
+    {
+      "query": "项目依赖了哪些外部服务",
+      "expected": "OpenAI",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "有哪些自动化工具",
+      "expected": "配置生成器",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 4.828088501438654,
+      "result_count": 5
+    },
+    {
+      "query": "运维复杂度",
+      "expected": "docker-compose",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "用户画像",
+      "expected": "全栈",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 9,
+      "score": 2.4709065783764013,
+      "result_count": 10
+    },
+    {
+      "query": "工作生活平衡",
+      "expected": "打篮球",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "技术选型理由",
+      "expected": "Go 语言",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "团队协作方式",
+      "expected": "周五",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "知识管理方法",
+      "expected": "ingest_conversation",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 7
+    },
+    {
+      "query": "最近的里程碑",
+      "expected": "MCP",
+      "category": "implicit",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "不用 PostgreSQL 的原因",
+      "expected": "PostgreSQL",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 10.77278731981237,
+      "result_count": 10
+    },
+    {
+      "query": "不喜欢 Java",
+      "expected": "Java",
+      "category": "negation",
+      "difficulty": "easy",
+      "hit": true,
+      "rank": 1,
+      "score": 41.32985136735815,
+      "result_count": 6
+    },
+    {
+      "query": "不用 screen",
+      "expected": "tmux",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 19.273332476948468,
+      "result_count": 1
+    },
+    {
+      "query": "不用 Word",
+      "expected": "Markdown",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 8.091242893678901,
+      "result_count": 2
+    },
+    {
+      "query": "不用 jieba 分词",
+      "expected": "simple tokenizer",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 8.60210561264912,
+      "result_count": 2
+    },
+    {
+      "query": "Qdrant 失败不回滚",
+      "expected": "dual-write",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 69.94300566507854,
+      "result_count": 3
+    },
+    {
+      "query": "没有 ON DELETE CASCADE",
+      "expected": "级联",
+      "category": "negation",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "缺少 GetRelation",
+      "expected": "GetRelation",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 27.73407052817662,
+      "result_count": 2
+    },
+    {
+      "query": "不支持交互式输入",
+      "expected": "MCP",
+      "category": "negation",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 4,
+      "score": 3.7061842147326245,
+      "result_count": 8
+    },
+    {
+      "query": "不喜欢动画效果",
+      "expected": "极简设计",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 24.410410988538807,
+      "result_count": 6
+    },
+    {
+      "query": "不喜欢过多装饰",
+      "expected": "极简设计",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 17.74703567650484,
+      "result_count": 6
+    },
+    {
+      "query": "不用 Google Docs",
+      "expected": "Markdown",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 25.701577628239907,
+      "result_count": 2
+    },
+    {
+      "query": "Spring Boot 太冗长",
+      "expected": "Java",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 34.479068982875454,
+      "result_count": 1
+    },
+    {
+      "query": "jieba 部署复杂不用",
+      "expected": "simple",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 15.308271465629971,
+      "result_count": 5
+    },
+    {
+      "query": "非幂等迁移 V10",
+      "expected": "V10",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 58.170262066743824,
+      "result_count": 4
+    },
+    {
+      "query": "mock 测试预测不准",
+      "expected": "元数据",
+      "category": "negation",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "白名单不能有兜底",
+      "expected": "白名单",
+      "category": "negation",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "不要绕过 Manager",
+      "expected": "Manager",
+      "category": "negation",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 8.765505536879164,
+      "result_count": 1
+    },
+    {
+      "query": "不能直接调 Store 写",
+      "expected": "Manager",
+      "category": "negation",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 7.173144723190901,
+      "result_count": 4
+    },
+    {
+      "query": "避免 len(s) 处理中文",
+      "expected": "rune",
+      "category": "negation",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 42.84019472619256,
+      "result_count": 8
+    },
+    {
+      "query": "最近的代码改动",
+      "expected": "FTS5",
+      "category": "temporal",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 4,
+      "score": 1.872704010051652,
+      "result_count": 10
+    },
+    {
+      "query": "上周修了什么 bug",
+      "expected": "FTS5",
+      "category": "temporal",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 3.7290630853024744,
+      "result_count": 5
+    },
+    {
+      "query": "下个月的计划",
+      "expected": "东京",
+      "category": "temporal",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.586882780933456,
+      "result_count": 10
+    },
+    {
+      "query": "这个季度目标",
+      "expected": "Q2",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 4.828074601777913,
+      "result_count": 2
+    },
+    {
+      "query": "4月份要做什么",
+      "expected": "MCP",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.519139499565904,
+      "result_count": 9
+    },
+    {
+      "query": "5月份的截止日期",
+      "expected": "v1.0",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 5,
+      "score": 2.8364765634264564,
+      "result_count": 10
+    },
+    {
+      "query": "3月底做了什么",
+      "expected": "V8",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 18.035561299612308,
+      "result_count": 10
+    },
+    {
+      "query": "每天早上做什么",
+      "expected": "美式咖啡",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 20.236946725823856,
+      "result_count": 7
+    },
+    {
+      "query": "每周五要做什么",
+      "expected": "周五",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 5.586877195395219,
+      "result_count": 9
+    },
+    {
+      "query": "每周六做什么",
+      "expected": "打篮球",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 6.829998639816299,
+      "result_count": 7
+    },
+    {
+      "query": "今年的发布计划",
+      "expected": "v1.0",
+      "category": "temporal",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 4.798800348110356,
+      "result_count": 10
+    },
+    {
+      "query": "最近的 deadline",
+      "expected": "4月15日",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "什么时候迁移完的数据库",
+      "expected": "3月底",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 7.092055986367801,
+      "result_count": 10
+    },
+    {
+      "query": "猫养了几年",
+      "expected": "3岁",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 5
+    },
+    {
+      "query": "认识朋友多久了",
+      "expected": "大学",
+      "category": "temporal",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 12.856216683320591,
+      "result_count": 6
+    },
+    {
+      "query": "commit 4da099c 做了什么",
+      "expected": "FTS5",
+      "category": "temporal",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 26.47693191231644,
+      "result_count": 10
+    },
+    {
+      "query": "上一次安全事故",
+      "expected": "tag_handler",
+      "category": "temporal",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 0
+    },
+    {
+      "query": "最新完成的功能",
+      "expected": "ingest_conversation",
+      "category": "temporal",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 6,
+      "score": 3.4553976345844992,
+      "result_count": 10
+    },
+    {
+      "query": "什么时候开始学 Rust",
+      "expected": "Rust",
+      "category": "temporal",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 8.490652316482054,
+      "result_count": 1
+    },
+    {
+      "query": "过生日是哪天",
+      "expected": "10月15日",
+      "category": "temporal",
+      "difficulty": "easy",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    }
+  ],
+  "duration": 13765621422,
+  "git_commit": "3de978b"
+}

@@ -2,8 +2,10 @@ package eval_test
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	eval "iclude/testing/eval"
@@ -140,6 +142,80 @@ func TestEvalHybridRerankFull500(t *testing.T) {
 
 	require.NoError(t, eval.SaveBaseline(report, "hybrid-rerank-v1", "baselines"))
 	t.Logf("Hybrid+rerank baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
+// TestEvalGseFull500 gse 分词器 FTS-only 评测
+func TestEvalGseFull500(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "retrieval-500.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/retrieval-500.json not found")
+	}
+
+	ds, err := eval.LoadDatasetFromJSON(datasetPath)
+	require.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	runner, cleanup, err := eval.NewRunner(filepath.Join(tmpDir, "gse.db"), "fts", eval.WithTokenizer("gse"))
+	require.NoError(t, err)
+	defer cleanup()
+
+	report, err := runner.Run(context.Background(), ds, "fts (gse)")
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	require.NoError(t, eval.SaveBaseline(report, "fts-gse-v1", "baselines"))
+	t.Logf("GSE baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
+// TestEvalJiebaFull500 jieba 分词器 FTS-only 评测（需要 jieba 服务）
+func TestEvalJiebaFull500(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "retrieval-500.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/retrieval-500.json not found")
+	}
+
+	// 检查 jieba 服务是否可用
+	resp, err := http.Post("http://localhost:8866/tokenize", "application/json",
+		strings.NewReader(`{"text":"测试","cut_all":false}`))
+	if err != nil || resp.StatusCode != 200 {
+		t.Skip("skip: jieba service not available at localhost:8866")
+	}
+	resp.Body.Close()
+
+	ds, err := eval.LoadDatasetFromJSON(datasetPath)
+	require.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	runner, cleanup, err := eval.NewRunner(filepath.Join(tmpDir, "jieba.db"), "fts", eval.WithTokenizer("jieba"))
+	require.NoError(t, err)
+	defer cleanup()
+
+	report, err := runner.Run(context.Background(), ds, "fts (jieba)")
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	require.NoError(t, eval.SaveBaseline(report, "fts-jieba-v1", "baselines"))
+	t.Logf("Jieba baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
+// TestLongMemEvalOracle 运行 LongMemEval oracle 数据集（Simple tokenizer, FTS-only）
+func TestLongMemEvalOracle(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found, run longmemeval_adapter.py first")
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval questions", len(entries))
+
+	tmpDir := t.TempDir()
+	report, err := eval.RunLongMemEval(context.Background(), entries, tmpDir)
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	require.NoError(t, eval.SaveBaseline(report, "longmemeval-oracle-fts-v1", "baselines"))
+	t.Logf("LongMemEval baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
 }
 
 func TestRegressionCheck(t *testing.T) {

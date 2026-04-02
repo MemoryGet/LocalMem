@@ -44,13 +44,38 @@ func NewTestRunner(t *testing.T) (*Runner, func()) {
 	return r, cleanup
 }
 
+// RunnerOption 运行器配置选项 / Runner configuration option
+type RunnerOption func(*runnerOpts)
+
+type runnerOpts struct {
+	tokenizerName string // simple | gse | jieba
+	jiebaURL      string
+}
+
+// WithTokenizer 指定分词器 / Specify tokenizer
+func WithTokenizer(name string) RunnerOption {
+	return func(o *runnerOpts) { o.tokenizerName = name }
+}
+
+// WithJiebaURL 指定 jieba 服务地址 / Specify jieba service URL
+func WithJiebaURL(url string) RunnerOption {
+	return func(o *runnerOpts) { o.jiebaURL = url }
+}
+
 // NewRunner 创建指定模式的评测运行器 / Creates an evaluation runner for the specified mode.
 // Modes: "fts" (FTS-only), "hybrid" (FTS + preprocess + LLM), "hybrid+rerank" (hybrid + overlap rerank).
-func NewRunner(dbPath string, mode string) (*Runner, func(), error) {
+func NewRunner(dbPath string, mode string, opts ...RunnerOption) (*Runner, func(), error) {
 	ctx := context.Background()
 
-	// 使用 Simple 分词器（CJK 逐字拆分），与线上配置一致 / Use Simple tokenizer matching production config
-	tok := tokenizer.NewSimpleTokenizer()
+	o := &runnerOpts{tokenizerName: "simple", jiebaURL: "http://localhost:8866"}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	tok, err := buildTokenizer(o)
+	if err != nil {
+		return nil, nil, fmt.Errorf("NewRunner: create tokenizer: %w", err)
+	}
 	bm25Weights := [3]float64{10.0, 5.0, 3.0}
 
 	memStore, err := store.NewSQLiteMemoryStore(dbPath, bm25Weights, tok)
@@ -88,6 +113,18 @@ func NewRunner(dbPath string, mode string) (*Runner, func(), error) {
 		dbPath:    dbPath,
 	}
 	return r, func() { _ = memStore.Close() }, nil
+}
+
+// buildTokenizer 根据名称创建分词器 / Create tokenizer by name
+func buildTokenizer(o *runnerOpts) (tokenizer.Tokenizer, error) {
+	switch o.tokenizerName {
+	case "gse":
+		return tokenizer.NewGseTokenizer("", nil)
+	case "jieba":
+		return tokenizer.NewJiebaTokenizer(o.jiebaURL), nil
+	default:
+		return tokenizer.NewSimpleTokenizer(), nil
+	}
 }
 
 // resolveLLMProvider 从环境变量创建 LLM Provider / Create LLM provider from env vars
