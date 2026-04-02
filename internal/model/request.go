@@ -39,6 +39,10 @@ type CreateMemoryRequest struct {
 	// V6: 身份与可见性 / Identity & Visibility
 	OwnerID    string `json:"-"`                    // API 层注入 / Injected by API layer
 	Visibility string `json:"visibility,omitempty"` // private(default) / team / public
+
+	// V12: Memory evolution layer / 记忆演化层级
+	MemoryClass string   `json:"memory_class,omitempty"` // episodic(default) / semantic / procedural
+	DerivedFrom []string `json:"derived_from,omitempty"` // 来源记忆 ID / Source memory IDs
 }
 
 // UpdateMemoryRequest 更新记忆请求 / Update memory request DTO
@@ -89,6 +93,9 @@ type RetrieveRequest struct {
 	RerankEnabled  *bool    `json:"rerank_enabled,omitempty"`  // nil=使用配置文件默认值 / nil=use config default
 	RerankProvider string   `json:"rerank_provider,omitempty"` // overlap | remote
 	NoRetry        bool     `json:"-"`                         // 内部标记，防止自适应重试递归 / Internal flag to prevent adaptive retry recursion
+
+	// V12: Memory class filter / 记忆层级过滤
+	MemoryClass string `json:"memory_class,omitempty"` // 过滤指定层级 / Filter by memory class
 }
 
 // ListRequest 分页列表请求 / Paginated list request DTO
