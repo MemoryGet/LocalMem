@@ -90,6 +90,58 @@ func TestSaveFirstBaseline(t *testing.T) {
 	t.Logf("Baseline saved to %s/fts-v1.json", baseDir)
 }
 
+// TestEvalHybridFull500 运行 hybrid 模式全量评测（需要 LLM API key）
+func TestEvalHybridFull500(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "retrieval-500.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/retrieval-500.json not found")
+	}
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		t.Skip("skip: OPENAI_API_KEY not set, hybrid mode requires LLM")
+	}
+
+	ds, err := eval.LoadDatasetFromJSON(datasetPath)
+	require.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	runner, cleanup, err := eval.NewRunner(filepath.Join(tmpDir, "hybrid.db"), "hybrid")
+	require.NoError(t, err)
+	defer cleanup()
+
+	report, err := runner.Run(context.Background(), ds, "hybrid")
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	require.NoError(t, eval.SaveBaseline(report, "hybrid-v1", "baselines"))
+	t.Logf("Hybrid baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
+// TestEvalHybridRerankFull500 运行 hybrid+rerank 模式全量评测
+func TestEvalHybridRerankFull500(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "retrieval-500.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/retrieval-500.json not found")
+	}
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		t.Skip("skip: OPENAI_API_KEY not set, hybrid+rerank mode requires LLM")
+	}
+
+	ds, err := eval.LoadDatasetFromJSON(datasetPath)
+	require.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	runner, cleanup, err := eval.NewRunner(filepath.Join(tmpDir, "rerank.db"), "hybrid+rerank")
+	require.NoError(t, err)
+	defer cleanup()
+
+	report, err := runner.Run(context.Background(), ds, "hybrid+rerank")
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	require.NoError(t, eval.SaveBaseline(report, "hybrid-rerank-v1", "baselines"))
+	t.Logf("Hybrid+rerank baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
 func TestRegressionCheck(t *testing.T) {
 	baseDir := "baselines"
 	names, err := eval.ListBaselines(baseDir)

@@ -4,6 +4,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"iclude/internal/config"
+	"iclude/internal/llm"
 	"iclude/internal/memory"
 	"iclude/internal/model"
 	"iclude/internal/search"
@@ -43,12 +45,13 @@ func NewTestRunner(t *testing.T) (*Runner, func()) {
 }
 
 // NewRunner 创建指定模式的评测运行器 / Creates an evaluation runner for the specified mode.
-// Modes: "fts" (FTS-only), "hybrid" (FTS + preprocess), "hybrid+rerank" (FTS + preprocess + overlap rerank).
+// Modes: "fts" (FTS-only), "hybrid" (FTS + preprocess + LLM), "hybrid+rerank" (hybrid + overlap rerank).
 func NewRunner(dbPath string, mode string) (*Runner, func(), error) {
 	ctx := context.Background()
 
-	tok := tokenizer.NewNoopTokenizer()
-	bm25Weights := [3]float64{1.0, 0.5, 0.3}
+	// 使用 Simple 分词器（CJK 逐字拆分），与线上配置一致 / Use Simple tokenizer matching production config
+	tok := tokenizer.NewSimpleTokenizer()
+	bm25Weights := [3]float64{10.0, 5.0, 3.0}
 
 	memStore, err := store.NewSQLiteMemoryStore(dbPath, bm25Weights, tok)
 	if err != nil {
@@ -59,16 +62,23 @@ func NewRunner(dbPath string, mode string) (*Runner, func(), error) {
 		return nil, nil, fmt.Errorf("NewRunner: init sqlite store: %w", err)
 	}
 
-	mgr := memory.NewManager(memStore, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
+	// LLM Provider：hybrid 模式从环境变量加载 / Load LLM from env for hybrid modes
+	var llmProvider llm.Provider
+	if mode != "fts" {
+		llmProvider = resolveLLMProvider()
+	}
+
+	// Manager：hybrid 模式注入 LLM（丰富摘要生成）/ Inject LLM for rich abstract generation
+	mgr := memory.NewManager(memStore, nil, nil, nil, nil, nil, llmProvider, memory.ManagerConfig{})
 
 	cfg := buildRetrievalConfig(mode)
 	var retriever *search.Retriever
 	if mode == "fts" {
 		retriever = search.NewRetriever(memStore, nil, nil, nil, nil, cfg, nil, nil)
 	} else {
-		// hybrid 和 hybrid+rerank 使用预处理器 / hybrid and hybrid+rerank use preprocessor
-		preprocessor := search.NewPreprocessor(nil, nil, nil, cfg)
-		retriever = search.NewRetriever(memStore, nil, nil, nil, nil, cfg, preprocessor, nil)
+		// hybrid：Preprocessor 注入 tokenizer + LLM（语义改写 + HyDE）/ Inject tokenizer + LLM for semantic rewrite + HyDE
+		preprocessor := search.NewPreprocessor(tok, nil, llmProvider, cfg)
+		retriever = search.NewRetriever(memStore, nil, nil, nil, llmProvider, cfg, preprocessor, nil)
 	}
 
 	r := &Runner{
@@ -77,7 +87,24 @@ func NewRunner(dbPath string, mode string) (*Runner, func(), error) {
 		retriever: retriever,
 		dbPath:    dbPath,
 	}
-	return r, func() {}, nil
+	return r, func() { _ = memStore.Close() }, nil
+}
+
+// resolveLLMProvider 从环境变量创建 LLM Provider / Create LLM provider from env vars
+func resolveLLMProvider() llm.Provider {
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		return nil
+	}
+	baseURL := os.Getenv("OPENAI_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1"
+	}
+	model := os.Getenv("OPENAI_MODEL")
+	if model == "" {
+		model = "gpt-4o-mini"
+	}
+	return llm.NewOpenAIProvider(baseURL, apiKey, model)
 }
 
 // buildRetrievalConfig 根据模式构建检索配置 / Build retrieval config for the given mode
@@ -97,8 +124,14 @@ func buildRetrievalConfig(mode string) config.RetrievalConfig {
 	switch mode {
 	case "hybrid":
 		cfg.Preprocess.Enabled = true
+		cfg.Preprocess.UseLLM = true
+		cfg.Preprocess.LLMTimeout = 10 * time.Second
+		cfg.Preprocess.SynonymFiles = []string{"config/synonym_zh.txt"}
 	case "hybrid+rerank":
 		cfg.Preprocess.Enabled = true
+		cfg.Preprocess.UseLLM = true
+		cfg.Preprocess.LLMTimeout = 10 * time.Second
+		cfg.Preprocess.SynonymFiles = []string{"config/synonym_zh.txt"}
 		cfg.Rerank = config.RerankConfig{
 			Enabled:     true,
 			Provider:    "overlap",
