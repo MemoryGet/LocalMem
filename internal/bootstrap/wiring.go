@@ -80,6 +80,27 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 				zap.String("provider", embCfg.Provider),
 				zap.String("model", embCfg.Model),
 			)
+			// B1#3: 维度校验 — probe 一次确认返回维度与配置一致 / Dimension validation: probe once to verify
+			expectedDim := cfg.Storage.Qdrant.Dimension
+			if expectedDim > 0 {
+				probeVec, probeErr := embedder.Embed(ctx, "dimension probe")
+				if probeErr != nil {
+					logger.Fatal("embedder dimension probe failed — cannot verify vector dimension, refusing to start",
+						zap.Error(probeErr),
+						zap.Int("expected_dimension", expectedDim),
+					)
+				} else if len(probeVec) != expectedDim {
+					logger.Fatal("embedder dimension mismatch — model returns different dimension than qdrant.dimension config",
+						zap.Int("expected", expectedDim),
+						zap.Int("actual", len(probeVec)),
+						zap.String("model", embCfg.Model),
+					)
+				} else {
+					logger.Info("embedder dimension verified",
+						zap.Int("dimension", expectedDim),
+					)
+				}
+			}
 		}
 	}
 
