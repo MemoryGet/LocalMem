@@ -40,7 +40,7 @@ func TestSearch_FilterByScope(t *testing.T) {
 	})
 	tc.Step("插入 3 条记忆", "tech: 2条, work: 1条")
 
-	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{Scope: "tech"}, 10)
+	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{Scope: "tech", TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	tc.Step("执行 SearchTextFiltered(scope=tech)")
 
@@ -72,7 +72,7 @@ func TestSearch_FilterByScopeAndKind(t *testing.T) {
 	})
 	tc.Step("插入 3 条记忆", "tech+fact:1, tech+skill:1, work+fact:1")
 
-	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{Scope: "tech", Kind: "fact"}, 10)
+	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{Scope: "tech", Kind: "fact", TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	tc.Step("执行 SearchTextFiltered(scope=tech, kind=fact)")
 
@@ -104,7 +104,7 @@ func TestSearch_FilterByRetentionTier(t *testing.T) {
 	})
 	tc.Step("插入 3 条记忆", "permanent:1, short_term:1, standard:1")
 
-	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{RetentionTier: "permanent"}, 10)
+	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{RetentionTier: "permanent", TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	tc.Step("执行 SearchTextFiltered(retention_tier=permanent)")
 
@@ -135,7 +135,7 @@ func TestSearch_FilterMinStrength(t *testing.T) {
 	})
 	tc.Step("插入 2 条记忆", "strength=0.9 和 strength=0.2")
 
-	results, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{MinStrength: 0.5}, 10)
+	results, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{MinStrength: 0.5, TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	tc.Step("执行 SearchTextFiltered(min_strength=0.5)")
 
@@ -172,13 +172,13 @@ func TestSearch_ExcludeExpired(t *testing.T) {
 	tc.Step("插入 3 条记忆", "1 已过期 + 1 未过期 + 1 无过期时间")
 
 	// 默认排除过期
-	results, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{}, 10)
+	results, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(results))
 	tc.Step("默认模式: 排除过期记忆", fmt.Sprintf("返回 %d 条", len(results)))
 
 	// 包含过期
-	results2, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{IncludeExpired: true}, 10)
+	results2, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{IncludeExpired: true, TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(results2))
 	tc.Step("IncludeExpired=true: 包含全部", fmt.Sprintf("返回 %d 条", len(results2)))
@@ -206,9 +206,9 @@ func TestSearch_NoFilters(t *testing.T) {
 	})
 	tc.Step("插入 2 条记忆", "不同 scope")
 
-	results, err := s.SearchTextFiltered(ctx, "Go", nil, 10)
+	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{TeamID: "t1"}, 10)
 	require.NoError(t, err)
-	tc.Step("执行 SearchTextFiltered(filters=nil)")
+	tc.Step("执行 SearchTextFiltered(filters with TeamID)")
 
 	assert.Equal(t, 2, len(results))
 	tc.Step("验证: 无过滤时返回所有匹配记忆")
@@ -235,7 +235,7 @@ func TestSearch_NoMatch(t *testing.T) {
 	})
 	tc.Step("插入 1 条记忆 (scope=tech)")
 
-	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{Scope: "nonexistent"}, 10)
+	results, err := s.SearchTextFiltered(ctx, "Go", &model.SearchFilters{Scope: "nonexistent", TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	tc.Step("执行 SearchTextFiltered(scope=nonexistent)")
 

@@ -226,7 +226,7 @@ func TestFullSystemFlow(t *testing.T) {
 		// 搜索：按 scope 过滤 / Search with scope filter
 		tc.Input("搜索词", "Go")
 		tc.Input("过滤", "scope=tech")
-		results, err := memStore.SearchTextFiltered(ctx, "Go", &model.SearchFilters{Scope: "tech"}, 10)
+		results, err := memStore.SearchTextFiltered(ctx, "Go", &model.SearchFilters{Scope: "tech", TeamID: "team-integ"}, 10)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(results), 1, "应命中 scope=tech 的 Go 记忆")
 		tc.Step("SearchTextFiltered(scope=tech)", fmt.Sprintf("命中 %d 条", len(results)))
@@ -239,8 +239,9 @@ func TestFullSystemFlow(t *testing.T) {
 		// 搜索：按 scope+kind 组合过滤 / Search with scope+kind
 		tc.Input("组合过滤", "scope=tech, kind=fact")
 		results2, err := memStore.SearchTextFiltered(ctx, "Go", &model.SearchFilters{
-			Scope: "tech",
-			Kind:  "fact",
+			Scope:  "tech",
+			Kind:   "fact",
+			TeamID: "team-integ",
 		}, 10)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(results2), 1)
@@ -251,7 +252,7 @@ func TestFullSystemFlow(t *testing.T) {
 
 		// 搜索：最小强度过滤 / Search with min_strength
 		tc.Input("强度过滤", "min_strength=0.5")
-		results3, err := memStore.SearchTextFiltered(ctx, "Go", &model.SearchFilters{MinStrength: 0.5}, 10)
+		results3, err := memStore.SearchTextFiltered(ctx, "Go", &model.SearchFilters{MinStrength: 0.5, TeamID: "team-integ"}, 10)
 		require.NoError(t, err)
 		for _, r := range results3 {
 			assert.GreaterOrEqual(t, r.Memory.Strength, 0.5)
@@ -259,7 +260,7 @@ func TestFullSystemFlow(t *testing.T) {
 		tc.Step("SearchTextFiltered(min_strength=0.5)", fmt.Sprintf("命中 %d 条，全部 strength>=0.5", len(results3)))
 
 		// 验证软删除记忆不出现在搜索结果中 / Verify soft-deleted excluded
-		allResults, err := memStore.SearchTextFiltered(ctx, "偏好", &model.SearchFilters{}, 10)
+		allResults, err := memStore.SearchTextFiltered(ctx, "偏好", &model.SearchFilters{TeamID: "team-integ"}, 10)
 		require.NoError(t, err)
 		for _, r := range allResults {
 			assert.NotEqual(t, memoryIDs[2], r.Memory.ID, "软删除记忆不应出现在搜索结果中")

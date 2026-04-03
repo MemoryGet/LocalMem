@@ -1,7 +1,7 @@
 {
   "mode": "fts",
   "dataset": "retrieval-500",
-  "timestamp": "2026-04-03T14:41:29.014502586+08:00",
+  "timestamp": "2026-04-03T15:49:58.102841173+08:00",
   "metrics": {
     "total": 500,
     "hit_rate": 81.8,
@@ -168,7 +168,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 58.4857990495838,
+      "score": 58.48579855127585,
       "result_count": 8
     },
     {
@@ -178,7 +178,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 18.852474139165537,
+      "score": 18.852474137216504,
       "result_count": 1
     },
     {
@@ -188,7 +188,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 47.34025265578206,
+      "score": 47.340252460847914,
       "result_count": 1
     },
     {
@@ -198,7 +198,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 48.70756792199585,
+      "score": 48.70756631753328,
       "result_count": 1
     },
     {
@@ -208,7 +208,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.653131311532709,
+      "score": 9.65313096608128,
       "result_count": 1
     },
     {
@@ -218,7 +218,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 92.26155906396637,
+      "score": 92.26155318481835,
       "result_count": 10
     },
     {
@@ -228,7 +228,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 19.00134160765036,
+      "score": 19.001340335730838,
       "result_count": 1
     },
     {
@@ -238,7 +238,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 63.00754392599914,
+      "score": 63.007538024895055,
       "result_count": 7
     },
     {
@@ -248,7 +248,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 64.05895044256695,
+      "score": 64.05894168730944,
       "result_count": 10
     },
     {
@@ -258,7 +258,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 56.015586964051636,
+      "score": 56.015579132100164,
       "result_count": 8
     },
     {
@@ -268,7 +268,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 31.15073695645328,
+      "score": 31.15073144595987,
       "result_count": 9
     },
     {
@@ -278,7 +278,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 28.968454086961504,
+      "score": 28.968448182718088,
       "result_count": 10
     },
     {
@@ -288,7 +288,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 48.41773582704409,
+      "score": 48.41772500555976,
       "result_count": 3
     },
     {
@@ -298,7 +298,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 30.965843119206014,
+      "score": 30.965835502968343,
       "result_count": 5
     },
     {
@@ -308,7 +308,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 63.99010561774651,
+      "score": 63.990085914491594,
       "result_count": 10
     },
     {
@@ -318,7 +318,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 38.030293911051025,
+      "score": 38.03028021419879,
       "result_count": 10
     },
     {
@@ -328,7 +328,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 31.5199095645148,
+      "score": 31.519897707344228,
       "result_count": 9
     },
     {
@@ -338,7 +338,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 33.20687110814749,
+      "score": 33.20685843915124,
       "result_count": 10
     },
     {
@@ -348,7 +348,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 38.70558432068539,
+      "score": 38.70556950262125,
       "result_count": 2
     },
     {
@@ -358,7 +358,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 24.993678619820248,
+      "score": 24.993668801985365,
       "result_count": 7
     },
     {
@@ -368,7 +368,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 53.41433370336127,
+      "score": 53.41431268951947,
       "result_count": 8
     },
     {
@@ -378,7 +378,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 30.375101426812073,
+      "score": 30.375089162442265,
       "result_count": 10
     },
     {
@@ -388,7 +388,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 35.2287466877154,
+      "score": 35.22873241661966,
       "result_count": 9
     },
     {
@@ -398,7 +398,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 41.45931900349831,
+      "score": 41.459302298254734,
       "result_count": 9
     },
     {
@@ -408,7 +408,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 20.18623555076845,
+      "score": 20.186227115998623,
       "result_count": 1
     },
     {
@@ -418,7 +418,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 87.08621705916418,
+      "score": 87.08617389264192,
       "result_count": 3
     },
     {
@@ -428,7 +428,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 70.03366694278066,
+      "score": 70.03362789307967,
       "result_count": 10
     },
     {
@@ -438,7 +438,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 77.82175871324199,
+      "score": 77.82171562798342,
       "result_count": 6
     },
     {
@@ -448,7 +448,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 16.196727903973255,
+      "score": 16.19671893322732,
       "result_count": 4
     },
     {
@@ -458,7 +458,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 19.39458063532417,
+      "score": 19.39457002827329,
       "result_count": 2
     },
     {
@@ -468,7 +468,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 61.11686305418362,
+      "score": 61.11682900174023,
       "result_count": 10
     },
     {
@@ -478,7 +478,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 18.345523445183076,
+      "score": 18.34551317850487,
       "result_count": 3
     },
     {
@@ -488,7 +488,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 63.3221207358806,
+      "score": 63.32208622064081,
       "result_count": 10
     },
     {
@@ -498,7 +498,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 29.25969587538729,
+      "score": 29.25967997635186,
       "result_count": 1
     },
     {
@@ -508,7 +508,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 29.931646208886963,
+      "score": 29.93163000923665,
       "result_count": 1
     },
     {
@@ -518,7 +518,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 30.39702550242403,
+      "score": 30.39700906869079,
       "result_count": 1
     },
     {
@@ -528,7 +528,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 56.64027276392364,
+      "score": 56.64024202138066,
       "result_count": 10
     },
     {
@@ -538,7 +538,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 90.13035857881735,
+      "score": 90.13031020237307,
       "result_count": 8
     },
     {
@@ -548,7 +548,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 66.93752163845438,
+      "score": 66.93748588283233,
       "result_count": 4
     },
     {
@@ -558,7 +558,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 75.99253808271196,
+      "score": 75.99249901295978,
       "result_count": 1
     },
     {
@@ -568,7 +568,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 39.22415999355978,
+      "score": 39.22413970002604,
       "result_count": 10
     },
     {
@@ -578,7 +578,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 39.750127937427386,
+      "score": 39.75010720055039,
       "result_count": 10
     },
     {
@@ -588,7 +588,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 46.10579763439463,
+      "score": 46.105772837659025,
       "result_count": 2
     },
     {
@@ -598,7 +598,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 54.83859076359632,
+      "score": 54.83856017425612,
       "result_count": 1
     },
     {
@@ -608,7 +608,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 46.79555961232041,
+      "score": 46.79553236018599,
       "result_count": 6
     },
     {
@@ -618,7 +618,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 51.795366800020176,
+      "score": 51.79533397149376,
       "result_count": 10
     },
     {
@@ -628,7 +628,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 47.36668522995633,
+      "score": 47.366653539285124,
       "result_count": 5
     },
     {
@@ -638,7 +638,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 61.72512478475551,
+      "score": 61.72508324962713,
       "result_count": 10
     },
     {
@@ -648,7 +648,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 37.2716805139373,
+      "score": 37.27165492678542,
       "result_count": 4
     },
     {
@@ -658,7 +658,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 15.760097934174606,
+      "score": 15.760087023228895,
       "result_count": 2
     },
     {
@@ -668,7 +668,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 14.918883583382502,
+      "score": 14.918873196308903,
       "result_count": 2
     },
     {
@@ -678,7 +678,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 18.930855675906972,
+      "score": 18.9308427082361,
       "result_count": 8
     },
     {
@@ -688,7 +688,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 58.95535713607755,
+      "score": 58.955316395071016,
       "result_count": 10
     },
     {
@@ -698,7 +698,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 56.945968084828834,
+      "score": 56.94592759007322,
       "result_count": 5
     },
     {
@@ -708,7 +708,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 17.68854302810973,
+      "score": 17.688530200949796,
       "result_count": 2
     },
     {
@@ -718,7 +718,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 37.515749429166114,
+      "score": 37.51572269299948,
       "result_count": 2
     },
     {
@@ -728,7 +728,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 51.726641708416814,
+      "score": 51.72660517893568,
       "result_count": 10
     },
     {
@@ -748,7 +748,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 41.736919686649834,
+      "score": 41.736888894821476,
       "result_count": 8
     },
     {
@@ -758,7 +758,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 19.70135640282574,
+      "score": 19.70134184362473,
       "result_count": 1
     },
     {
@@ -768,7 +768,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 15.89714727635239,
+      "score": 15.897135472518963,
       "result_count": 1
     },
     {
@@ -778,7 +778,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 15.361272641056624,
+      "score": 15.36126119197694,
       "result_count": 2
     },
     {
@@ -788,7 +788,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 47.97623483621876,
+      "score": 47.9761990083581,
       "result_count": 10
     },
     {
@@ -798,7 +798,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 58.92789881063758,
+      "score": 58.92785357163124,
       "result_count": 6
     },
     {
@@ -808,7 +808,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 17.757823791723045,
+      "score": 17.757810152982906,
       "result_count": 2
     },
     {
@@ -818,7 +818,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 56.803760523746384,
+      "score": 56.80371720149843,
       "result_count": 3
     },
     {
@@ -828,7 +828,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 47.881224419275036,
+      "score": 47.881187910865094,
       "result_count": 1
     },
     {
@@ -838,7 +838,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 48.570710737336164,
+      "score": 48.57067364002719,
       "result_count": 10
     },
     {
@@ -848,7 +848,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.500621854567267,
+      "score": 9.500614600442582,
       "result_count": 1
     },
     {
@@ -868,7 +868,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.917183861354377,
+      "score": 7.917177914223884,
       "result_count": 1
     },
     {
@@ -878,7 +878,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 36.22393893172717,
+      "score": 36.22391187040895,
       "result_count": 5
     },
     {
@@ -888,7 +888,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 23.959478219688467,
+      "score": 23.959460145689846,
       "result_count": 8
     },
     {
@@ -898,7 +898,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 12.326796010424864,
+      "score": 12.326786806381715,
       "result_count": 9
     },
     {
@@ -908,7 +908,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 16.153263894022857,
+      "score": 16.153251815581342,
       "result_count": 1
     },
     {
@@ -918,7 +918,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.733961355273184,
+      "score": 7.733955582533946,
       "result_count": 1
     },
     {
@@ -928,7 +928,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 65.76359801768845,
+      "score": 65.7635481403605,
       "result_count": 10
     },
     {
@@ -938,7 +938,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 41.882392181549434,
+      "score": 41.88235977774684,
       "result_count": 10
     },
     {
@@ -948,7 +948,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 70.67020509598423,
+      "score": 70.67015009869803,
       "result_count": 4
     },
     {
@@ -958,7 +958,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 26.675574439430044,
+      "score": 26.675553700793,
       "result_count": 3
     },
     {
@@ -968,7 +968,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 43.1057172754805,
+      "score": 43.10568520426332,
       "result_count": 10
     },
     {
@@ -988,7 +988,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 6.547024217332892,
+      "score": 6.547019299991388,
       "result_count": 9
     },
     {
@@ -1008,7 +1008,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 40.302733839529644,
+      "score": 40.30270327963998,
       "result_count": 10
     },
     {
@@ -1018,7 +1018,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 29.854478476754995,
+      "score": 29.854455366523524,
       "result_count": 10
     },
     {
@@ -1028,7 +1028,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 6.703354170816454,
+      "score": 6.703348850930335,
       "result_count": 5
     },
     {
@@ -1038,7 +1038,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 27.14125692376856,
+      "score": 27.1412352172568,
       "result_count": 10
     },
     {
@@ -1048,7 +1048,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 49.34923019149947,
+      "score": 49.34919127426802,
       "result_count": 6
     },
     {
@@ -1058,7 +1058,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 32.95550480679008,
+      "score": 32.95547846110881,
       "result_count": 10
     },
     {
@@ -1068,7 +1068,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 18.81354174553597,
+      "score": 18.813526926417662,
       "result_count": 10
     },
     {
@@ -1078,7 +1078,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 30.764606494998947,
+      "score": 30.764582804064815,
       "result_count": 10
     },
     {
@@ -1088,7 +1088,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 8,
-      "score": 14.103996410657796,
+      "score": 14.103985575316432,
       "result_count": 10
     },
     {
@@ -1098,7 +1098,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 14.996239145747378,
+      "score": 14.996227650478435,
       "result_count": 10
     },
     {
@@ -1108,7 +1108,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 27.05507084026787,
+      "score": 27.055050416944454,
       "result_count": 10
     },
     {
@@ -1118,7 +1118,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 24.660904470257837,
+      "score": 24.660885997640168,
       "result_count": 10
     },
     {
@@ -1128,7 +1128,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 16.691916561110844,
+      "score": 16.691904101815275,
       "result_count": 8
     },
     {
@@ -1138,7 +1138,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 41.44189580620639,
+      "score": 41.44186496455441,
       "result_count": 10
     },
     {
@@ -1148,7 +1148,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 10.139386099455736,
+      "score": 10.139378462775918,
       "result_count": 10
     },
     {
@@ -1158,7 +1158,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 24.81098359230967,
+      "score": 24.810965365566226,
       "result_count": 10
     },
     {
@@ -1168,7 +1168,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 16.27140736182697,
+      "score": 16.27139554254844,
       "result_count": 8
     },
     {
@@ -1178,7 +1178,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 56.77597017284545,
+      "score": 56.77592835816851,
       "result_count": 10
     },
     {
@@ -1188,7 +1188,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 20.27323294301757,
+      "score": 20.273218148639902,
       "result_count": 10
     },
     {
@@ -1198,7 +1198,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 7.148145409767481,
+      "score": 7.148139993787201,
       "result_count": 10
     },
     {
@@ -1208,7 +1208,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 15.150516131069685,
+      "score": 15.150504835308002,
       "result_count": 10
     },
     {
@@ -1218,7 +1218,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 34.642231592651605,
+      "score": 34.642205716732505,
       "result_count": 10
     },
     {
@@ -1228,7 +1228,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 20.511477438204864,
+      "score": 20.51146163963819,
       "result_count": 10
     },
     {
@@ -1238,7 +1238,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 18.942406199054613,
+      "score": 18.942391817705463,
       "result_count": 10
     },
     {
@@ -1248,7 +1248,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 25.13266451156151,
+      "score": 25.13264600219874,
       "result_count": 6
     },
     {
@@ -1258,7 +1258,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 36.57697891471808,
+      "score": 36.57695275488197,
       "result_count": 10
     },
     {
@@ -1268,7 +1268,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 47.62269282616756,
+      "score": 47.62265892548091,
       "result_count": 10
     },
     {
@@ -1288,7 +1288,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 81.72286567405735,
+      "score": 81.72280864152532,
       "result_count": 10
     },
     {
@@ -1298,7 +1298,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 7.623859906316024,
+      "score": 7.623854454487581,
       "result_count": 10
     },
     {
@@ -1308,7 +1308,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 50.52078046017601,
+      "score": 50.520743629153685,
       "result_count": 10
     },
     {
@@ -1318,7 +1318,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 27.189256057589425,
+      "score": 27.18923708211002,
       "result_count": 10
     },
     {
@@ -1328,7 +1328,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 24.422998211513338,
+      "score": 24.42298125772677,
       "result_count": 10
     },
     {
@@ -1338,7 +1338,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 30.31012330330239,
+      "score": 30.31010197104175,
       "result_count": 10
     },
     {
@@ -1348,7 +1348,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 10.638830598448195,
+      "score": 10.638822607941801,
       "result_count": 10
     },
     {
@@ -1358,7 +1358,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 33.03941020841927,
+      "score": 33.03938479329684,
       "result_count": 10
     },
     {
@@ -1368,7 +1368,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 25.386510397638713,
+      "score": 25.386490727310353,
       "result_count": 10
     },
     {
@@ -1378,7 +1378,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 27.598906230458756,
+      "score": 27.598885504211953,
       "result_count": 6
     },
     {
@@ -1388,7 +1388,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 21.767350419495802,
+      "score": 21.76733455844961,
       "result_count": 7
     },
     {
@@ -1398,7 +1398,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 17.573748145283943,
+      "score": 17.573735443761645,
       "result_count": 10
     },
     {
@@ -1408,7 +1408,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 22.38483838855812,
+      "score": 22.384822205945294,
       "result_count": 10
     },
     {
@@ -1418,7 +1418,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 14.081522366203087,
+      "score": 14.0815121731249,
       "result_count": 10
     },
     {
@@ -1428,7 +1428,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 19.39403920878371,
+      "score": 19.394025136182627,
       "result_count": 10
     },
     {
@@ -1438,7 +1438,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 9.846264416331811,
+      "score": 9.846257244821848,
       "result_count": 10
     },
     {
@@ -1448,7 +1448,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 8,
-      "score": 8.907910089690894,
+      "score": 8.907903588712804,
       "result_count": 10
     },
     {
@@ -1468,7 +1468,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 33.31220605021231,
+      "score": 33.31218383932678,
       "result_count": 10
     },
     {
@@ -1478,7 +1478,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 15.516510890398605,
+      "score": 15.516501309919406,
       "result_count": 10
     },
     {
@@ -1488,7 +1488,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 24.07252046803294,
+      "score": 24.072505799198915,
       "result_count": 10
     },
     {
@@ -1498,7 +1498,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 18.572729663709495,
+      "score": 18.572717818676754,
       "result_count": 8
     },
     {
@@ -1518,7 +1518,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 17.776744485327512,
+      "score": 17.776732811406696,
       "result_count": 10
     },
     {
@@ -1538,7 +1538,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 16.58248194615506,
+      "score": 16.582471001035593,
       "result_count": 10
     },
     {
@@ -1548,7 +1548,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 25.52045687614902,
+      "score": 25.520440381758835,
       "result_count": 10
     },
     {
@@ -1558,7 +1558,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 44.439156706286454,
+      "score": 44.43912876349937,
       "result_count": 10
     },
     {
@@ -1578,7 +1578,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 21.14752895279814,
+      "score": 21.14751544644299,
       "result_count": 10
     },
     {
@@ -1588,7 +1588,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 5.571122357669033,
+      "score": 5.571118810942336,
       "result_count": 8
     },
     {
@@ -1598,7 +1598,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 22.402604322370646,
+      "score": 22.40259046213772,
       "result_count": 10
     },
     {
@@ -1608,7 +1608,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 7.036871349322029,
+      "score": 7.036867128666343,
       "result_count": 1
     },
     {
@@ -1628,7 +1628,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 16.56046783159646,
+      "score": 16.560458478507282,
       "result_count": 3
     },
     {
@@ -1638,7 +1638,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 9.223082970628369,
+      "score": 9.223077973491865,
       "result_count": 10
     },
     {
@@ -1658,7 +1658,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 18.067650284337695,
+      "score": 18.067640759338712,
       "result_count": 10
     },
     {
@@ -1678,7 +1678,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 35.417980767463426,
+      "score": 35.4179651596962,
       "result_count": 10
     },
     {
@@ -1688,7 +1688,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 21.680059213033847,
+      "score": 21.6800499919583,
       "result_count": 10
     },
     {
@@ -1698,7 +1698,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 8.907868502722353,
+      "score": 8.907864895336832,
       "result_count": 10
     },
     {
@@ -1708,7 +1708,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 31.229147980010463,
+      "score": 31.229135345483424,
       "result_count": 10
     },
     {
@@ -1738,7 +1738,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 108.63019560827873,
+      "score": 108.63015177025831,
       "result_count": 10
     },
     {
@@ -1758,7 +1758,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 31.916257018132377,
+      "score": 31.91624392217315,
       "result_count": 10
     },
     {
@@ -1768,7 +1768,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 15.261002844464235,
+      "score": 15.260996928991686,
       "result_count": 10
     },
     {
@@ -1778,7 +1778,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 18.51209275485868,
+      "score": 18.512086713353042,
       "result_count": 10
     },
     {
@@ -1798,7 +1798,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 9.594683188826163,
+      "score": 9.594680273257257,
       "result_count": 10
     },
     {
@@ -1808,7 +1808,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 5.203467030662932,
+      "score": 5.203465507484354,
       "result_count": 5
     },
     {
@@ -1818,7 +1818,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 24.25560614841679,
+      "score": 24.255598904141518,
       "result_count": 7
     },
     {
@@ -1828,7 +1828,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 38.63945854088106,
+      "score": 38.639448398501294,
       "result_count": 10
     },
     {
@@ -1838,7 +1838,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 15.269489869647192,
+      "score": 15.269485898482932,
       "result_count": 10
     },
     {
@@ -1848,7 +1848,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 16.176875301026485,
+      "score": 16.176870651529647,
       "result_count": 10
     },
     {
@@ -1858,7 +1858,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 26.682730960633688,
+      "score": 26.68272249341298,
       "result_count": 10
     },
     {
@@ -1868,7 +1868,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 17.68125266540452,
+      "score": 17.681246346079682,
       "result_count": 10
     },
     {
@@ -1878,7 +1878,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 19.843542308409585,
+      "score": 19.843534496895412,
       "result_count": 10
     },
     {
@@ -1888,7 +1888,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 12.861682271435386,
+      "score": 12.861676966119516,
       "result_count": 10
     },
     {
@@ -1898,7 +1898,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 24.66052013525086,
+      "score": 24.660510306000024,
       "result_count": 10
     },
     {
@@ -1908,7 +1908,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 19.72743304714063,
+      "score": 19.727425288260374,
       "result_count": 10
     },
     {
@@ -1918,7 +1918,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 11.931263392936199,
+      "score": 11.93125877200263,
       "result_count": 10
     },
     {
@@ -1928,7 +1928,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 7.886544918692549,
+      "score": 7.88654190504281,
       "result_count": 10
     },
     {
@@ -1938,7 +1938,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 7,
-      "score": 14.676316384368643,
+      "score": 14.676311095558939,
       "result_count": 10
     },
     {
@@ -1948,7 +1948,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 12.30290351000866,
+      "score": 12.302899294702051,
       "result_count": 10
     },
     {
@@ -1958,7 +1958,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 35.78755029074014,
+      "score": 35.7875386020266,
       "result_count": 10
     },
     {
@@ -1968,7 +1968,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 7,
-      "score": 6.877088015131313,
+      "score": 6.877085811594399,
       "result_count": 10
     },
     {
@@ -1978,7 +1978,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 19.51687872544442,
+      "score": 19.51687272631566,
       "result_count": 10
     },
     {
@@ -1988,7 +1988,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 27.188882493569466,
+      "score": 27.188873489350193,
       "result_count": 10
     },
     {
@@ -1998,7 +1998,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 45.0956899322697,
+      "score": 45.0956742308367,
       "result_count": 10
     },
     {
@@ -2008,7 +2008,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 33.35325396990568,
+      "score": 33.353241797907934,
       "result_count": 6
     },
     {
@@ -2018,7 +2018,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 28.020924579234233,
+      "score": 28.020914089011058,
       "result_count": 10
     },
     {
@@ -2028,7 +2028,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 41.742510044889066,
+      "score": 41.742494480227165,
       "result_count": 10
     },
     {
@@ -2038,7 +2038,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 27.140689729348697,
+      "score": 27.140678716424933,
       "result_count": 10
     },
     {
@@ -2048,7 +2048,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 10.475797899141803,
+      "score": 10.475793643795662,
       "result_count": 10
     },
     {
@@ -2058,7 +2058,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 31.71761813783822,
+      "score": 31.717605883637496,
       "result_count": 10
     },
     {
@@ -2068,7 +2068,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 12.91838800322409,
+      "score": 12.918383022593018,
       "result_count": 6
     },
     {
@@ -2078,7 +2078,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 48.960236827632166,
+      "score": 48.960218393209004,
       "result_count": 10
     },
     {
@@ -2088,7 +2088,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 92.37725454229061,
+      "score": 92.37722199185356,
       "result_count": 10
     },
     {
@@ -2098,7 +2098,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 31.761080983046494,
+      "score": 31.761070288365968,
       "result_count": 10
     },
     {
@@ -2108,7 +2108,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 7.5358521001748535,
+      "score": 7.535849815139933,
       "result_count": 10
     },
     {
@@ -2128,7 +2128,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 21.27675722423595,
+      "score": 21.27675135711676,
       "result_count": 10
     },
     {
@@ -2138,7 +2138,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 11.45714567349878,
+      "score": 11.457142511765916,
       "result_count": 10
     },
     {
@@ -2148,7 +2148,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 34.705229589399764,
+      "score": 34.70522027374838,
       "result_count": 10
     },
     {
@@ -2158,7 +2158,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 61.73125402616687,
+      "score": 61.73124142548015,
       "result_count": 10
     },
     {
@@ -2168,7 +2168,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 20.759997981327622,
+      "score": 20.7599940373377,
       "result_count": 10
     },
     {
@@ -2178,7 +2178,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 13.134527623737332,
+      "score": 13.134525137345875,
       "result_count": 10
     },
     {
@@ -2188,7 +2188,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 29.42870333196543,
+      "score": 29.42869788005111,
       "result_count": 10
     },
     {
@@ -2198,7 +2198,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 25.65888356317038,
+      "score": 25.6588787236136,
       "result_count": 10
     },
     {
@@ -2208,7 +2208,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 26.33284907924627,
+      "score": 26.332843160258108,
       "result_count": 9
     },
     {
@@ -2218,7 +2218,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 5.863756855409363,
+      "score": 5.86375536525172,
       "result_count": 10
     },
     {
@@ -2228,7 +2228,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 7.477688917032623,
+      "score": 7.477687040092291,
       "result_count": 10
     },
     {
@@ -2238,7 +2238,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 16.218663946534704,
+      "score": 16.218659928058145,
       "result_count": 10
     },
     {
@@ -2248,7 +2248,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 19.88581174669481,
+      "score": 19.88580686508215,
       "result_count": 10
     },
     {
@@ -2258,7 +2258,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 24.07210419319583,
+      "score": 24.072097696314653,
       "result_count": 10
     },
     {
@@ -2268,7 +2268,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 18.57240720690804,
+      "score": 18.572401946363335,
       "result_count": 10
     },
     {
@@ -2308,7 +2308,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 14.420217318345497,
+      "score": 14.420213800770643,
       "result_count": 10
     },
     {
@@ -2318,7 +2318,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 6.703168151429715,
+      "score": 6.703166324901959,
       "result_count": 10
     },
     {
@@ -2328,7 +2328,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 5.244820245386855,
+      "score": 5.244818794475658,
       "result_count": 7
     },
     {
@@ -2338,7 +2338,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 19.397146629812216,
+      "score": 19.397141348765512,
       "result_count": 10
     },
     {
@@ -2348,7 +2348,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 45.46016035425368,
+      "score": 45.46014714129245,
       "result_count": 10
     },
     {
@@ -2408,7 +2408,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 4.975260695750925,
+      "score": 4.975259240291456,
       "result_count": 3
     },
     {
@@ -2428,7 +2428,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 6.758133050922339,
+      "score": 6.758131116624755,
       "result_count": 2
     },
     {
@@ -2448,7 +2448,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 8.201230396323785,
+      "score": 8.201228173326596,
       "result_count": 1
     },
     {
@@ -2458,7 +2458,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 8.57884868626751,
+      "score": 8.57884634889335,
       "result_count": 1
     },
     {
@@ -2528,7 +2528,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 27.35637242665131,
+      "score": 27.35636782063047,
       "result_count": 1
     },
     {
@@ -2578,7 +2578,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 12.158385571834424,
+      "score": 12.158383649815876,
       "result_count": 1
     },
     {
@@ -2628,7 +2628,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 6.409464272867078,
+      "score": 6.409463525766149,
       "result_count": 1
     },
     {
@@ -2638,7 +2638,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 16.79606814007997,
+      "score": 16.796066372916002,
       "result_count": 4
     },
     {
@@ -2648,7 +2648,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 20.063185735043923,
+      "score": 20.063183735843364,
       "result_count": 3
     },
     {
@@ -2658,7 +2658,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 19.15186430792674,
+      "score": 19.151862374475275,
       "result_count": 1
     },
     {
@@ -2678,7 +2678,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 6.409462913309678,
+      "score": 6.409462239089159,
       "result_count": 1
     },
     {
@@ -2688,7 +2688,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 11.678118273457317,
+      "score": 11.678117068353428,
       "result_count": 4
     },
     {
@@ -2718,7 +2718,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 6.85177742914145,
+      "score": 6.851776742590207,
       "result_count": 2
     },
     {
@@ -2768,7 +2768,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 98.46234670752305,
+      "score": 98.46234137480714,
       "result_count": 10
     },
     {
@@ -2778,7 +2778,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 27.23887825704025,
+      "score": 27.238876920775667,
       "result_count": 9
     },
     {
@@ -2788,7 +2788,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 121.00411934636503,
+      "score": 121.0041246567126,
       "result_count": 10
     },
     {
@@ -2798,7 +2798,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 38.52909656425476,
+      "score": 38.529099438942865,
       "result_count": 8
     },
     {
@@ -2808,7 +2808,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 37.752796960830636,
+      "score": 37.75280049233219,
       "result_count": 10
     },
     {
@@ -2818,7 +2818,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 90.26003681758438,
+      "score": 90.26005105993634,
       "result_count": 10
     },
     {
@@ -2828,7 +2828,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 37.58553503043983,
+      "score": 37.585541802998044,
       "result_count": 4
     },
     {
@@ -2838,7 +2838,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 64.58735403899516,
+      "score": 64.58736671792046,
       "result_count": 5
     },
     {
@@ -2848,7 +2848,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 12.716082683388363,
+      "score": 12.716085124569696,
       "result_count": 10
     },
     {
@@ -2858,7 +2858,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 44.904262584720854,
+      "score": 44.90427582083609,
       "result_count": 5
     },
     {
@@ -2868,7 +2868,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 60.22355326406475,
+      "score": 60.22359166336416,
       "result_count": 10
     },
     {
@@ -2878,7 +2878,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 73.51806611256487,
+      "score": 73.51811553028843,
       "result_count": 9
     },
     {
@@ -2888,7 +2888,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 42.574095783253874,
+      "score": 42.57412515389626,
       "result_count": 6
     },
     {
@@ -2898,7 +2898,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 60.932616102865836,
+      "score": 60.932658642651994,
       "result_count": 8
     },
     {
@@ -2908,7 +2908,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 123.55580388721081,
+      "score": 123.55589159606266,
       "result_count": 10
     },
     {
@@ -2918,7 +2918,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 45.5937538066577,
+      "score": 45.59378601579184,
       "result_count": 1
     },
     {
@@ -2928,7 +2928,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 42.17421626634348,
+      "score": 42.17424631096091,
       "result_count": 10
     },
     {
@@ -2938,7 +2938,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 22.898226813228895,
+      "score": 22.898243027650572,
       "result_count": 2
     },
     {
@@ -2948,7 +2948,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 75.39593565427231,
+      "score": 75.3959886014662,
       "result_count": 1
     },
     {
@@ -2958,7 +2958,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 68.45284445531699,
+      "score": 68.45289221856427,
       "result_count": 1
     },
     {
@@ -2968,7 +2968,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 76.33787300443937,
+      "score": 76.33792553678418,
       "result_count": 10
     },
     {
@@ -2978,7 +2978,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 10,
-      "score": 8.075227618565565,
+      "score": 8.075232966809587,
       "result_count": 10
     },
     {
@@ -2988,7 +2988,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 73.05517543243155,
+      "score": 73.05522348003892,
       "result_count": 10
     },
     {
@@ -2998,7 +2998,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 62.8136575634374,
+      "score": 62.8137000689114,
       "result_count": 10
     },
     {
@@ -3008,7 +3008,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 88.65482175714014,
+      "score": 88.65488157375826,
       "result_count": 10
     },
     {
@@ -3018,7 +3018,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 123.56349543029249,
+      "score": 123.56357819868853,
       "result_count": 5
     },
     {
@@ -3028,7 +3028,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 66.03196806839318,
+      "score": 66.03201258342528,
       "result_count": 8
     },
     {
@@ -3038,7 +3038,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 154.28928960885992,
+      "score": 154.28939678069517,
       "result_count": 9
     },
     {
@@ -3048,7 +3048,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 71.57016541396075,
+      "score": 71.57021457086782,
       "result_count": 3
     },
     {
@@ -3058,7 +3058,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 97.30215619906804,
+      "score": 97.30222398541906,
       "result_count": 10
     },
     {
@@ -3068,7 +3068,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 42.45446381843168,
+      "score": 42.454494649665804,
       "result_count": 10
     },
     {
@@ -3078,7 +3078,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 92.87356152120435,
+      "score": 92.87362954715073,
       "result_count": 10
     },
     {
@@ -3088,7 +3088,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 50.105548444712085,
+      "score": 50.105585484184516,
       "result_count": 10
     },
     {
@@ -3098,7 +3098,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 41.6094304915595,
+      "score": 41.60946155887107,
       "result_count": 10
     },
     {
@@ -3108,7 +3108,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 44.577719471209676,
+      "score": 44.57775339684016,
       "result_count": 6
     },
     {
@@ -3118,7 +3118,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 124.37323666707276,
+      "score": 124.37333449017714,
       "result_count": 6
     },
     {
@@ -3128,7 +3128,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 74.03119214422789,
+      "score": 74.03125095980467,
       "result_count": 10
     },
     {
@@ -3138,7 +3138,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 78.36133110952944,
+      "score": 78.36139323377809,
       "result_count": 4
     },
     {
@@ -3148,7 +3148,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 79.27191689245484,
+      "score": 79.27197976306766,
       "result_count": 10
     },
     {
@@ -3158,7 +3158,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 96.9040433323337,
+      "score": 96.90412021756272,
       "result_count": 10
     },
     {
@@ -3168,7 +3168,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 63.43118625416995,
+      "score": 63.4312371325288,
       "result_count": 2
     },
     {
@@ -3178,7 +3178,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 55.341649053056656,
+      "score": 55.34169421101905,
       "result_count": 10
     },
     {
@@ -3188,7 +3188,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 38.09970437968472,
+      "score": 38.09973627911889,
       "result_count": 2
     },
     {
@@ -3198,7 +3198,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 48.7074268044483,
+      "score": 48.70746794341631,
       "result_count": 10
     },
     {
@@ -3208,7 +3208,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 77.22988201875407,
+      "score": 77.2299487832932,
       "result_count": 4
     },
     {
@@ -3218,7 +3218,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 100.0274205338569,
+      "score": 100.02750934740418,
       "result_count": 7
     },
     {
@@ -3238,7 +3238,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 12.3777170579877,
+      "score": 12.377727943749315,
       "result_count": 4
     },
     {
@@ -3248,7 +3248,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 89.08814035154522,
+      "score": 89.08822217635048,
       "result_count": 10
     },
     {
@@ -3258,7 +3258,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 62.72983739952971,
+      "score": 62.7298941713294,
       "result_count": 10
     },
     {
@@ -3268,7 +3268,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 52.2478536737713,
+      "score": 52.247901000774476,
       "result_count": 5
     },
     {
@@ -3278,7 +3278,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 72.98463546667288,
+      "score": 72.98470286318044,
       "result_count": 10
     },
     {
@@ -3288,7 +3288,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 83.33014122562416,
+      "score": 83.33021932342069,
       "result_count": 10
     },
     {
@@ -3298,7 +3298,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 73.4852611051135,
+      "score": 73.48533119300497,
       "result_count": 10
     },
     {
@@ -3308,7 +3308,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 113.69719799702052,
+      "score": 113.69730335777402,
       "result_count": 10
     },
     {
@@ -3318,7 +3318,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 47.584103913651994,
+      "score": 47.58414646123677,
       "result_count": 10
     },
     {
@@ -3328,7 +3328,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 57.225440277967834,
+      "score": 57.22549074682295,
       "result_count": 1
     },
     {
@@ -3338,7 +3338,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 86.72589230694344,
+      "score": 86.72596684681174,
       "result_count": 10
     },
     {
@@ -3348,7 +3348,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 67.41090853216049,
+      "score": 67.41096744347202,
       "result_count": 4
     },
     {
@@ -3358,7 +3358,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 72.64680656640107,
+      "score": 72.64687102068473,
       "result_count": 2
     },
     {
@@ -3368,7 +3368,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 29.06389586713104,
+      "score": 29.063921489702828,
       "result_count": 10
     },
     {
@@ -3378,7 +3378,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 31.84522757314174,
+      "score": 31.845255272205442,
       "result_count": 10
     },
     {
@@ -3388,7 +3388,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 10,
-      "score": 6.69200188135553,
+      "score": 6.692007756678918,
       "result_count": 10
     },
     {
@@ -3398,7 +3398,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 18.572097484959276,
+      "score": 18.572113802374773,
       "result_count": 9
     },
     {
@@ -3418,7 +3418,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 30.644316636402046,
+      "score": 30.644343998193417,
       "result_count": 10
     },
     {
@@ -3428,7 +3428,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 41.24758828573454,
+      "score": 41.24762632099812,
       "result_count": 10
     },
     {
@@ -3438,7 +3438,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 14.50210866101059,
+      "score": 14.502121737533585,
       "result_count": 10
     },
     {
@@ -3448,7 +3448,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 15.491347935332161,
+      "score": 15.4913620659842,
       "result_count": 10
     },
     {
@@ -3458,7 +3458,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 29.25957021656848,
+      "score": 29.259596483558127,
       "result_count": 10
     },
     {
@@ -3478,7 +3478,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 11.27922445636025,
+      "score": 11.27923446146962,
       "result_count": 10
     },
     {
@@ -3488,7 +3488,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 6,
-      "score": 9.06605607353191,
+      "score": 9.066064062261608,
       "result_count": 10
     },
     {
@@ -3498,7 +3498,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 8,
-      "score": 8.83639303885987,
+      "score": 8.83640064506049,
       "result_count": 10
     },
     {
@@ -3508,7 +3508,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 11.930930994943182,
+      "score": 11.930940792501868,
       "result_count": 10
     },
     {
@@ -3538,7 +3538,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 21.214728158169596,
+      "score": 21.21474468305157,
       "result_count": 10
     },
     {
@@ -3558,7 +3558,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 18.998673002408648,
+      "score": 18.998687013293157,
       "result_count": 10
     },
     {
@@ -3578,7 +3578,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 8,
-      "score": 6.3838431775507525,
+      "score": 6.383847682044311,
       "result_count": 10
     },
     {
@@ -3588,7 +3588,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 47.23609197813542,
+      "score": 47.236124605884015,
       "result_count": 10
     },
     {
@@ -3598,7 +3598,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 18.066999823212022,
+      "score": 18.067011938110667,
       "result_count": 10
     },
     {
@@ -3628,7 +3628,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 31.152386015451928,
+      "score": 31.152408649553568,
       "result_count": 10
     },
     {
@@ -3638,7 +3638,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 27.175634691627256,
+      "score": 27.175655154359546,
       "result_count": 10
     },
     {
@@ -3658,7 +3658,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 36.01441839593188,
+      "score": 36.014444998409815,
       "result_count": 10
     },
     {
@@ -3668,7 +3668,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 22.34933364128494,
+      "score": 22.34934884420275,
       "result_count": 10
     },
     {
@@ -3688,7 +3688,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 8,
-      "score": 4.944607748887156,
+      "score": 4.944611000979804,
       "result_count": 10
     },
     {
@@ -3698,7 +3698,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 16.58721542753902,
+      "score": 16.587226427214187,
       "result_count": 10
     },
     {
@@ -3708,7 +3708,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 14.995497531460085,
+      "score": 14.99550752932064,
       "result_count": 10
     },
     {
@@ -3718,7 +3718,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 32.37306254094966,
+      "score": 32.37308281462474,
       "result_count": 10
     },
     {
@@ -3728,7 +3728,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 20.18003019597822,
+      "score": 20.180042943196877,
       "result_count": 10
     },
     {
@@ -3738,7 +3738,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 7,
-      "score": 8.663260241936182,
+      "score": 8.663265617369616,
       "result_count": 10
     },
     {
@@ -3748,7 +3748,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 16.69108870043129,
+      "score": 16.691098698666394,
       "result_count": 10
     },
     {
@@ -3758,7 +3758,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 22.675329996963548,
+      "score": 22.67534270806551,
       "result_count": 10
     },
     {
@@ -3778,7 +3778,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 9,
-      "score": 3.8980316210451917,
+      "score": 3.8980335600921716,
       "result_count": 10
     },
     {
@@ -3818,7 +3818,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 11.279134770163667,
+      "score": 11.279139229186724,
       "result_count": 10
     },
     {
@@ -3838,7 +3838,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 40.070609710029245,
+      "score": 40.07062415681444,
       "result_count": 10
     },
     {
@@ -3848,7 +3848,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 14.314314170780264,
+      "score": 14.314318161924895,
       "result_count": 10
     },
     {
@@ -3868,7 +3868,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 15.648114368878085,
+      "score": 15.648118505485574,
       "result_count": 1
     },
     {
@@ -3878,7 +3878,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 15.5872895117316,
+      "score": 15.587293706451026,
       "result_count": 1
     },
     {
@@ -3888,7 +3888,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 15.709414934873266,
+      "score": 15.70941915618838,
       "result_count": 1
     },
     {
@@ -3898,7 +3898,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 18.27845435839191,
+      "score": 18.278459344033145,
       "result_count": 1
     },
     {
@@ -3908,7 +3908,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 17.544643015274534,
+      "score": 17.544647756378918,
       "result_count": 3
     },
     {
@@ -3918,7 +3918,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 8.477995073287756,
+      "score": 8.477997268278079,
       "result_count": 7
     },
     {
@@ -3928,7 +3928,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 8.116767719727779,
+      "score": 8.11676981659946,
       "result_count": 3
     },
     {
@@ -3938,7 +3938,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.10799736713271,
+      "score": 7.107999261834699,
       "result_count": 2
     },
     {
@@ -3948,7 +3948,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.948116193996514,
+      "score": 7.948118245196047,
       "result_count": 1
     },
     {
@@ -3958,7 +3958,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 6.938263941158707,
+      "score": 6.938265726302572,
       "result_count": 2
     },
     {
@@ -3968,7 +3968,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.97974830121879,
+      "score": 7.979750352717406,
       "result_count": 1
     },
     {
@@ -3978,7 +3978,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.329484613672579,
+      "score": 7.329486598978177,
       "result_count": 2
     },
     {
@@ -3988,7 +3988,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 8.564515372033458,
+      "score": 8.564517676973718,
       "result_count": 2
     },
     {
@@ -3998,7 +3998,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.050503141994931,
+      "score": 7.050504951249198,
       "result_count": 2
     },
     {
@@ -4008,7 +4008,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 40.314729928521324,
+      "score": 40.314740556367084,
       "result_count": 3
     },
     {
@@ -4018,7 +4018,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 18.278450754048823,
+      "score": 18.27845544460864,
       "result_count": 1
     },
     {
@@ -4028,7 +4028,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 15.77119622306713,
+      "score": 15.771200292479847,
       "result_count": 1
     },
     {
@@ -4038,7 +4038,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.927806558659187,
+      "score": 9.92780911869694,
       "result_count": 1
     },
     {
@@ -4048,7 +4048,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.056096625233736,
+      "score": 7.056098346546863,
       "result_count": 4
     },
     {
@@ -4058,7 +4058,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.500078552009887,
+      "score": 9.500080851184924,
       "result_count": 1
     },
     {
@@ -4068,7 +4068,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.462717151560266,
+      "score": 9.462719536792404,
       "result_count": 1
     },
     {
@@ -4078,7 +4078,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 8.394400766306108,
+      "score": 8.394402849209797,
       "result_count": 1
     },
     {
@@ -4088,7 +4088,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 11.709143669621037,
+      "score": 11.70914640471378,
       "result_count": 3
     },
     {
@@ -4098,7 +4098,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 10.29175174827913,
+      "score": 10.291754121010552,
       "result_count": 1
     },
     {
@@ -4108,7 +4108,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.793641833912283,
+      "score": 7.793643629689042,
       "result_count": 1
     },
     {
@@ -4118,7 +4118,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 10.25127515505344,
+      "score": 10.251277501145504,
       "result_count": 1
     },
     {
@@ -4128,7 +4128,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.3173485627017865,
+      "score": 7.31735023589938,
       "result_count": 4
     },
     {
@@ -4138,7 +4138,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 10.562249263684338,
+      "score": 10.562251673570191,
       "result_count": 4
     },
     {
@@ -4148,7 +4148,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.948113952866153,
+      "score": 7.948115787621222,
       "result_count": 1
     },
     {
@@ -4158,7 +4158,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.500079151362526,
+      "score": 9.500081434459242,
       "result_count": 1
     },
     {
@@ -4168,7 +4168,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 8.878402064843726,
+      "score": 8.878404098013842,
       "result_count": 2
     },
     {
@@ -4178,7 +4178,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.703807632203346,
+      "score": 7.703809492974655,
       "result_count": 1
     },
     {
@@ -4188,7 +4188,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.927803414395168,
+      "score": 9.927805673402949,
       "result_count": 1
     },
     {
@@ -4198,7 +4198,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.575694742103435,
+      "score": 9.575696911732276,
       "result_count": 1
     },
     {
@@ -4208,7 +4208,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.61395666219111,
+      "score": 9.613958817093776,
       "result_count": 1
     },
     {
@@ -4218,7 +4218,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 9.652525476523651,
+      "score": 9.65252760856524,
       "result_count": 1
     },
     {
@@ -4228,7 +4228,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 48.70450816201788,
+      "score": 48.7045183621447,
       "result_count": 1
     },
     {
@@ -4238,7 +4238,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 10.092504035814402,
+      "score": 10.092506249445998,
       "result_count": 1
     },
     {
@@ -4248,7 +4248,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 12.672240131589824,
+      "score": 12.672242717390079,
       "result_count": 2
     },
     {
@@ -4258,7 +4258,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.916731559804602,
+      "score": 7.9167332336275456,
       "result_count": 1
     },
     {
@@ -4268,7 +4268,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 14.628967793684817,
+      "score": 14.628970738783384,
       "result_count": 1
     },
     {
@@ -4278,7 +4278,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 19.700215686025675,
+      "score": 19.700219986909925,
       "result_count": 1
     },
     {
@@ -4288,7 +4288,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 6.965985106099352,
+      "score": 6.965986597837824,
       "result_count": 2
     },
     {
@@ -4298,7 +4298,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 7.73352046831333,
+      "score": 7.733522071235644,
       "result_count": 1
     },
     {
@@ -4308,7 +4308,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 14.964922077163132,
+      "score": 14.964925032359375,
       "result_count": 1
     },
     {
@@ -4318,7 +4318,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 15.197597958720946,
+      "score": 15.197600975990117,
       "result_count": 1
     },
     {
@@ -4328,7 +4328,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 14.574435033905562,
+      "score": 14.574438000000796,
       "result_count": 1
     },
     {
@@ -4338,7 +4338,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 28.084174497632734,
+      "score": 28.084180214018964,
       "result_count": 2
     },
     {
@@ -4348,7 +4348,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 29.25793176129242,
+      "score": 29.25793767467139,
       "result_count": 1
     },
     {
@@ -4358,7 +4358,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 53.41105193086327,
+      "score": 53.411062400020974,
       "result_count": 8
     },
     {
@@ -4378,7 +4378,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 5.244675838969951,
+      "score": 5.244677029513571,
       "result_count": 10
     },
     {
@@ -4388,7 +4388,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 9.838908580680773,
+      "score": 9.838910881342496,
       "result_count": 9
     },
     {
@@ -4398,7 +4398,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 7.007282824119033,
+      "score": 7.0072845851093595,
       "result_count": 10
     },
     {
@@ -4418,7 +4418,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 33.3394283001981,
+      "score": 33.33943612969778,
       "result_count": 10
     },
     {
@@ -4428,7 +4428,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 6,
-      "score": 4.762015027422192,
+      "score": 4.762016122720021,
       "result_count": 10
     },
     {
@@ -4438,7 +4438,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 16.70152160727423,
+      "score": 16.701525840125758,
       "result_count": 8
     },
     {
@@ -4458,7 +4458,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 10,
-      "score": 4.709670903798816,
+      "score": 4.709672004107401,
       "result_count": 10
     },
     {
@@ -4478,7 +4478,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 32.7623801027269,
+      "score": 32.76238718596981,
       "result_count": 10
     },
     {
@@ -4488,7 +4488,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 5,
-      "score": 12.861157880747676,
+      "score": 12.861160574237067,
       "result_count": 10
     },
     {
@@ -4498,7 +4498,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 10,
-      "score": 7.261542777675172,
+      "score": 7.261544419365534,
       "result_count": 10
     },
     {
@@ -4518,7 +4518,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 4.856764287547047,
+      "score": 4.856765680708612,
       "result_count": 8
     },
     {
@@ -4538,7 +4538,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 21.31293737789041,
+      "score": 21.31295018863819,
       "result_count": 10
     },
     {
@@ -4558,7 +4558,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 13.546816558368244,
+      "score": 13.546825830109459,
       "result_count": 10
     },
     {
@@ -4588,7 +4588,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 15.515709733608999,
+      "score": 15.515720836026127,
       "result_count": 10
     },
     {
@@ -4598,7 +4598,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 11.279049833857748,
+      "score": 11.279057983069254,
       "result_count": 6
     },
     {
@@ -4608,7 +4608,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 18.941335723489686,
+      "score": 18.94134937957134,
       "result_count": 10
     },
     {
@@ -4628,7 +4628,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 22.772898406940158,
+      "score": 22.772915726713762,
       "result_count": 10
     },
     {
@@ -4668,7 +4668,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 18.99838740863737,
+      "score": 18.99840074262458,
       "result_count": 10
     },
     {
@@ -4688,7 +4688,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 12.48327159897659,
+      "score": 12.483279943855795,
       "result_count": 10
     },
     {
@@ -4708,7 +4708,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 10,
-      "score": 5.590900172561647,
+      "score": 5.590904083420996,
       "result_count": 10
     },
     {
@@ -4768,7 +4768,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 20.164205054207628,
+      "score": 20.16422132646089,
       "result_count": 10
     },
     {
@@ -4778,7 +4778,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 51.04848750472732,
+      "score": 51.048528731934404,
       "result_count": 10
     },
     {
@@ -4788,7 +4788,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 34.694935791702804,
+      "score": 34.694965067318456,
       "result_count": 10
     },
     {
@@ -4798,7 +4798,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 21.420261688559457,
+      "score": 21.420279953722503,
       "result_count": 10
     },
     {
@@ -4808,7 +4808,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 12.735764051889028,
+      "score": 12.735775012456013,
       "result_count": 10
     },
     {
@@ -4818,7 +4818,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 103.87028271770355,
+      "score": 103.87037549255102,
       "result_count": 10
     },
     {
@@ -4838,7 +4838,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 64.93681344181753,
+      "score": 64.93687162230466,
       "result_count": 4
     },
     {
@@ -4848,7 +4848,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 15.659990486018428,
+      "score": 15.660004451413293,
       "result_count": 10
     },
     {
@@ -4858,7 +4858,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 56.79661922555658,
+      "score": 56.796668763287194,
       "result_count": 10
     },
     {
@@ -4868,7 +4868,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 49.219741449694496,
+      "score": 49.219783406755575,
       "result_count": 10
     },
     {
@@ -4878,7 +4878,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 31.332708367333694,
+      "score": 31.33273471174549,
       "result_count": 10
     },
     {
@@ -4888,7 +4888,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 49.439692948576955,
+      "score": 49.43973363011027,
       "result_count": 3
     },
     {
@@ -4898,7 +4898,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 63.857017372804634,
+      "score": 63.85706880161909,
       "result_count": 10
     },
     {
@@ -4908,7 +4908,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 95.18942066664617,
+      "score": 95.18949755328207,
       "result_count": 6
     },
     {
@@ -4938,7 +4938,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 8.8882584484479,
+      "score": 8.888265889550405,
       "result_count": 10
     },
     {
@@ -4948,7 +4948,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 6,
-      "score": 7.273597452513261,
+      "score": 7.273603650767775,
       "result_count": 10
     },
     {
@@ -4958,7 +4958,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 55.54715961466903,
+      "score": 55.547206410381015,
       "result_count": 10
     },
     {
@@ -4968,7 +4968,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 14.65094047485852,
+      "score": 14.6509530202318,
       "result_count": 10
     },
     {
@@ -4978,7 +4978,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 22.149405869262043,
+      "score": 22.14942497705852,
       "result_count": 10
     },
     {
@@ -4988,7 +4988,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 22.624374930337783,
+      "score": 22.62439448068028,
       "result_count": 10
     },
     {
@@ -4998,7 +4998,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 12.320585743231344,
+      "score": 12.320596731759236,
       "result_count": 10
     },
     {
@@ -5008,7 +5008,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 14.701385565015688,
+      "score": 14.701398780916184,
       "result_count": 10
     },
     {
@@ -5018,7 +5018,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 15.277400895847075,
+      "score": 15.277414555664455,
       "result_count": 10
     },
     {
@@ -5028,7 +5028,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 27.430737669354528,
+      "score": 27.430762601331036,
       "result_count": 10
     },
     {
@@ -5038,7 +5038,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 42.46340967289812,
+      "score": 42.46344748753694,
       "result_count": 10
     },
     {
@@ -5048,7 +5048,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 26.375181994647534,
+      "score": 26.37520509335914,
       "result_count": 10
     },
     {
@@ -5058,7 +5058,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 29.281756882728008,
+      "score": 29.281782260768697,
       "result_count": 10
     },
     {
@@ -5068,7 +5068,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 11.845287064006875,
+      "score": 11.845297337295344,
       "result_count": 10
     },
     {
@@ -5088,7 +5088,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 30.09314187866104,
+      "score": 30.093168269619667,
       "result_count": 10
     },
     {
@@ -5108,7 +5108,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 35.17933377761279,
+      "score": 35.17936457392473,
       "result_count": 10
     },
     {
@@ -5118,7 +5118,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 26.520161094660526,
+      "score": 26.520184240973585,
       "result_count": 10
     },
     {
@@ -5128,7 +5128,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 29.25880058389059,
+      "score": 29.25882553192421,
       "result_count": 10
     },
     {
@@ -5138,7 +5138,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 8,
-      "score": 9.52460540639848,
+      "score": 9.524613467268003,
       "result_count": 10
     },
     {
@@ -5148,7 +5148,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 15.350349415697714,
+      "score": 15.350362057376454,
       "result_count": 10
     },
     {
@@ -5162,6 +5162,6 @@
       "result_count": 10
     }
   ],
-  "duration": 28966483221,
-  "git_commit": "77b756e"
+  "duration": 28671052453,
+  "git_commit": "4640c41"
 }

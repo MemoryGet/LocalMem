@@ -242,7 +242,7 @@ func TestStore_Timeline(t *testing.T) {
 	})
 	tc.Step("插入 3 条记忆", "tech:2条, work:1条")
 
-	results, err := s.ListTimeline(ctx, &model.TimelineRequest{Scope: "tech", Limit: 10})
+	results, err := s.ListTimeline(ctx, &model.TimelineRequest{Scope: "tech", Limit: 10, TeamID: "t1"})
 	require.NoError(t, err)
 	tc.Step("调用 ListTimeline(scope=tech)", fmt.Sprintf("返回 %d 条", len(results)))
 
