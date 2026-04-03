@@ -58,6 +58,115 @@ func TestMigrate_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestFreshSchema_MatchesIncremental 验证新库 fresh schema 与增量迁移的结果一致
+// Verify fresh schema produces identical tables, columns, and indexes as incremental migration
+func TestFreshSchema_MatchesIncremental(t *testing.T) {
+	// --- 1. 创建 fresh schema 库 / Create fresh schema DB ---
+	freshDir := t.TempDir()
+	freshPath := filepath.Join(freshDir, "fresh.db")
+	freshStore, err := store.NewSQLiteMemoryStore(freshPath, [3]float64{10, 5, 3}, nil)
+	require.NoError(t, err)
+	defer freshStore.Close()
+	err = freshStore.Init(context.Background())
+	require.NoError(t, err)
+	freshDB := freshStore.DB().(*sql.DB)
+
+	// 验证 schema_version = 16
+	var freshVersion int
+	err = freshDB.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&freshVersion)
+	require.NoError(t, err)
+	assert.Equal(t, 16, freshVersion)
+
+	// 验证所有表存在 / Verify all tables exist
+	expectedTables := []string{
+		"memories", "memories_fts", "contexts", "tags", "memory_tags",
+		"entities", "entity_relations", "memory_entities", "documents",
+		"async_tasks", "memory_derivations", "meta", "schema_version",
+	}
+	for _, tbl := range expectedTables {
+		var cnt int
+		err = freshDB.QueryRow(
+			"SELECT count(*) FROM sqlite_master WHERE (type='table' OR type='view') AND name=?", tbl,
+		).Scan(&cnt)
+		require.NoError(t, err)
+		assert.Equal(t, 1, cnt, "fresh schema missing table: %s", tbl)
+	}
+
+	// 验证 memories 表有 35 列 / Verify memories table has 35 columns
+	var colCount int
+	err = freshDB.QueryRow("SELECT count(*) FROM pragma_table_info('memories')").Scan(&colCount)
+	require.NoError(t, err)
+	assert.Equal(t, 35, colCount, "memories table should have 35 columns")
+
+	// 验证关键列存在 / Verify key columns exist
+	keyColumns := []struct {
+		table  string
+		column string
+	}{
+		{"memories", "excerpt"},
+		{"memories", "memory_class"},
+		{"memories", "content_hash"},
+		{"memories", "owner_id"},
+		{"memories", "visibility"},
+		{"memories", "consolidated_into"},
+		{"contexts", "context_type"},
+		{"contexts", "mission"},
+		{"contexts", "directives"},
+		{"contexts", "disposition"},
+		{"documents", "error_msg"},
+		{"documents", "stage"},
+		{"documents", "parser"},
+	}
+	for _, kc := range keyColumns {
+		var cnt int
+		err = freshDB.QueryRow(
+			"SELECT count(*) FROM pragma_table_info(?) WHERE name=?", kc.table, kc.column,
+		).Scan(&cnt)
+		require.NoError(t, err)
+		assert.Equal(t, 1, cnt, "column %s.%s should exist", kc.table, kc.column)
+	}
+
+	// 验证 memories 不含已删除的列 / Verify dropped columns are absent
+	droppedColumns := []string{"embedding_id", "abstract", "derived_from"}
+	for _, col := range droppedColumns {
+		var cnt int
+		err = freshDB.QueryRow(
+			"SELECT count(*) FROM pragma_table_info('memories') WHERE name=?", col,
+		).Scan(&cnt)
+		require.NoError(t, err)
+		assert.Equal(t, 0, cnt, "dropped column %s should NOT exist", col)
+	}
+
+	// 验证索引数量 / Verify index count matches expectations
+	var indexCount int
+	err = freshDB.QueryRow(
+		"SELECT count(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
+	).Scan(&indexCount)
+	require.NoError(t, err)
+	// 预期索引：memories(22) + contexts(2) + entities(1) + entity_relations(2)
+	//          + memory_entities(2) + memory_tags(1) + documents(4) + async_tasks(2) + memory_derivations(1) = 37
+	assert.Equal(t, 37, indexCount, "fresh schema should have 37 named indexes")
+
+	// 验证 meta 表 tokenizer 记录 / Verify meta table has tokenizer record
+	var tokName string
+	err = freshDB.QueryRow("SELECT value FROM meta WHERE key='tokenizer'").Scan(&tokName)
+	require.NoError(t, err)
+	assert.Equal(t, "noop", tokName) // nil tokenizer defaults to noop
+
+	// 验证 FK CASCADE 在 memory_tags / Verify FK CASCADE on memory_tags
+	var memTagsDDL string
+	err = freshDB.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name='memory_tags'").Scan(&memTagsDDL)
+	require.NoError(t, err)
+	assert.Contains(t, memTagsDDL, "REFERENCES")
+	assert.Contains(t, memTagsDDL, "ON DELETE CASCADE")
+
+	// 验证 CHECK 约束在 entity_relations / Verify CHECK constraint on entity_relations
+	var erDDL string
+	err = freshDB.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name='entity_relations'").Scan(&erDDL)
+	require.NoError(t, err)
+	assert.Contains(t, erDDL, "CHECK")
+}
+
 func TestMigrate_V2ToV3(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")

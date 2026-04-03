@@ -50,6 +50,17 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		return nil
 	}
 
+	// 新数据库：直接创建终态 schema / Fresh database: create final schema directly
+	if version == 0 {
+		if err := createFreshSchema(db, tok); err != nil {
+			return fmt.Errorf("fresh schema creation failed: %w", err)
+		}
+		logger.Info("fresh schema created", zap.Int("version", latestVersion))
+		return nil
+	}
+
+	// 已有数据库：增量迁移 / Existing database: incremental migrations
+
 	// V0→V1: 初始建表
 	if version < 1 {
 		if err := migrateV0ToV1(db); err != nil {
