@@ -148,6 +148,37 @@ func migrateV10ToV11(db *sql.DB) error {
 	return tx.Commit()
 }
 
+// migrateV12ToV13 上下文行为约束字段 / Context behavioral constraint fields (mission, directives, disposition)
+func migrateV12ToV13(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// contexts 表可能不存在（旧库未启用上下文功能）/ Table may not exist in older databases
+	columns := []string{
+		`ALTER TABLE contexts ADD COLUMN mission TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE contexts ADD COLUMN directives TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE contexts ADD COLUMN disposition TEXT NOT NULL DEFAULT ''`,
+	}
+	for _, stmt := range columns {
+		if _, err := tx.Exec(stmt); err != nil {
+			if strings.Contains(err.Error(), "no such table") || IsColumnExistsError(err) {
+				continue
+			}
+			return fmt.Errorf("V12→V13: %w", err)
+		}
+	}
+
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (13, datetime('now'))`); err != nil {
+		return fmt.Errorf("V12→V13 schema_version: %w", err)
+	}
+
+	logger.Info("migration V12→V13 completed: context behavioral fields (mission, directives, disposition)")
+	return tx.Commit()
+}
+
 // migrateV11ToV12 记忆演化层级 / Memory evolution layer (memory_class + derived_from)
 func migrateV11ToV12(db *sql.DB) error {
 	tx, err := db.Begin()

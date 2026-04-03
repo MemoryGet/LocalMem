@@ -29,6 +29,9 @@ func (m *ContextManager) Create(ctx context.Context, req *model.CreateContextReq
 		Scope:       req.Scope,
 		Kind:        req.Kind,
 		Description: req.Description,
+		Mission:     req.Mission,
+		Directives:  req.Directives,
+		Disposition: req.Disposition,
 		Metadata:    req.Metadata,
 		SortOrder:   req.SortOrder,
 	}
@@ -74,6 +77,15 @@ func (m *ContextManager) Update(ctx context.Context, id string, req *model.Updat
 	}
 	if req.Metadata != nil {
 		c.Metadata = req.Metadata
+	}
+	if req.Mission != nil {
+		c.Mission = *req.Mission
+	}
+	if req.Directives != nil {
+		c.Directives = *req.Directives
+	}
+	if req.Disposition != nil {
+		c.Disposition = *req.Disposition
 	}
 	if req.SortOrder != nil {
 		c.SortOrder = *req.SortOrder

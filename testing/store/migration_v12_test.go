@@ -71,8 +71,8 @@ func TestMigrateV11ToV12_AddsColumns(t *testing.T) {
 	// 验证版本号 / Verify schema version
 	var version int
 	db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
-	if version != 12 {
-		t.Errorf("schema version = %d, want 12", version)
+	if version != 13 {
+		t.Errorf("schema version = %d, want 13", version)
 	}
 
 	// 验证索引存在 / Verify index exists
@@ -209,8 +209,8 @@ func TestMigrateV11ToV12_Idempotent(t *testing.T) {
 
 	var version int
 	db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
-	if version != 12 {
-		t.Errorf("schema version = %d, want 12", version)
+	if version != 13 {
+		t.Errorf("schema version = %d, want 13", version)
 	}
 }
 

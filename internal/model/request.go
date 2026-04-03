@@ -146,6 +146,9 @@ type CreateContextRequest struct {
 	Scope       string         `json:"scope,omitempty"`
 	Kind        string         `json:"kind,omitempty"`
 	Description string         `json:"description,omitempty"`
+	Mission     string         `json:"mission,omitempty"`     // V13: 上下文使命 / Context mission
+	Directives  string         `json:"directives,omitempty"`  // V13: 行为指令 / Behavioral directives
+	Disposition string         `json:"disposition,omitempty"` // V13: 性格/风格 / Response style
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	SortOrder   int            `json:"sort_order,omitempty"`
 }
@@ -155,6 +158,9 @@ type UpdateContextRequest struct {
 	Name        *string        `json:"name,omitempty"`
 	Description *string        `json:"description,omitempty"`
 	Kind        *string        `json:"kind,omitempty"`
+	Mission     *string        `json:"mission,omitempty"`     // V13: 上下文使命 / Context mission
+	Directives  *string        `json:"directives,omitempty"`  // V13: 行为指令 / Behavioral directives
+	Disposition *string        `json:"disposition,omitempty"` // V13: 性格/风格 / Response style
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	SortOrder   *int           `json:"sort_order,omitempty"`
 }
