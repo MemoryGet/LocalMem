@@ -28,12 +28,7 @@ type batchGetRequest struct {
 
 // BatchGet 批量获取记忆 / Batch get memories by IDs
 // POST /v1/memories/batch
-func (h *BatchHandler) BatchGet(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *BatchHandler) BatchGet(c *gin.Context, identity *model.Identity) {
 	var req batchGetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)

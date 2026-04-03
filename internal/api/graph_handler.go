@@ -20,12 +20,7 @@ func NewGraphHandler(manager *memory.GraphManager) *GraphHandler {
 }
 
 // CreateEntity 创建实体 / POST /v1/entities
-func (h *GraphHandler) CreateEntity(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) CreateEntity(c *gin.Context, identity *model.Identity) {
 	var req model.CreateEntityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -43,12 +38,7 @@ func (h *GraphHandler) CreateEntity(c *gin.Context) {
 }
 
 // GetEntity 获取实体 / GET /v1/entities/:id
-func (h *GraphHandler) GetEntity(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) GetEntity(c *gin.Context, identity *model.Identity) {
 	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -58,12 +48,7 @@ func (h *GraphHandler) GetEntity(c *gin.Context) {
 }
 
 // UpdateEntity 更新实体 / PUT /v1/entities/:id
-func (h *GraphHandler) UpdateEntity(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) UpdateEntity(c *gin.Context, identity *model.Identity) {
 	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -88,12 +73,7 @@ func (h *GraphHandler) UpdateEntity(c *gin.Context) {
 }
 
 // DeleteEntity 删除实体 / DELETE /v1/entities/:id
-func (h *GraphHandler) DeleteEntity(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) DeleteEntity(c *gin.Context, identity *model.Identity) {
 	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -112,12 +92,7 @@ func (h *GraphHandler) DeleteEntity(c *gin.Context) {
 }
 
 // ListEntities 列出实体 / GET /v1/entities?scope=x&type=y&limit=20
-func (h *GraphHandler) ListEntities(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) ListEntities(c *gin.Context, identity *model.Identity) {
 	scope := c.Query("scope")
 	if !identity.IsSystem() {
 		scope = identity.OwnerID
@@ -139,12 +114,7 @@ func (h *GraphHandler) ListEntities(c *gin.Context) {
 }
 
 // GetEntityRelations 获取实体关系 / GET /v1/entities/:id/relations
-func (h *GraphHandler) GetEntityRelations(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) GetEntityRelations(c *gin.Context, identity *model.Identity) {
 	// 授权检查：先获取实体，验证 scope 归属 / Authorization: fetch entity and verify scope ownership
 	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -165,12 +135,7 @@ func (h *GraphHandler) GetEntityRelations(c *gin.Context) {
 }
 
 // GetEntityMemories 获取实体记忆 / GET /v1/entities/:id/memories
-func (h *GraphHandler) GetEntityMemories(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) GetEntityMemories(c *gin.Context, identity *model.Identity) {
 	entity, err := h.manager.GetEntity(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -197,12 +162,7 @@ func (h *GraphHandler) GetEntityMemories(c *gin.Context) {
 }
 
 // CreateRelation 创建关系 / POST /v1/entity-relations
-func (h *GraphHandler) CreateRelation(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) CreateRelation(c *gin.Context, identity *model.Identity) {
 	var req model.CreateEntityRelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -229,12 +189,7 @@ func (h *GraphHandler) CreateRelation(c *gin.Context) {
 }
 
 // DeleteRelation 删除关系 / DELETE /v1/entity-relations/:id
-func (h *GraphHandler) DeleteRelation(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) DeleteRelation(c *gin.Context, identity *model.Identity) {
 	// 授权检查：获取关系→获取源实体→验证 scope 归属
 	// Authorization: fetch relation → fetch source entity → verify scope ownership
 	rel, err := h.manager.GetRelation(c.Request.Context(), c.Param("id"))
@@ -260,12 +215,7 @@ func (h *GraphHandler) DeleteRelation(c *gin.Context) {
 }
 
 // CreateMemoryEntity 创建记忆-实体关联 / POST /v1/memory-entities
-func (h *GraphHandler) CreateMemoryEntity(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) CreateMemoryEntity(c *gin.Context, identity *model.Identity) {
 	var req model.CreateMemoryEntityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -291,12 +241,7 @@ func (h *GraphHandler) CreateMemoryEntity(c *gin.Context) {
 }
 
 // DeleteMemoryEntity 删除记忆-实体关联 / DELETE /v1/memory-entities
-func (h *GraphHandler) DeleteMemoryEntity(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *GraphHandler) DeleteMemoryEntity(c *gin.Context, identity *model.Identity) {
 	memoryID := c.Query("memory_id")
 	entityID := c.Query("entity_id")
 

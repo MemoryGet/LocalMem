@@ -23,24 +23,9 @@ func NewMemoryHandler(manager *memory.Manager, authEnabled bool) *MemoryHandler 
 	return &MemoryHandler{manager: manager, authEnabled: authEnabled}
 }
 
-// requireIdentity 从上下文获取身份，失败时返回错误响应 / Get identity from context, return error response on failure
-func requireIdentity(c *gin.Context) *model.Identity {
-	identity := GetIdentity(c)
-	if identity == nil {
-		Error(c, fmt.Errorf("identity not found in context: %w", model.ErrUnauthorized))
-		return nil
-	}
-	return identity
-}
-
 // Create 创建记忆 / Create a memory
 // POST /v1/memories
-func (h *MemoryHandler) Create(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *MemoryHandler) Create(c *gin.Context, identity *model.Identity) {
 	var req model.CreateMemoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -68,12 +53,7 @@ func (h *MemoryHandler) Create(c *gin.Context) {
 
 // Get 获取记忆 / Get a memory by ID (with visibility check)
 // GET /v1/memories/:id
-func (h *MemoryHandler) Get(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *MemoryHandler) Get(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
 	mem, err := h.manager.GetVisible(c.Request.Context(), id, identity)
 	if err != nil {
@@ -85,12 +65,7 @@ func (h *MemoryHandler) Get(c *gin.Context) {
 
 // Update 更新记忆 / Update a memory
 // PUT /v1/memories/:id
-func (h *MemoryHandler) Update(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *MemoryHandler) Update(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
 	var req model.UpdateMemoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -125,12 +100,7 @@ func (h *MemoryHandler) Update(c *gin.Context) {
 
 // Delete 删除记忆 / Delete a memory
 // DELETE /v1/memories/:id
-func (h *MemoryHandler) Delete(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *MemoryHandler) Delete(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
 
 	// 授权检查 / Authorization check
@@ -153,12 +123,7 @@ func (h *MemoryHandler) Delete(c *gin.Context) {
 
 // List 分页列表 / List memories with pagination and optional filters
 // GET /v1/memories?offset=0&limit=20&scope=x&context_id=x&kind=x&tags=a,b&happened_after=RFC3339&happened_before=RFC3339
-func (h *MemoryHandler) List(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *MemoryHandler) List(c *gin.Context, identity *model.Identity) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	if offset < 0 {
 		offset = 0
@@ -211,12 +176,7 @@ func (h *MemoryHandler) List(c *gin.Context) {
 
 // SoftDelete 软删除记忆 / Soft delete a memory (keeps data, sets deleted_at)
 // DELETE /v1/memories/:id/soft
-func (h *MemoryHandler) SoftDelete(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *MemoryHandler) SoftDelete(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
 
 	// 授权检查 / Authorization check
@@ -239,12 +199,7 @@ func (h *MemoryHandler) SoftDelete(c *gin.Context) {
 
 // Restore 恢复软删除的记忆（需验证归属）/ Restore a soft-deleted memory (owner check)
 // POST /v1/memories/:id/restore
-func (h *MemoryHandler) Restore(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *MemoryHandler) Restore(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
 
 	// 归属检查：Restore 操作仅限 owner 或系统身份 / Owner check: only owner or system identity
@@ -257,12 +212,7 @@ func (h *MemoryHandler) Restore(c *gin.Context) {
 
 // Reinforce 强化记忆（需验证归属）/ Reinforce a memory with owner check
 // POST /v1/memories/:id/reinforce
-func (h *MemoryHandler) Reinforce(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *MemoryHandler) Reinforce(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
 
 	// 归属检查：先 GetVisible 验证可见性 / Owner check via GetVisible
@@ -285,11 +235,7 @@ func (h *MemoryHandler) Reinforce(c *gin.Context) {
 
 // Cleanup 清理过期记忆（仅系统身份）/ Cleanup expired memories (system identity only)
 // POST /v1/maintenance/cleanup
-func (h *MemoryHandler) Cleanup(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
+func (h *MemoryHandler) Cleanup(c *gin.Context, identity *model.Identity) {
 	// 认证启用时需系统身份；认证关闭（开发模式）时放行 / Require system identity when auth enabled; allow in dev mode
 	if h.authEnabled && !identity.IsSystem() {
 		Error(c, fmt.Errorf("admin privilege required: %w", model.ErrForbidden))

@@ -30,12 +30,7 @@ func NewDocumentHandler(processor *document.Processor, fileStore document.FileSt
 }
 
 // Upload 文件上传 / POST /v1/documents/upload (multipart/form-data)
-func (h *DocumentHandler) Upload(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *DocumentHandler) Upload(c *gin.Context, identity *model.Identity) {
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		Error(c, fmt.Errorf("file is required: %w", model.ErrInvalidInput))
@@ -132,12 +127,7 @@ func (h *DocumentHandler) Upload(c *gin.Context) {
 }
 
 // Status 获取处理状态 / GET /v1/documents/:id/status
-func (h *DocumentHandler) Status(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *DocumentHandler) Status(c *gin.Context, identity *model.Identity) {
 	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -159,12 +149,7 @@ func (h *DocumentHandler) Status(c *gin.Context) {
 }
 
 // Get 获取文档 / GET /v1/documents/:id
-func (h *DocumentHandler) Get(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *DocumentHandler) Get(c *gin.Context, identity *model.Identity) {
 	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -178,12 +163,7 @@ func (h *DocumentHandler) Get(c *gin.Context) {
 }
 
 // List 列出文档 / GET /v1/documents?scope=x&offset=0&limit=20
-func (h *DocumentHandler) List(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *DocumentHandler) List(c *gin.Context, identity *model.Identity) {
 	scope := identity.OwnerID
 	if identity.IsSystem() {
 		scope = c.Query("scope")
@@ -202,12 +182,7 @@ func (h *DocumentHandler) List(c *gin.Context) {
 }
 
 // Delete 删除文档 / DELETE /v1/documents/:id
-func (h *DocumentHandler) Delete(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *DocumentHandler) Delete(c *gin.Context, identity *model.Identity) {
 	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		Error(c, err)
@@ -226,12 +201,7 @@ func (h *DocumentHandler) Delete(c *gin.Context) {
 }
 
 // Process 手动纯文本处理 / POST /v1/documents/:id/reprocess
-func (h *DocumentHandler) Process(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *DocumentHandler) Process(c *gin.Context, identity *model.Identity) {
 	// 授权检查：先获取文档验证归属 / Authorization: fetch doc first, verify ownership
 	doc, err := h.processor.GetDocument(c.Request.Context(), c.Param("id"))
 	if err != nil {

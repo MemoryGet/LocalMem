@@ -19,12 +19,7 @@ func NewExtractHandler(extractor *memory.Extractor) *ExtractHandler {
 
 // Extract 对已有记忆触发实体抽取 / Trigger entity extraction for existing memory
 // POST /v1/memories/:id/extract
-func (h *ExtractHandler) Extract(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *ExtractHandler) Extract(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
 	if id == "" {
 		Error(c, model.ErrInvalidInput)

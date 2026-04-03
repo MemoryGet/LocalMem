@@ -53,70 +53,70 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 
 		// Memory CRUD
 		memHandler := NewMemoryHandler(deps.MemManager, deps.AuthConfig.Enabled)
-		v1.POST("/memories", writeRateLimit, memHandler.Create)
-		v1.GET("/memories", memHandler.List)
-		v1.GET("/memories/:id", memHandler.Get)
-		v1.PUT("/memories/:id", memHandler.Update)
-		v1.DELETE("/memories/:id", memHandler.Delete)
-		v1.DELETE("/memories/:id/soft", memHandler.SoftDelete)
-		v1.POST("/memories/:id/restore", memHandler.Restore)
-		v1.POST("/memories/:id/reinforce", memHandler.Reinforce)
+		v1.POST("/memories", writeRateLimit, withIdentity(memHandler.Create))
+		v1.GET("/memories", withIdentity(memHandler.List))
+		v1.GET("/memories/:id", withIdentity(memHandler.Get))
+		v1.PUT("/memories/:id", withIdentity(memHandler.Update))
+		v1.DELETE("/memories/:id", withIdentity(memHandler.Delete))
+		v1.DELETE("/memories/:id/soft", withIdentity(memHandler.SoftDelete))
+		v1.POST("/memories/:id/restore", withIdentity(memHandler.Restore))
+		v1.POST("/memories/:id/reinforce", withIdentity(memHandler.Reinforce))
 
 		// Batch operations
 		batchHandler := NewBatchHandler(deps.MemManager)
-		v1.POST("/memories/batch", batchHandler.BatchGet)
+		v1.POST("/memories/batch", withIdentity(batchHandler.BatchGet))
 
 		// Maintenance
-		v1.POST("/maintenance/cleanup", memHandler.Cleanup)
+		v1.POST("/maintenance/cleanup", withIdentity(memHandler.Cleanup))
 
 		// Conversations
 		convHandler := NewConversationHandler(deps.MemManager)
-		v1.POST("/conversations", writeRateLimit, convHandler.Ingest)
-		v1.GET("/conversations/:context_id", convHandler.GetConversation)
+		v1.POST("/conversations", writeRateLimit, withIdentity(convHandler.Ingest))
+		v1.GET("/conversations/:context_id", withIdentity(convHandler.GetConversation))
 
 		// Search（带速率限制）/ Search with rate limiting
 		searchHandler := NewSearchHandler(deps.Retriever)
 		apiRateLimit := RateLimitMiddleware(10, 20) // 10 rps, burst 20
-		v1.POST("/retrieve", apiRateLimit, searchHandler.Retrieve)
-		v1.GET("/timeline", searchHandler.Timeline)
+		v1.POST("/retrieve", apiRateLimit, withIdentity(searchHandler.Retrieve))
+		v1.GET("/timeline", withIdentity(searchHandler.Timeline))
 
 		// Contexts
 		if deps.ContextManager != nil {
 			ctxHandler := NewContextHandler(deps.ContextManager)
-			v1.POST("/contexts", ctxHandler.Create)
-			v1.GET("/contexts/:id", ctxHandler.Get)
-			v1.PUT("/contexts/:id", ctxHandler.Update)
-			v1.DELETE("/contexts/:id", ctxHandler.Delete)
-			v1.GET("/contexts/:id/children", ctxHandler.ListChildren)
-			v1.GET("/contexts/:id/tree", ctxHandler.ListSubtree)
-			v1.POST("/contexts/:id/move", ctxHandler.Move)
+			v1.POST("/contexts", withIdentity(ctxHandler.Create))
+			v1.GET("/contexts/:id", withIdentity(ctxHandler.Get))
+			v1.PUT("/contexts/:id", withIdentity(ctxHandler.Update))
+			v1.DELETE("/contexts/:id", withIdentity(ctxHandler.Delete))
+			v1.GET("/contexts/:id/children", withIdentity(ctxHandler.ListChildren))
+			v1.GET("/contexts/:id/tree", withIdentity(ctxHandler.ListSubtree))
+			v1.POST("/contexts/:id/move", withIdentity(ctxHandler.Move))
 		}
 
 		// Tags
 		if deps.TagStore != nil {
 			tagHandler := NewTagHandler(deps.TagStore, deps.MemStore)
-			v1.POST("/tags", tagHandler.CreateTag)
-			v1.GET("/tags", tagHandler.ListTags)
-			v1.DELETE("/tags/:id", tagHandler.DeleteTag)
-			v1.POST("/memories/:id/tags", tagHandler.TagMemory)
-			v1.DELETE("/memories/:id/tags/:tag_id", tagHandler.UntagMemory)
-			v1.GET("/memories/:id/tags", tagHandler.GetMemoryTags)
+			v1.POST("/tags", withIdentity(tagHandler.CreateTag))
+			v1.GET("/tags", withIdentity(tagHandler.ListTags))
+			v1.DELETE("/tags/:id", withIdentity(tagHandler.DeleteTag))
+			v1.POST("/memories/:id/tags", withIdentity(tagHandler.TagMemory))
+			v1.DELETE("/memories/:id/tags/:tag_id", withIdentity(tagHandler.UntagMemory))
+			v1.GET("/memories/:id/tags", withIdentity(tagHandler.GetMemoryTags))
 		}
 
 		// Graph (entities + relations)
 		if deps.GraphManager != nil {
 			graphHandler := NewGraphHandler(deps.GraphManager)
-			v1.POST("/entities", graphHandler.CreateEntity)
-			v1.GET("/entities", graphHandler.ListEntities)
-			v1.GET("/entities/:id", graphHandler.GetEntity)
-			v1.PUT("/entities/:id", graphHandler.UpdateEntity)
-			v1.DELETE("/entities/:id", graphHandler.DeleteEntity)
-			v1.GET("/entities/:id/relations", graphHandler.GetEntityRelations)
-			v1.GET("/entities/:id/memories", graphHandler.GetEntityMemories)
-			v1.POST("/entity-relations", graphHandler.CreateRelation)
-			v1.DELETE("/entity-relations/:id", graphHandler.DeleteRelation)
-			v1.POST("/memory-entities", graphHandler.CreateMemoryEntity)
-			v1.DELETE("/memory-entities", graphHandler.DeleteMemoryEntity)
+			v1.POST("/entities", withIdentity(graphHandler.CreateEntity))
+			v1.GET("/entities", withIdentity(graphHandler.ListEntities))
+			v1.GET("/entities/:id", withIdentity(graphHandler.GetEntity))
+			v1.PUT("/entities/:id", withIdentity(graphHandler.UpdateEntity))
+			v1.DELETE("/entities/:id", withIdentity(graphHandler.DeleteEntity))
+			v1.GET("/entities/:id/relations", withIdentity(graphHandler.GetEntityRelations))
+			v1.GET("/entities/:id/memories", withIdentity(graphHandler.GetEntityMemories))
+			v1.POST("/entity-relations", withIdentity(graphHandler.CreateRelation))
+			v1.DELETE("/entity-relations/:id", withIdentity(graphHandler.DeleteRelation))
+			v1.POST("/memory-entities", withIdentity(graphHandler.CreateMemoryEntity))
+			v1.DELETE("/memory-entities", withIdentity(graphHandler.DeleteMemoryEntity))
 		}
 
 		// Documents
@@ -124,12 +124,12 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 			docHandler := NewDocumentHandler(deps.DocProcessor, deps.FileStore, deps.DocumentConfig)
 			docGroup := v1.Group("/documents")
 			{
-				docGroup.POST("/upload", MaxBodySizeMiddleware(deps.DocumentConfig.MaxFileSize+1<<20), writeRateLimit, docHandler.Upload)
-				docGroup.GET("", docHandler.List)
-				docGroup.GET("/:id", docHandler.Get)
-				docGroup.GET("/:id/status", docHandler.Status)
-				docGroup.DELETE("/:id", docHandler.Delete)
-				docGroup.POST("/:id/reprocess", docHandler.Process)
+				docGroup.POST("/upload", MaxBodySizeMiddleware(deps.DocumentConfig.MaxFileSize+1<<20), writeRateLimit, withIdentity(docHandler.Upload))
+				docGroup.GET("", withIdentity(docHandler.List))
+				docGroup.GET("/:id", withIdentity(docHandler.Get))
+				docGroup.GET("/:id/status", withIdentity(docHandler.Status))
+				docGroup.DELETE("/:id", withIdentity(docHandler.Delete))
+				docGroup.POST("/:id/reprocess", withIdentity(docHandler.Process))
 			}
 		}
 
@@ -139,13 +139,13 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 		// Extract 实体抽取 / Entity extraction
 		if deps.Extractor != nil {
 			extractHandler := NewExtractHandler(deps.Extractor)
-			v1.POST("/memories/:id/extract", llmRateLimit, extractHandler.Extract)
+			v1.POST("/memories/:id/extract", llmRateLimit, withIdentity(extractHandler.Extract))
 		}
 
 		// Reflect 反思推理 / Reflect reasoning
 		if deps.ReflectEngine != nil {
 			reflectHandler := NewReflectHandler(deps.ReflectEngine, deps.ReflectConfig)
-			v1.POST("/reflect", llmRateLimit, reflectHandler.Reflect)
+			v1.POST("/reflect", llmRateLimit, withIdentity(reflectHandler.Reflect))
 		}
 	}
 

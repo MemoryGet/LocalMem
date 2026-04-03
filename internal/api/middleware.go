@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/subtle"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -200,6 +201,30 @@ func RateLimitMiddleware(rps float64, burst int) gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// requireIdentity 从上下文获取身份，失败时返回错误响应 / Get identity from context, return error response on failure
+func requireIdentity(c *gin.Context) *model.Identity {
+	identity := GetIdentity(c)
+	if identity == nil {
+		Error(c, fmt.Errorf("identity not found in context: %w", model.ErrUnauthorized))
+		return nil
+	}
+	return identity
+}
+
+// IdentityHandler identity 感知的 handler 函数签名 / Handler function that receives identity
+type IdentityHandler func(c *gin.Context, identity *model.Identity)
+
+// withIdentity 提取 identity 并传入 handler / Extract identity and pass to handler
+func withIdentity(fn IdentityHandler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		identity := requireIdentity(c)
+		if identity == nil {
+			return
+		}
+		fn(c, identity)
 	}
 }
 

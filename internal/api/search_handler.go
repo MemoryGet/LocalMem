@@ -22,12 +22,7 @@ func NewSearchHandler(retriever *search.Retriever) *SearchHandler {
 
 // Retrieve 执行检索 / Execute retrieval
 // POST /v1/retrieve
-func (h *SearchHandler) Retrieve(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *SearchHandler) Retrieve(c *gin.Context, identity *model.Identity) {
 	var req model.RetrieveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -84,12 +79,7 @@ func applyDetailLevel(results []*model.SearchResult, level string) {
 
 // Timeline 时间线查询 / Timeline query
 // GET /v1/timeline
-func (h *SearchHandler) Timeline(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *SearchHandler) Timeline(c *gin.Context, identity *model.Identity) {
 	var req model.TimelineRequest
 	req.Scope = c.Query("scope")
 	req.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "20"))

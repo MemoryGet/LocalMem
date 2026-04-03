@@ -20,12 +20,7 @@ func NewTagHandler(tagStore store.TagStore, memReader store.MemoryReader) *TagHa
 
 // CreateTag 创建标签 / Create tag
 // POST /v1/tags
-func (h *TagHandler) CreateTag(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *TagHandler) CreateTag(c *gin.Context, identity *model.Identity) {
 	var tag model.Tag
 	if err := c.ShouldBindJSON(&tag); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -43,12 +38,7 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 
 // ListTags 列出标签 / List tags
 // GET /v1/tags?scope=xxx
-func (h *TagHandler) ListTags(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *TagHandler) ListTags(c *gin.Context, identity *model.Identity) {
 	scope := c.Query("scope")
 	if !identity.IsSystem() {
 		scope = identity.OwnerID
@@ -63,12 +53,7 @@ func (h *TagHandler) ListTags(c *gin.Context) {
 
 // DeleteTag 删除标签 / Delete tag
 // DELETE /v1/tags/:id
-func (h *TagHandler) DeleteTag(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *TagHandler) DeleteTag(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
 	tag, err := h.tagStore.GetTag(c.Request.Context(), id)
 	if err != nil {
@@ -89,12 +74,7 @@ func (h *TagHandler) DeleteTag(c *gin.Context) {
 
 // TagMemory 给记忆打标签 / Tag a memory
 // POST /v1/memories/:id/tags
-func (h *TagHandler) TagMemory(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *TagHandler) TagMemory(c *gin.Context, identity *model.Identity) {
 	memoryID := c.Param("id")
 
 	// 授权检查：验证调用者拥有该记忆 / Authorization: verify caller owns the memory
@@ -124,12 +104,7 @@ func (h *TagHandler) TagMemory(c *gin.Context) {
 
 // UntagMemory 移除记忆标签 / Remove tag from memory
 // DELETE /v1/memories/:id/tags/:tag_id
-func (h *TagHandler) UntagMemory(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *TagHandler) UntagMemory(c *gin.Context, identity *model.Identity) {
 	memoryID := c.Param("id")
 
 	// 授权检查：验证调用者拥有该记忆 / Authorization: verify caller owns the memory
@@ -153,12 +128,7 @@ func (h *TagHandler) UntagMemory(c *gin.Context) {
 
 // GetMemoryTags 获取记忆标签 / Get memory tags
 // GET /v1/memories/:id/tags
-func (h *TagHandler) GetMemoryTags(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *TagHandler) GetMemoryTags(c *gin.Context, identity *model.Identity) {
 	memoryID := c.Param("id")
 
 	// 授权检查：验证调用者可见该记忆 / Authorization: verify memory is visible to caller

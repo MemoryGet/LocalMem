@@ -21,12 +21,7 @@ func NewReflectHandler(engine *reflectpkg.ReflectEngine, cfg config.ReflectConfi
 
 // Reflect 处理反思推理请求 / Handle reflect reasoning request
 // POST /v1/reflect
-func (h *ReflectHandler) Reflect(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *ReflectHandler) Reflect(c *gin.Context, identity *model.Identity) {
 	var req model.ReflectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrReflectInvalidRequest)

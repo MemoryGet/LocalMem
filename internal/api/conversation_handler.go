@@ -21,12 +21,7 @@ func NewConversationHandler(manager *memory.Manager) *ConversationHandler {
 
 // Ingest 批量导入对话 / Ingest a conversation as multiple memories
 // POST /v1/conversations
-func (h *ConversationHandler) Ingest(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *ConversationHandler) Ingest(c *gin.Context, identity *model.Identity) {
 	var req model.IngestConversationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
@@ -48,12 +43,7 @@ func (h *ConversationHandler) Ingest(c *gin.Context) {
 
 // GetConversation 按轮次顺序获取对话 / Get conversation memories ordered by turn
 // GET /v1/conversations/:context_id
-func (h *ConversationHandler) GetConversation(c *gin.Context) {
-	identity := requireIdentity(c)
-	if identity == nil {
-		return
-	}
-
+func (h *ConversationHandler) GetConversation(c *gin.Context, identity *model.Identity) {
 	contextID := c.Param("context_id")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
