@@ -83,6 +83,9 @@ func (h *SearchHandler) Timeline(c *gin.Context, identity *model.Identity) {
 	var req model.TimelineRequest
 	req.Scope = c.Query("scope")
 	req.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if req.Limit > 200 {
+		req.Limit = 200
+	}
 
 	// 注入身份信息 / Inject identity
 	req.TeamID = identity.TeamID

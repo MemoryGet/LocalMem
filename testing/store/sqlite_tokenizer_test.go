@@ -241,42 +241,49 @@ func TestSearchTextFiltered_MultipleFilters(t *testing.T) {
 		{
 			name:    "filter by scope=tech",
 			query:   "Go",
-			filters: &model.SearchFilters{Scope: "tech"},
+			filters: &model.SearchFilters{Scope: "tech", TeamID: "t1"},
 			wantMin: 2,
 			wantMax: 2,
 		},
 		{
 			name:    "filter by scope=tech AND kind=fact",
 			query:   "Go",
-			filters: &model.SearchFilters{Scope: "tech", Kind: "fact"},
+			filters: &model.SearchFilters{Scope: "tech", Kind: "fact", TeamID: "t1"},
 			wantMin: 1,
 			wantMax: 1,
 		},
 		{
 			name:    "filter by retention_tier=permanent",
 			query:   "Go",
-			filters: &model.SearchFilters{RetentionTier: "permanent"},
+			filters: &model.SearchFilters{RetentionTier: "permanent", TeamID: "t1"},
 			wantMin: 1,
 			wantMax: 1,
 		},
 		{
 			name:    "filter by scope=work",
 			query:   "Go",
-			filters: &model.SearchFilters{Scope: "work"},
+			filters: &model.SearchFilters{Scope: "work", TeamID: "t1"},
 			wantMin: 1,
 			wantMax: 1,
 		},
 		{
-			name:    "no filters",
+			name:    "no filters with identity",
 			query:   "Go",
-			filters: nil,
+			filters: &model.SearchFilters{TeamID: "t1"},
 			wantMin: 3,
 			wantMax: 3,
 		},
 		{
+			name:    "no filters no identity returns public only",
+			query:   "Go",
+			filters: nil,
+			wantMin: 0,
+			wantMax: 0,
+		},
+		{
 			name:    "filter no match",
 			query:   "Go",
-			filters: &model.SearchFilters{Scope: "nonexistent"},
+			filters: &model.SearchFilters{Scope: "nonexistent", TeamID: "t1"},
 			wantMin: 0,
 			wantMax: 0,
 		},
@@ -306,8 +313,8 @@ func TestSearchTextFiltered_MinStrength(t *testing.T) {
 	require.NoError(t, s.Create(ctx, mem1))
 	require.NoError(t, s.Create(ctx, mem2))
 
-	// 过滤 strength >= 0.5
-	results, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{MinStrength: 0.5}, 10)
+	// 过滤 strength >= 0.5（需提供身份信息，否则仅返回 public）/ Must provide identity, otherwise only public visible
+	results, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{MinStrength: 0.5, TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(results))
 	assert.Contains(t, results[0].Memory.Content, "高强度")
@@ -329,13 +336,13 @@ func TestSearchTextFiltered_ExcludeExpired(t *testing.T) {
 	require.NoError(t, s.Create(ctx, mem2))
 	require.NoError(t, s.Create(ctx, mem3))
 
-	// 默认排除过期
-	results, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{}, 10)
+	// 默认排除过期（需提供身份信息）/ Exclude expired by default (identity required)
+	results, err := s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(results), "expired memory should be excluded")
 
 	// IncludeExpired=true 包含过期
-	results, err = s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{IncludeExpired: true}, 10)
+	results, err = s.SearchTextFiltered(ctx, "记忆", &model.SearchFilters{IncludeExpired: true, TeamID: "t1"}, 10)
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(results), "all memories should be included with IncludeExpired")
 }

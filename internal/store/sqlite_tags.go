@@ -63,13 +63,15 @@ func (s *SQLiteTagStore) GetTag(ctx context.Context, id string) (*model.Tag, err
 
 // ListTags 列出标签（可选 scope 过滤）/ List tags with optional scope filter
 func (s *SQLiteTagStore) ListTags(ctx context.Context, scope string) ([]*model.Tag, error) {
+	const maxLimit = 200
 	var query string
 	var args []any
 	if scope == "" {
-		query = `SELECT id, name, scope, created_at FROM tags ORDER BY name`
+		query = `SELECT id, name, scope, created_at FROM tags ORDER BY name LIMIT ?`
+		args = append(args, maxLimit)
 	} else {
-		query = `SELECT id, name, scope, created_at FROM tags WHERE scope = ? ORDER BY name`
-		args = append(args, scope)
+		query = `SELECT id, name, scope, created_at FROM tags WHERE scope = ? ORDER BY name LIMIT ?`
+		args = append(args, scope, maxLimit)
 	}
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -188,6 +190,9 @@ func (s *SQLiteTagStore) GetMemoryTags(ctx context.Context, memoryID string) ([]
 func (s *SQLiteTagStore) GetMemoriesByTag(ctx context.Context, tagID string, limit int) ([]*model.Memory, error) {
 	if limit <= 0 {
 		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
 	}
 
 	query := `SELECT ` + memoryColumnsAliased + `

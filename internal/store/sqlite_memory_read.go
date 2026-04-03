@@ -48,6 +48,9 @@ func (s *SQLiteMemoryStore) List(ctx context.Context, identity *model.Identity, 
 	if limit <= 0 {
 		limit = 20
 	}
+	if limit > 200 {
+		limit = 200
+	}
 
 	visCond, visArgs := visibilityCondition("", identity)
 	query := `SELECT ` + memoryColumns + ` FROM memories
@@ -69,6 +72,9 @@ func (s *SQLiteMemoryStore) List(ctx context.Context, identity *model.Identity, 
 func (s *SQLiteMemoryStore) ListByContext(ctx context.Context, contextID string, identity *model.Identity, offset, limit int) ([]*model.Memory, error) {
 	if limit <= 0 {
 		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
 	}
 
 	visCond, visArgs := visibilityCondition("", identity)
@@ -92,6 +98,9 @@ func (s *SQLiteMemoryStore) ListByContext(ctx context.Context, contextID string,
 func (s *SQLiteMemoryStore) ListByContextOrdered(ctx context.Context, contextID string, identity *model.Identity, offset, limit int) ([]*model.Memory, error) {
 	if limit <= 0 {
 		limit = 100
+	}
+	if limit > 200 {
+		limit = 200
 	}
 
 	visCond, visArgs := visibilityCondition("", identity)
@@ -143,6 +152,9 @@ func (s *SQLiteMemoryStore) ListTimeline(ctx context.Context, req *model.Timelin
 	if limit <= 0 {
 		limit = 20
 	}
+	if limit > 200 {
+		limit = 200
+	}
 
 	qb := sqlbuilder.Select(memoryColumns).
 		From("memories").
@@ -155,10 +167,13 @@ func (s *SQLiteMemoryStore) ListTimeline(ctx context.Context, req *model.Timelin
 	qb.Where().AndIf(req.Before != nil, "COALESCE(happened_at, created_at) <= ?", req.Before)
 
 	// 可见性过滤：使用请求中携带的身份信息 / Apply visibility filter using identity from request
+	// 无身份时仅返回公开记忆，防止越权访问 / Without identity, only public memories are visible
 	if req.TeamID != "" || req.OwnerID != "" {
 		identity := &model.Identity{TeamID: req.TeamID, OwnerID: req.OwnerID}
 		visCond, visArgs := visibilityCondition("", identity)
 		qb.Where().And(visCond, visArgs...)
+	} else {
+		qb.Where().And("visibility = 'public'")
 	}
 
 	sqlQuery, args := qb.Build()

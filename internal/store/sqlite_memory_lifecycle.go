@@ -407,11 +407,17 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 		wb.AndIf(filters.MessageRole != "", "m.message_role = ?", filters.MessageRole)
 
 		// 可见性过滤（TeamID/OwnerID 由 API 层注入）/ Visibility filtering (injected by API layer)
+		// 无身份时仅返回公开记忆，防止越权访问 / Without identity, only public memories are visible
 		if filters.TeamID != "" || filters.OwnerID != "" {
 			identity := &model.Identity{TeamID: filters.TeamID, OwnerID: filters.OwnerID}
 			visCond, visArgs := visibilityCondition("m.", identity)
 			wb.And(visCond, visArgs...)
+		} else {
+			wb.And("m.visibility = 'public'")
 		}
+	} else {
+		// filters 为 nil 时同样限制仅公开记忆 / When filters is nil, also restrict to public only
+		wb.And("m.visibility = 'public'")
 	}
 
 	whereClause, whereArgs := wb.Build()

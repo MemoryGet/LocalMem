@@ -189,6 +189,12 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		Crystallization: cfg.Crystallization,
 	}
 	memManager := memory.NewManager(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.TagStore, stores.ContextStore, extractor, llmProvider, mgrCfg)
+
+	// 延迟注入 Manager 到 Consolidator（避免循环依赖）/ Deferred injection to avoid circular deps
+	if consolidator != nil {
+		consolidator.SetCreator(memManager)
+	}
+
 	ret := search.NewRetriever(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.GraphStore, llmProvider, cfg.Retrieval, preprocessor, accessTracker)
 
 	var ctxManager *memory.ContextManager

@@ -132,8 +132,8 @@ func (h *MemoryHandler) List(c *gin.Context, identity *model.Identity) {
 	if limit <= 0 {
 		limit = 20
 	}
-	if limit > 500 {
-		limit = 500
+	if limit > 200 {
+		limit = 200
 	}
 
 	// 解析扩展过滤参数 / Parse extended filter parameters

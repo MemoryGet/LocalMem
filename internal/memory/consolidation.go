@@ -18,6 +18,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// MemoryCreator 记忆创建接口（避免循环依赖）/ Memory creator interface to avoid circular deps
+type MemoryCreator interface {
+	Create(ctx context.Context, req *model.CreateMemoryRequest) (*model.Memory, error)
+}
+
 // Consolidator 记忆归纳引擎 / Memory consolidation engine
 // 定期找到相似记忆簇，用 LLM 归纳为浓缩版永久记忆
 type Consolidator struct {
@@ -25,6 +30,7 @@ type Consolidator struct {
 	vecStore store.VectorStore          // 可为 nil / may be nil
 	llm      llm.Provider               // 可为 nil / may be nil
 	cfg      config.ConsolidationConfig // 注入配置 / injected config
+	creator  MemoryCreator              // 可为 nil（延迟注入）/ may be nil (deferred injection)
 }
 
 // NewConsolidator 创建归纳引擎 / Create a new consolidator
@@ -35,6 +41,11 @@ func NewConsolidator(memStore store.MemoryStore, vecStore store.VectorStore, llm
 		llm:      llmProvider,
 		cfg:      cfg,
 	}
+}
+
+// SetCreator 设置记忆创建器（支持延迟注入，避免循环依赖）/ Set memory creator (deferred injection to avoid circular deps)
+func (c *Consolidator) SetCreator(creator MemoryCreator) {
+	c.creator = creator
 }
 
 // Run 执行一次归纳（由调度器调用）/ Execute one consolidation run
@@ -251,22 +262,45 @@ func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.
 		sourceIDs[i] = m.ID
 	}
 
-	// 创建归纳记忆 / Create consolidated memory
-	consolidated := &model.Memory{
+	// 创建归纳记忆（通过 Manager 确保 embedding/去重/抽取副作用）/ Create via Manager for embedding/dedup/extract side effects
+	strength := math.Min(maxStrength*1.1, 1.0)
+	createReq := &model.CreateMemoryRequest{
 		Content:       consolidatedContent,
 		RetentionTier: model.TierPermanent,
 		Kind:          inheritKind,
 		MemoryClass:   "semantic",
 		DerivedFrom:   sourceIDs,
-		Strength:      math.Min(maxStrength*1.1, 1.0),
+		Strength:      &strength,
 		SourceType:    "consolidation",
 		Scope:         inheritScope,
 		TeamID:        inheritTeamID,
 	}
-	ResolveTierDefaults(consolidated)
 
-	if err := c.memStore.Create(ctx, consolidated); err != nil {
-		return fmt.Errorf("failed to create consolidated memory: %w", err)
+	var consolidated *model.Memory
+	if c.creator != nil {
+		var createErr error
+		consolidated, createErr = c.creator.Create(ctx, createReq)
+		if createErr != nil {
+			return fmt.Errorf("failed to create consolidated memory via manager: %w", createErr)
+		}
+	} else {
+		// 回退：直接写 store（缺少 embedding 等副作用）/ Fallback: direct store write (missing side effects)
+		logger.Warn("consolidation: creator not set, falling back to direct store write")
+		consolidated = &model.Memory{
+			Content:       consolidatedContent,
+			RetentionTier: model.TierPermanent,
+			Kind:          inheritKind,
+			MemoryClass:   "semantic",
+			DerivedFrom:   sourceIDs,
+			Strength:      strength,
+			SourceType:    "consolidation",
+			Scope:         inheritScope,
+			TeamID:        inheritTeamID,
+		}
+		ResolveTierDefaults(consolidated)
+		if err := c.memStore.Create(ctx, consolidated); err != nil {
+			return fmt.Errorf("failed to create consolidated memory: %w", err)
+		}
 	}
 
 	// soft-delete 原始记忆并记录归纳目标 / Soft-delete sources and set consolidated_into
