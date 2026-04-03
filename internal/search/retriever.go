@@ -269,6 +269,12 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	// Apply strength weighting before MMR so expired/weak memories are scored down before diversity selection
 	results = memory.ApplyStrengthWeighting(results, r.cfg.AccessAlpha)
 
+	// 重排序：classWeight + strengthWeight 修改了分数，需要重新按分数排序
+	// Re-sort after score modifications to ensure ranking reflects updated scores
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
 	// MMR 多样性重排（需要 VectorStore，SQLite-only 模式自动跳过）/ MMR diversity re-ranking
 	// per-request 覆盖全局配置 / Per-request fields override global config
 	mmrEnabled := r.cfg.MMR.Enabled

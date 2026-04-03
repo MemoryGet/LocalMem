@@ -115,6 +115,23 @@ func NewRunner(dbPath string, mode string, opts ...RunnerOption) (*Runner, func(
 	return r, func() { _ = memStore.Close() }, nil
 }
 
+// RetrieveRaw 返回原始检索结果（用于调试排序）/ Return raw retrieval results for debugging
+func (r *Runner) RetrieveRaw(ctx context.Context, query string, limit int) ([]*model.SearchResult, error) {
+	return r.retriever.Retrieve(ctx, &model.RetrieveRequest{Query: query, Limit: limit})
+}
+
+// SeedOne 播种单条记忆 / Seed a single memory
+func (r *Runner) SeedOne(ctx context.Context, seed SeedMemory) error {
+	_, err := r.manager.Create(ctx, &model.CreateMemoryRequest{
+		Content:     seed.Content,
+		Kind:        seed.Kind,
+		SubKind:     seed.SubKind,
+		MemoryClass: seed.MemoryClass,
+		Scope:       "eval/test",
+	})
+	return err
+}
+
 // buildTokenizer 根据名称创建分词器 / Create tokenizer by name
 func buildTokenizer(o *runnerOpts) (tokenizer.Tokenizer, error) {
 	switch o.tokenizerName {
