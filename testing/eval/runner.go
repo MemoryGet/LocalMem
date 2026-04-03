@@ -76,7 +76,7 @@ func NewRunner(dbPath string, mode string, opts ...RunnerOption) (*Runner, func(
 	if err != nil {
 		return nil, nil, fmt.Errorf("NewRunner: create tokenizer: %w", err)
 	}
-	bm25Weights := [3]float64{10.0, 5.0, 3.0}
+	bm25Weights := [3]float64{config.DefaultBM25Content, config.DefaultBM25Abstract, config.DefaultBM25Summary}
 
 	memStore, err := store.NewSQLiteMemoryStore(dbPath, bm25Weights, tok)
 	if err != nil {

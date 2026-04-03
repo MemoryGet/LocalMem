@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"iclude/internal/config"
 	"iclude/internal/logger"
 	"iclude/internal/model"
 	"iclude/pkg/tokenizer"
@@ -75,7 +76,7 @@ func NewSQLiteMemoryStore(dbPath string, bm25Weights [3]float64, tok tokenizer.T
 
 	weights := bm25Weights
 	if weights[0] == 0 && weights[1] == 0 && weights[2] == 0 {
-		weights = [3]float64{10.0, 5.0, 3.0}
+		weights = [3]float64{config.DefaultBM25Content, config.DefaultBM25Abstract, config.DefaultBM25Summary}
 	}
 
 	if tok == nil {
