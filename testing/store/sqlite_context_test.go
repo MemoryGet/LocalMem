@@ -36,7 +36,7 @@ func TestContextStore_CreateAndGet(t *testing.T) {
 	c := &model.Context{
 		Name:  "project-alpha",
 		Scope: "user/alice",
-		Kind:  "project",
+		ContextType: "project",
 	}
 	err := cs.Create(context.Background(), c)
 	require.NoError(t, err)

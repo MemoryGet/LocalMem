@@ -12,8 +12,8 @@ type CreateMemoryRequest struct {
 	Kind       string         `json:"kind,omitempty"`
 	SubKind    string         `json:"sub_kind,omitempty"`
 	Scope      string         `json:"scope,omitempty"`
-	Abstract   string         `json:"abstract,omitempty"`
-	Summary    string         `json:"summary,omitempty"`
+	Excerpt string `json:"excerpt,omitempty"`
+	Summary string `json:"summary,omitempty"`
 	HappenedAt *time.Time     `json:"happened_at,omitempty"`
 	SourceType string         `json:"source_type,omitempty"`
 	SourceRef  string         `json:"source_ref,omitempty"`
@@ -54,8 +54,8 @@ type UpdateMemoryRequest struct {
 	Kind       *string        `json:"kind,omitempty"`
 	SubKind    *string        `json:"sub_kind,omitempty"`
 	Scope      *string        `json:"scope,omitempty"`
-	Abstract   *string        `json:"abstract,omitempty"`
-	Summary    *string        `json:"summary,omitempty"`
+	Excerpt *string `json:"excerpt,omitempty"`
+	Summary *string `json:"summary,omitempty"`
 	HappenedAt *time.Time     `json:"happened_at,omitempty"`
 	SourceType *string        `json:"source_type,omitempty"`
 	SourceRef  *string        `json:"source_ref,omitempty"`
@@ -83,7 +83,7 @@ type RetrieveRequest struct {
 	OwnerID      string         `json:"owner_id,omitempty"`
 	Limit        int            `json:"limit,omitempty"`
 	Filters      *SearchFilters `json:"filters,omitempty"`
-	DetailLevel  string         `json:"detail_level,omitempty"` // abstract_only / summary / full
+	DetailLevel  string         `json:"detail_level,omitempty"` // excerpt_only / summary / full
 	MaxTokens    int            `json:"max_tokens,omitempty"`
 	GraphEnabled *bool          `json:"graph_enabled,omitempty"`
 
@@ -129,10 +129,11 @@ type SearchFilters struct {
 
 // TimelineRequest 时间线请求 / Timeline query request DTO
 type TimelineRequest struct {
-	Scope  string     `json:"scope,omitempty"`
-	After  *time.Time `json:"after,omitempty"`
-	Before *time.Time `json:"before,omitempty"`
-	Limit  int        `json:"limit,omitempty"`
+	Scope     string     `json:"scope,omitempty"`
+	SourceRef string     `json:"source_ref,omitempty"` // B6: 按来源引用过滤 / Filter by source_ref
+	After     *time.Time `json:"after,omitempty"`
+	Before    *time.Time `json:"before,omitempty"`
+	Limit     int        `json:"limit,omitempty"`
 
 	// V6: 身份过滤 / Identity filtering
 	TeamID  string `json:"-"`
@@ -144,7 +145,7 @@ type CreateContextRequest struct {
 	Name        string         `json:"name" binding:"required"`
 	ParentID    string         `json:"parent_id,omitempty"`
 	Scope       string         `json:"scope,omitempty"`
-	Kind        string         `json:"kind,omitempty"`
+	ContextType string         `json:"context_type,omitempty"`
 	Description string         `json:"description,omitempty"`
 	Mission     string         `json:"mission,omitempty"`     // V13: 上下文使命 / Context mission
 	Directives  string         `json:"directives,omitempty"`  // V13: 行为指令 / Behavioral directives
@@ -157,7 +158,7 @@ type CreateContextRequest struct {
 type UpdateContextRequest struct {
 	Name        *string        `json:"name,omitempty"`
 	Description *string        `json:"description,omitempty"`
-	Kind        *string        `json:"kind,omitempty"`
+	ContextType *string        `json:"context_type,omitempty"`
 	Mission     *string        `json:"mission,omitempty"`     // V13: 上下文使命 / Context mission
 	Directives  *string        `json:"directives,omitempty"`  // V13: 行为指令 / Behavioral directives
 	Disposition *string        `json:"disposition,omitempty"` // V13: 性格/风格 / Response style

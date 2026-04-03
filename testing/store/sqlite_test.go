@@ -491,18 +491,18 @@ func TestSQLiteMemoryStore_SearchText(t *testing.T) {
 	}
 }
 
-func TestListMissingAbstract(t *testing.T) {
+func TestListMissingExcerpt(t *testing.T) {
 	tests := []struct {
 		name      string
-		setup     func(s store.MemoryStore) []string // returns IDs of memories without abstract
+		setup     func(s store.MemoryStore) []string // returns IDs of memories without excerpt
 		limit     int
 		wantCount int
 	}{
 		{
-			name: "returns memories with empty abstract",
+			name: "returns memories with empty excerpt",
 			setup: func(s store.MemoryStore) []string {
-				mem1 := &model.Memory{Content: "no abstract here"}
-				mem2 := &model.Memory{Content: "also no abstract"}
+				mem1 := &model.Memory{Content: "no excerpt here"}
+				mem2 := &model.Memory{Content: "also no excerpt"}
 				require.NoError(t, s.Create(context.Background(), mem1))
 				require.NoError(t, s.Create(context.Background(), mem2))
 				return []string{mem1.ID, mem2.ID}
@@ -513,8 +513,8 @@ func TestListMissingAbstract(t *testing.T) {
 		{
 			name: "does not return memories with abstract set",
 			setup: func(s store.MemoryStore) []string {
-				memWithAbstract := &model.Memory{Content: "has abstract", Abstract: "this is an abstract"}
-				memNoAbstract := &model.Memory{Content: "no abstract"}
+				memWithAbstract := &model.Memory{Content: "has excerpt", Excerpt: "this is an abstract"}
+				memNoAbstract := &model.Memory{Content: "no excerpt"}
 				require.NoError(t, s.Create(context.Background(), memWithAbstract))
 				require.NoError(t, s.Create(context.Background(), memNoAbstract))
 				return []string{memNoAbstract.ID}
@@ -525,8 +525,8 @@ func TestListMissingAbstract(t *testing.T) {
 		{
 			name: "does not return soft-deleted memories",
 			setup: func(s store.MemoryStore) []string {
-				memDeleted := &model.Memory{Content: "soft deleted no abstract"}
-				memActive := &model.Memory{Content: "active no abstract"}
+				memDeleted := &model.Memory{Content: "soft deleted no excerpt"}
+				memActive := &model.Memory{Content: "active no excerpt"}
 				require.NoError(t, s.Create(context.Background(), memDeleted))
 				require.NoError(t, s.Create(context.Background(), memActive))
 				require.NoError(t, s.SoftDelete(context.Background(), memDeleted.ID))
@@ -540,7 +540,7 @@ func TestListMissingAbstract(t *testing.T) {
 			setup: func(s store.MemoryStore) []string {
 				ids := make([]string, 5)
 				for i := 0; i < 5; i++ {
-					mem := &model.Memory{Content: "no abstract item"}
+					mem := &model.Memory{Content: "no excerpt item"}
 					require.NoError(t, s.Create(context.Background(), mem))
 					ids[i] = mem.ID
 				}
@@ -554,7 +554,7 @@ func TestListMissingAbstract(t *testing.T) {
 			setup: func(s store.MemoryStore) []string {
 				ids := make([]string, 5)
 				for i := 0; i < 5; i++ {
-					mem := &model.Memory{Content: "no abstract default limit"}
+					mem := &model.Memory{Content: "no excerpt default limit"}
 					require.NoError(t, s.Create(context.Background(), mem))
 					ids[i] = mem.ID
 				}
@@ -577,11 +577,11 @@ func TestListMissingAbstract(t *testing.T) {
 			defer cleanup()
 
 			tt.setup(s)
-			results, err := s.ListMissingAbstract(context.Background(), tt.limit)
+			results, err := s.ListMissingExcerpt(context.Background(), tt.limit)
 			require.NoError(t, err)
 			assert.Len(t, results, tt.wantCount)
 			for _, mem := range results {
-				assert.Empty(t, mem.Abstract, "all returned memories should have empty abstract")
+				assert.Empty(t, mem.Excerpt, "all returned memories should have empty excerpt")
 				assert.Nil(t, mem.DeletedAt, "all returned memories should not be soft-deleted")
 			}
 		})
@@ -589,7 +589,7 @@ func TestListMissingAbstract(t *testing.T) {
 }
 
 func TestSearchText_BM25ColumnWeights(t *testing.T) {
-	// abstract 权重高于 summary，命中 abstract 的结果应排名更高 / Abstract hit should rank higher than summary hit
+	// excerpt 权重高于 summary，命中 abstract 的结果应排名更高 / Excerpt hit should rank higher than summary hit
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "bm25_weights.db")
 
@@ -607,7 +607,7 @@ func TestSearchText_BM25ColumnWeights(t *testing.T) {
 	require.NoError(t, err)
 
 	// 记忆 B: 关键词仅在 abstract 中
-	memB := &model.Memory{Content: "unrelated content B", Abstract: "quantum computing breakthrough"}
+	memB := &model.Memory{Content: "unrelated content B", Excerpt: "quantum computing breakthrough"}
 	err = s.Create(context.Background(), memB)
 	require.NoError(t, err)
 
@@ -616,7 +616,7 @@ func TestSearchText_BM25ColumnWeights(t *testing.T) {
 	require.Len(t, results, 2)
 
 	// abstract 命中 (memB) 的分数应高于 summary 命中 (memA)
-	assert.Equal(t, memB.ID, results[0].Memory.ID, "abstract hit should rank first")
+	assert.Equal(t, memB.ID, results[0].Memory.ID, "excerpt hit should rank first")
 	assert.Equal(t, memA.ID, results[1].Memory.ID, "summary hit should rank second")
-	assert.Greater(t, results[0].Score, results[1].Score, "abstract hit should have higher score")
+	assert.Greater(t, results[0].Score, results[1].Score, "excerpt hit should have higher score")
 }

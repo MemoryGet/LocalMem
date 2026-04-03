@@ -24,7 +24,7 @@ type sessionStartInput struct {
 type scanResult struct {
 	Memories []struct {
 		ID       string `json:"id"`
-		Abstract string `json:"abstract"`
+		Excerpt string `json:"excerpt"`
 		Tags     []struct {
 			Name string `json:"name"`
 		} `json:"tags"`
@@ -121,11 +121,11 @@ func runSessionStart() error {
 		if err := json.Unmarshal(scanRaw, &result); err == nil && len(result.Memories) > 0 {
 			fmt.Printf("## Recent memories (%d)\n", len(result.Memories))
 			for i, m := range result.Memories {
-				abstract := m.Abstract
-				if abstract == "" {
-					abstract = "(no abstract)"
+				excerpt := m.Excerpt
+				if excerpt == "" {
+					excerpt = "(no excerpt)"
 				}
-				fmt.Printf("%d. %s", i+1, abstract)
+				fmt.Printf("%d. %s", i+1, excerpt)
 				if m.Scope != "" {
 					fmt.Printf(" [scope: %s]", m.Scope)
 				}

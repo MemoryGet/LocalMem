@@ -45,7 +45,7 @@ func setupHeartbeatStores(t *testing.T) (*store.Stores, store.MemoryStore) {
 				Enabled: true,
 				Path:    dbPath,
 				Search: config.SearchConfig{
-					BM25Weights: config.BM25WeightsConfig{Content: 10, Abstract: 5, Summary: 3},
+					BM25Weights: config.BM25WeightsConfig{Content: 10, Excerpt: 5, Summary: 3},
 				},
 			},
 		},

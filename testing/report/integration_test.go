@@ -185,17 +185,17 @@ func TestFullSystemFlow(t *testing.T) {
 		// 更新第一条记忆 / Update first memory
 		updated, err := memStore.Get(ctx, memoryIDs[0])
 		require.NoError(t, err)
-		updated.Abstract = "goroutine 与 channel 并发编程指南"
+		updated.Excerpt = "goroutine 与 channel 并发编程指南"
 		updated.Summary = "详细介绍了 Go 并发模型，包括 goroutine 调度、channel 通信模式和常见陷阱"
 		err = memStore.Update(ctx, updated)
 		require.NoError(t, err)
-		tc.Step("更新记忆[0]", fmt.Sprintf("添加 abstract 和 summary"))
+		tc.Step("更新记忆[0]", fmt.Sprintf("添加 excerpt 和 summary"))
 
 		got, err := memStore.Get(ctx, memoryIDs[0])
 		require.NoError(t, err)
-		assert.Equal(t, "goroutine 与 channel 并发编程指南", got.Abstract)
+		assert.Equal(t, "goroutine 与 channel 并发编程指南", got.Excerpt)
 		assert.Equal(t, updated.Summary, got.Summary)
-		tc.Step("验证更新生效", "abstract 和 summary 已写入")
+		tc.Step("验证更新生效", "excerpt 和 summary 已写入")
 
 		// 软删除第三条记忆 / Soft-delete third memory
 		err = memStore.SoftDelete(ctx, memoryIDs[2])
@@ -358,9 +358,9 @@ func TestFullSystemFlow(t *testing.T) {
 
 		// 创建根上下文 / Create root context
 		rootCtx := &model.Context{
-			Name:  "engineering",
-			Scope: "team/eng",
-			Kind:  "project",
+			Name:        "engineering",
+			Scope:       "team/eng",
+			ContextType: "project",
 		}
 		err := ctxStore.Create(ctx, rootCtx)
 		require.NoError(t, err)
@@ -373,10 +373,10 @@ func TestFullSystemFlow(t *testing.T) {
 
 		// 创建子上下文 / Create child context
 		childCtx := &model.Context{
-			Name:     "backend",
-			ParentID: rootCtx.ID,
-			Scope:    "team/eng",
-			Kind:     "topic",
+			Name:        "backend",
+			ParentID:    rootCtx.ID,
+			Scope:       "team/eng",
+			ContextType: "topic",
 		}
 		err = ctxStore.Create(ctx, childCtx)
 		require.NoError(t, err)

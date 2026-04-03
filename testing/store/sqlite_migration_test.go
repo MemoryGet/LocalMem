@@ -24,12 +24,12 @@ func TestMigrate_FreshDB(t *testing.T) {
 	err = s.Init(context.Background())
 	require.NoError(t, err)
 
-	// 验证 schema_version 为 13（V12→V13 新增 context behavioral fields）
+	// 验证 schema_version 为 14（V13→V14 列重命名 + 删除死列）
 	db := s.DB().(*sql.DB)
 	var version int
 	err = db.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 13, version)
+	assert.Equal(t, 14, version)
 
 	// 验证新表存在
 	tables := []string{"memories", "contexts", "tags", "memory_tags", "entities", "entity_relations", "memory_entities", "documents", "async_tasks"}
@@ -143,11 +143,11 @@ func TestMigrate_V2ToV3(t *testing.T) {
 
 	rawDB := s.DB().(*sql.DB)
 
-	// 验证 schema_version 为 13（V12→V13 新增 context behavioral fields）
+	// 验证 schema_version 为 14（V13→V14 列重命名 + 删除死列）
 	var version int
 	err = rawDB.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 13, version)
+	assert.Equal(t, 14, version)
 
 	// 验证 V3 新增列存在
 	v3Columns := []string{"retention_tier", "message_role", "turn_number"}

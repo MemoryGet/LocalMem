@@ -28,7 +28,7 @@ func TestMigrateV12ToV13_AddsColumns(t *testing.T) {
 
 	// 验证新列存在：插入带行为字段的记录 / Verify new columns exist
 	_, err = db.ExecContext(context.Background(),
-		`INSERT INTO contexts (id, name, path, scope, kind, description, mission, directives, disposition, metadata, depth, sort_order, memory_count, created_at, updated_at)
+		`INSERT INTO contexts (id, name, path, scope, context_type, description, mission, directives, disposition, metadata, depth, sort_order, memory_count, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
 		"ctx-v13", "test-ctx", "/test-ctx", "user1", "project", "desc",
 		"build the best", "be concise\nbe accurate", "friendly", "{}", 0, 0, 0)
@@ -59,7 +59,7 @@ func TestMigrateV12ToV13_AddsColumns(t *testing.T) {
 	var version int
 	err = db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 13, version)
+	assert.Equal(t, 14, version)
 }
 
 // TestMigrateV12ToV13_Idempotent 验证 V13 迁移可安全重跑
@@ -84,7 +84,7 @@ func TestMigrateV12ToV13_Idempotent(t *testing.T) {
 	var version int
 	err = db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 13, version)
+	assert.Equal(t, 14, version)
 }
 
 // TestContextV13_CreateGetRoundTrip 验证 Create/Get 端到端带行为字段

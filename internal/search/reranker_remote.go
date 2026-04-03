@@ -99,7 +99,7 @@ func (r *RemoteReranker) Rerank(ctx context.Context, query string, results []*mo
 			docs = append(docs, "")
 			continue
 		}
-		docs = append(docs, strings.TrimSpace(strings.Join([]string{res.Memory.Content, res.Memory.Abstract, res.Memory.Summary}, "\n")))
+		docs = append(docs, strings.TrimSpace(strings.Join([]string{res.Memory.Content, res.Memory.Excerpt, res.Memory.Summary}, "\n")))
 	}
 
 	ranked, err := r.request(ctx, query, docs, subset)

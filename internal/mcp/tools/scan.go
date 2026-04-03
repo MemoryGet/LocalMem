@@ -120,7 +120,7 @@ func (t *ScanTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp
 		if r.Memory == nil {
 			continue
 		}
-		title := r.Memory.Abstract
+		title := r.Memory.Excerpt
 		if title == "" {
 			content := r.Memory.Content
 			if len([]rune(content)) > 100 {

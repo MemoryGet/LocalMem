@@ -68,7 +68,7 @@ func setupTestEngine(t *testing.T, mockLLM *mockLLMProvider) (*reflectpkg.Reflec
 				Search: config.SearchConfig{
 					BM25Weights: config.BM25WeightsConfig{
 						Content:  10.0,
-						Abstract: 5.0,
+						Excerpt: 5.0,
 						Summary:  3.0,
 					},
 				},

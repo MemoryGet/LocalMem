@@ -43,7 +43,7 @@ func (a *memoryCreatorAdapter) Create(ctx context.Context, mem *model.Memory) (*
 		Kind:          mem.Kind,
 		SubKind:       mem.SubKind,
 		Scope:         mem.Scope,
-		Abstract:      mem.Abstract,
+		Excerpt:       mem.Excerpt,
 		Summary:       mem.Summary,
 		HappenedAt:    mem.HappenedAt,
 		SourceType:    mem.SourceType,

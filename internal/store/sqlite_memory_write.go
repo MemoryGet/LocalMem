@@ -71,13 +71,13 @@ func (s *SQLiteMemoryStore) Create(ctx context.Context, mem *model.Memory) error
 	defer tx.Rollback()
 
 	query := `INSERT INTO memories (` + memoryColumns + `)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = tx.ExecContext(ctx, query,
 		mem.ID, mem.Content, metadataJSON, mem.TeamID,
-		mem.EmbeddingID, mem.ParentID, boolToInt(mem.IsLatest), mem.AccessCount,
+		mem.ParentID, boolToInt(mem.IsLatest), mem.AccessCount,
 		mem.CreatedAt, mem.UpdatedAt,
-		mem.URI, mem.ContextID, mem.Kind, mem.SubKind, mem.Scope, mem.Abstract, mem.Summary,
+		mem.URI, mem.ContextID, mem.Kind, mem.SubKind, mem.Scope, mem.Excerpt, mem.Summary,
 		timeToNull(mem.HappenedAt), mem.SourceType, mem.SourceRef, mem.DocumentID, mem.ChunkIndex,
 		timeToNull(mem.DeletedAt), mem.Strength, mem.DecayRate, timeToNull(mem.LastAccessedAt),
 		mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
@@ -114,7 +114,7 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 	defer tx.Rollback()
 
 	insertQuery := `INSERT INTO memories (` + memoryColumns + `)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	insertStmt, err := tx.PrepareContext(ctx, insertQuery)
 	if err != nil {
 		return fmt.Errorf("failed to prepare insert statement: %w", err)
@@ -165,9 +165,9 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 
 		_, err = insertStmt.ExecContext(ctx,
 			mem.ID, mem.Content, metadataJSON, mem.TeamID,
-			mem.EmbeddingID, mem.ParentID, boolToInt(mem.IsLatest), mem.AccessCount,
+			mem.ParentID, boolToInt(mem.IsLatest), mem.AccessCount,
 			mem.CreatedAt, mem.UpdatedAt,
-			mem.URI, mem.ContextID, mem.Kind, mem.SubKind, mem.Scope, mem.Abstract, mem.Summary,
+			mem.URI, mem.ContextID, mem.Kind, mem.SubKind, mem.Scope, mem.Excerpt, mem.Summary,
 			timeToNull(mem.HappenedAt), mem.SourceType, mem.SourceRef, mem.DocumentID, mem.ChunkIndex,
 			timeToNull(mem.DeletedAt), mem.Strength, mem.DecayRate, timeToNull(mem.LastAccessedAt),
 			mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
@@ -237,9 +237,9 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 		derivedFromJSON = &str
 	}
 
-	query := `UPDATE memories SET content = ?, metadata = ?, team_id = ?, embedding_id = ?, parent_id = ?,
+	query := `UPDATE memories SET content = ?, metadata = ?, team_id = ?, parent_id = ?,
 		is_latest = ?, updated_at = ?,
-		uri = ?, context_id = ?, kind = ?, sub_kind = ?, scope = ?, abstract = ?, summary = ?,
+		uri = ?, context_id = ?, kind = ?, sub_kind = ?, scope = ?, excerpt = ?, summary = ?,
 		happened_at = ?, source_type = ?, source_ref = ?, document_id = ?, chunk_index = ?,
 		strength = ?, decay_rate = ?, last_accessed_at = ?, reinforced_count = ?, expires_at = ?,
 		retention_tier = ?, message_role = ?, turn_number = ?, owner_id = ?, visibility = ?,
@@ -247,9 +247,9 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 		WHERE id = ?`
 
 	result, err := tx.ExecContext(ctx, query,
-		mem.Content, metadataJSON, mem.TeamID, mem.EmbeddingID, mem.ParentID,
+		mem.Content, metadataJSON, mem.TeamID, mem.ParentID,
 		boolToInt(mem.IsLatest), mem.UpdatedAt,
-		mem.URI, mem.ContextID, mem.Kind, mem.SubKind, mem.Scope, mem.Abstract, mem.Summary,
+		mem.URI, mem.ContextID, mem.Kind, mem.SubKind, mem.Scope, mem.Excerpt, mem.Summary,
 		timeToNull(mem.HappenedAt), mem.SourceType, mem.SourceRef, mem.DocumentID, mem.ChunkIndex,
 		mem.Strength, mem.DecayRate, timeToNull(mem.LastAccessedAt), mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
 		mem.RetentionTier, mem.MessageRole, mem.TurnNumber, mem.OwnerID, mem.Visibility,

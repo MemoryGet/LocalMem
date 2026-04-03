@@ -163,6 +163,7 @@ func (s *SQLiteMemoryStore) ListTimeline(ctx context.Context, req *model.Timelin
 
 	qb.Where().And("deleted_at IS NULL")
 	qb.Where().AndIf(req.Scope != "", "scope = ?", req.Scope)
+	qb.Where().AndIf(req.SourceRef != "", "source_ref = ?", req.SourceRef)
 	qb.Where().AndIf(req.After != nil, "COALESCE(happened_at, created_at) >= ?", req.After)
 	qb.Where().AndIf(req.Before != nil, "COALESCE(happened_at, created_at) <= ?", req.Before)
 
@@ -203,15 +204,15 @@ func (s *SQLiteMemoryStore) GetOwnerID(ctx context.Context, id string) (string, 
 	return "", nil
 }
 
-// ListMissingAbstract 列出缺少摘要的记忆 / List memories missing abstract
-func (s *SQLiteMemoryStore) ListMissingAbstract(ctx context.Context, limit int) ([]*model.Memory, error) {
+// ListMissingExcerpt 列出缺少摘要的记忆 / List memories missing excerpt
+func (s *SQLiteMemoryStore) ListMissingExcerpt(ctx context.Context, limit int) ([]*model.Memory, error) {
 	if limit <= 0 {
 		limit = 20
 	}
-	query := `SELECT ` + memoryColumns + ` FROM memories WHERE (abstract = '' OR abstract IS NULL) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`
+	query := `SELECT ` + memoryColumns + ` FROM memories WHERE (excerpt = '' OR excerpt IS NULL) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ?`
 	rows, err := s.db.QueryContext(ctx, query, limit)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list missing abstract: %w", err)
+		return nil, fmt.Errorf("failed to list missing excerpt: %w", err)
 	}
 	defer rows.Close()
 
@@ -224,4 +225,68 @@ func (s *SQLiteMemoryStore) ListMissingAbstract(ctx context.Context, limit int) 
 		memories = append(memories, mem)
 	}
 	return memories, rows.Err()
+}
+
+// ListBySourceRef 按来源引用列出记忆 / List memories by source_ref
+func (s *SQLiteMemoryStore) ListBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity, offset, limit int) ([]*model.Memory, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	visCond, visArgs := visibilityCondition("", identity)
+	query := `SELECT ` + memoryColumns + ` FROM memories
+		WHERE source_ref = ? AND deleted_at IS NULL AND ` + visCond + `
+		ORDER BY COALESCE(happened_at, created_at) DESC
+		LIMIT ? OFFSET ?`
+
+	args := append([]interface{}{sourceRef}, visArgs...)
+	args = append(args, limit, offset)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list memories by source_ref: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanMemories(rows)
+}
+
+// ListDerivedFrom 查询由指定记忆衍生出的记忆 / List memories whose derived_from contains the given ID
+func (s *SQLiteMemoryStore) ListDerivedFrom(ctx context.Context, id string, identity *model.Identity) ([]*model.Memory, error) {
+	visCond, visArgs := visibilityCondition("", identity)
+	// derived_from 是 JSON 数组文本列，用 json_each 精确匹配 / Use json_each for exact match in JSON array
+	query := `SELECT ` + memoryColumns + ` FROM memories
+		WHERE id IN (
+			SELECT memories.id FROM memories, json_each(memories.derived_from) AS j
+			WHERE j.value = ? AND memories.deleted_at IS NULL
+		) AND deleted_at IS NULL AND ` + visCond + `
+		ORDER BY created_at DESC`
+
+	args := append([]interface{}{id}, visArgs...)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list derived-from memories: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanMemories(rows)
+}
+
+// ListConsolidatedInto 查询被归纳到指定记忆的原始记忆 / List memories whose consolidated_into equals the given ID
+func (s *SQLiteMemoryStore) ListConsolidatedInto(ctx context.Context, id string, identity *model.Identity) ([]*model.Memory, error) {
+	visCond, visArgs := visibilityCondition("", identity)
+	query := `SELECT ` + memoryColumns + ` FROM memories
+		WHERE consolidated_into = ? AND deleted_at IS NULL AND ` + visCond + `
+		ORDER BY created_at DESC`
+
+	args := append([]interface{}{id}, visArgs...)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list consolidated-into memories: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanMemories(rows)
 }

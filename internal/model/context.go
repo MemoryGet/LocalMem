@@ -9,7 +9,7 @@ type Context struct {
 	Path        string         `json:"path"` // 物化路径 e.g. "/root/sub1/sub2"
 	ParentID    string         `json:"parent_id,omitempty"`
 	Scope       string         `json:"scope,omitempty"`
-	Kind        string         `json:"kind,omitempty"` // project / topic / session
+	ContextType string         `json:"context_type,omitempty"` // project / topic / session
 	Description string         `json:"description,omitempty"`
 	// V13: 行为约束字段 / Behavioral constraint fields
 	Mission     string         `json:"mission,omitempty"`     // 上下文使命/目标 / Context mission/objective

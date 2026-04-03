@@ -72,8 +72,8 @@ type SearchConfig struct {
 // DefaultBM25Content BM25 content 列默认权重 / Default BM25 content column weight
 const DefaultBM25Content = 10.0
 
-// DefaultBM25Abstract BM25 abstract 列默认权重 / Default BM25 abstract column weight
-const DefaultBM25Abstract = 5.0
+// DefaultBM25Excerpt BM25 excerpt 列默认权重 / Default BM25 excerpt column weight
+const DefaultBM25Excerpt = 5.0
 
 // DefaultBM25Summary BM25 summary 列默认权重 / Default BM25 summary column weight
 const DefaultBM25Summary = 3.0
@@ -81,7 +81,7 @@ const DefaultBM25Summary = 3.0
 // BM25WeightsConfig BM25 列权重配置 / BM25 column weight configuration
 type BM25WeightsConfig struct {
 	Content  float64 `mapstructure:"content"`
-	Abstract float64 `mapstructure:"abstract"`
+	Excerpt float64 `mapstructure:"excerpt"`
 	Summary  float64 `mapstructure:"summary"`
 }
 
@@ -300,7 +300,7 @@ func LoadConfig() error {
 	viper.SetDefault("partitions.enabled", false)
 	viper.SetDefault("partitions.catalog_path", "./data/partitions.db")
 	viper.SetDefault("storage.sqlite.search.bm25_weights.content", DefaultBM25Content)
-	viper.SetDefault("storage.sqlite.search.bm25_weights.abstract", DefaultBM25Abstract)
+	viper.SetDefault("storage.sqlite.search.bm25_weights.excerpt", DefaultBM25Excerpt)
 	viper.SetDefault("storage.sqlite.search.bm25_weights.summary", DefaultBM25Summary)
 	viper.SetDefault("storage.sqlite.tokenizer.provider", "simple")
 	viper.SetDefault("storage.sqlite.tokenizer.jieba_url", "http://localhost:8866")

@@ -27,7 +27,7 @@ func (m *ContextManager) Create(ctx context.Context, req *model.CreateContextReq
 		Name:        req.Name,
 		ParentID:    req.ParentID,
 		Scope:       req.Scope,
-		Kind:        req.Kind,
+		ContextType: req.ContextType,
 		Description: req.Description,
 		Mission:     req.Mission,
 		Directives:  req.Directives,
@@ -72,8 +72,8 @@ func (m *ContextManager) Update(ctx context.Context, id string, req *model.Updat
 	if req.Description != nil {
 		c.Description = *req.Description
 	}
-	if req.Kind != nil {
-		c.Kind = *req.Kind
+	if req.ContextType != nil {
+		c.ContextType = *req.ContextType
 	}
 	if req.Metadata != nil {
 		c.Metadata = req.Metadata

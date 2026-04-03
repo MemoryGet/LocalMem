@@ -38,8 +38,17 @@ type MemoryReader interface {
 	// GetOwnerID 获取记忆的 owner_id（含 soft-deleted）/ Get owner_id including soft-deleted memories
 	GetOwnerID(ctx context.Context, id string) (string, error)
 
-	// ListMissingAbstract 列出缺少摘要的记忆（排除软删除）/ List memories missing abstract (excluding soft-deleted)
-	ListMissingAbstract(ctx context.Context, limit int) ([]*model.Memory, error)
+	// ListMissingExcerpt 列出缺少摘要的记忆（排除软删除）/ List memories missing excerpt (excluding soft-deleted)
+	ListMissingExcerpt(ctx context.Context, limit int) ([]*model.Memory, error)
+
+	// ListBySourceRef 按来源引用列出记忆（带可见性过滤）/ List memories by source_ref with visibility filtering
+	ListBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity, offset, limit int) ([]*model.Memory, error)
+
+	// ListDerivedFrom 查询由指定记忆衍生出的记忆 / List memories derived from a given memory ID
+	ListDerivedFrom(ctx context.Context, id string, identity *model.Identity) ([]*model.Memory, error)
+
+	// ListConsolidatedInto 查询被归纳到指定记忆的原始记忆 / List memories consolidated into a given memory ID
+	ListConsolidatedInto(ctx context.Context, id string, identity *model.Identity) ([]*model.Memory, error)
 }
 
 // MemoryWriter 记忆写入接口 / Memory write operations
@@ -94,6 +103,12 @@ type MemoryLifecycle interface {
 
 	// SoftDeleteByDocumentID 软删除关联文档的所有记忆 / Soft delete all memories linked to a document
 	SoftDeleteByDocumentID(ctx context.Context, documentID string) (int, error)
+
+	// SoftDeleteBySourceRef 按来源引用批量软删除记忆 / Soft delete all memories with a given source_ref
+	SoftDeleteBySourceRef(ctx context.Context, sourceRef string) (int, error)
+
+	// RestoreBySourceRef 按来源引用批量恢复记忆 / Restore all soft-deleted memories with a given source_ref
+	RestoreBySourceRef(ctx context.Context, sourceRef string) (int, error)
 }
 
 // MemoryStore 完整记忆存储接口（组合子接口）/ Complete memory store interface (composite)

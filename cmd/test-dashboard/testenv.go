@@ -39,7 +39,7 @@ type FixtureMemory struct {
 	TeamID        string  `json:"team_id"`
 	RetentionTier string  `json:"retention_tier"`
 	Strength      float64 `json:"strength"`
-	Abstract      string  `json:"abstract"`
+	Excerpt       string  `json:"excerpt"`
 	Summary       string  `json:"summary"`
 }
 
@@ -242,7 +242,7 @@ func (e *TestEnv) Load(datasetFile string) error {
 				Enabled: true,
 				Path:    dbPath,
 				Search: config.SearchConfig{
-					BM25Weights: config.BM25WeightsConfig{Content: 10, Abstract: 5, Summary: 3},
+					BM25Weights: config.BM25WeightsConfig{Content: 10, Excerpt: 5, Summary: 3},
 				},
 				Tokenizer: config.TokenizerConfig{Provider: tokProvider, JiebaURL: jiebaURL},
 			},
@@ -271,7 +271,7 @@ func (e *TestEnv) Load(datasetFile string) error {
 			TeamID:        fm.TeamID,
 			RetentionTier: fm.RetentionTier,
 			Strength:      strength,
-			Abstract:      fm.Abstract,
+			Excerpt:       fm.Excerpt,
 			Summary:       fm.Summary,
 			IsLatest:      true,
 			CreatedAt:     time.Now().UTC(),

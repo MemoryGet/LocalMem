@@ -46,8 +46,7 @@ type Memory struct {
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	TeamID      string         `json:"team_id,omitempty"`
 	Embedding   []float32      `json:"embedding,omitempty"`
-	EmbeddingID string         `json:"embedding_id,omitempty"`
-	ParentID    string         `json:"parent_id,omitempty"`
+	ParentID string `json:"parent_id,omitempty"`
 	IsLatest    bool           `json:"is_latest"`
 	AccessCount int            `json:"access_count"`
 	CreatedAt   time.Time      `json:"created_at"`
@@ -59,7 +58,7 @@ type Memory struct {
 	Kind      string `json:"kind,omitempty"`       // note / fact / skill / profile
 	SubKind   string `json:"sub_kind,omitempty"`   // entity / event / pattern / preference / case
 	Scope     string `json:"scope,omitempty"`      // 顶级命名空间: user/alice, team/eng, agent/bot
-	Abstract  string `json:"abstract,omitempty"`   // 一句话摘要 ≤100字
+	Excerpt string `json:"excerpt,omitempty"` // 一句话摘要 ≤100字 / One-line abstract ≤100 chars
 	Summary   string `json:"summary,omitempty"`    // 核心信息 ≤500字
 
 	// 时间线与来源 / Timeline and source tracking

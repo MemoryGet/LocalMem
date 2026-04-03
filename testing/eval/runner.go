@@ -76,7 +76,7 @@ func NewRunner(dbPath string, mode string, opts ...RunnerOption) (*Runner, func(
 	if err != nil {
 		return nil, nil, fmt.Errorf("NewRunner: create tokenizer: %w", err)
 	}
-	bm25Weights := [3]float64{config.DefaultBM25Content, config.DefaultBM25Abstract, config.DefaultBM25Summary}
+	bm25Weights := [3]float64{config.DefaultBM25Content, config.DefaultBM25Excerpt, config.DefaultBM25Summary}
 
 	memStore, err := store.NewSQLiteMemoryStore(dbPath, bm25Weights, tok)
 	if err != nil {
@@ -262,10 +262,10 @@ func (r *Runner) Run(ctx context.Context, ds *EvalDataset, mode string) (*EvalRe
 func checkHit(results []*model.SearchResult, expected []string) (bool, int, float64) {
 	for i, res := range results {
 		content := strings.ToLower(res.Memory.Content)
-		abstract := strings.ToLower(res.Memory.Abstract)
+		excerpt := strings.ToLower(res.Memory.Excerpt)
 		for _, kw := range expected {
 			kw = strings.ToLower(kw)
-			if strings.Contains(content, kw) || strings.Contains(abstract, kw) {
+			if strings.Contains(content, kw) || strings.Contains(excerpt, kw) {
 				return true, i + 1, res.Score
 			}
 		}

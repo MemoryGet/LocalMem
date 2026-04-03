@@ -605,7 +605,7 @@ func TestLLMConversation_RetentionTiers(t *testing.T) {
 	// 创建一个 context 用于对话
 	code, resp := doRequest(t, router, "POST", "/v1/contexts", map[string]any{
 		"name":  "retention-test-session",
-		"kind":  "session",
+		"context_type": "session",
 		"scope": "test",
 	})
 	require.Equal(t, http.StatusCreated, code)
@@ -646,7 +646,7 @@ func TestLLMConversation_RetentionTiers(t *testing.T) {
 		"source_type":    "conversation",
 		"retention_tier": "long_term",
 		"scope":          "test",
-		"abstract":       "Go implicit interface satisfaction",
+		"excerpt":       "Go implicit interface satisfaction",
 		"summary":        "Go interfaces are satisfied implicitly - no explicit declaration needed",
 		"kind":           "fact",
 	})

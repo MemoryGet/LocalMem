@@ -66,8 +66,8 @@ func (t *CreateSessionTool) Execute(ctx context.Context, arguments json.RawMessa
 	}
 
 	req := &model.CreateContextRequest{
-		Name:     args.SessionID,
-		Kind:     "session",
+		Name:        args.SessionID,
+		ContextType: "session",
 		Scope:    args.Scope,
 		Metadata: metadata,
 	}
@@ -80,7 +80,7 @@ func (t *CreateSessionTool) Execute(ctx context.Context, arguments json.RawMessa
 	out, _ := json.Marshal(map[string]any{
 		"context_id": created.ID,
 		"session_id": args.SessionID,
-		"kind":       created.Kind,
+		"context_type": created.ContextType,
 		"scope":      created.Scope,
 	})
 	return mcp.TextResult(string(out)), nil

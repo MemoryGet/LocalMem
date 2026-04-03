@@ -36,7 +36,7 @@ func InitStores(ctx context.Context, cfg config.Config, embedder Embedder) (*Sto
 	if cfg.Storage.SQLite.Enabled {
 		weights := [3]float64{
 			cfg.Storage.SQLite.Search.BM25Weights.Content,
-			cfg.Storage.SQLite.Search.BM25Weights.Abstract,
+			cfg.Storage.SQLite.Search.BM25Weights.Excerpt,
 			cfg.Storage.SQLite.Search.BM25Weights.Summary,
 		}
 

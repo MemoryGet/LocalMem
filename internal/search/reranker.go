@@ -127,7 +127,7 @@ func (r *OverlapReranker) Rerank(ctx context.Context, query string, results []*m
 }
 
 func scoreOverlap(queryNorm string, terms []string, mem *model.Memory) float64 {
-	doc := normalizeRerankText(strings.Join([]string{mem.Content, mem.Abstract, mem.Summary}, " "))
+	doc := normalizeRerankText(strings.Join([]string{mem.Content, mem.Excerpt, mem.Summary}, " "))
 	if doc == "" {
 		return 0
 	}

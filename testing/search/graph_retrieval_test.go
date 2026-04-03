@@ -54,7 +54,7 @@ func setupGraphRetriever(t *testing.T, mockLLM llm.Provider, cfg config.Retrieva
 				Search: config.SearchConfig{
 					BM25Weights: config.BM25WeightsConfig{
 						Content:  10.0,
-						Abstract: 5.0,
+						Excerpt: 5.0,
 						Summary:  3.0,
 					},
 				},
@@ -215,7 +215,7 @@ func TestGraphRetrieval_GraphStoreNil(t *testing.T) {
 		Storage: config.StorageConfig{
 			SQLite: config.SQLiteConfig{
 				Enabled: true, Path: dbPath,
-				Search:    config.SearchConfig{BM25Weights: config.BM25WeightsConfig{Content: 10, Abstract: 5, Summary: 3}},
+				Search:    config.SearchConfig{BM25Weights: config.BM25WeightsConfig{Content: 10, Excerpt: 5, Summary: 3}},
 				Tokenizer: config.TokenizerConfig{Provider: "simple"},
 			},
 		},

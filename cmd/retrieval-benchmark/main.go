@@ -69,7 +69,7 @@ type searchResult struct {
 
 type retrievedMemory struct {
 	Content  string `json:"content"`
-	Abstract string `json:"abstract"`
+	Excerpt string `json:"excerpt"`
 }
 
 type summary struct {
@@ -329,9 +329,9 @@ func checkHit(results []*searchResult, expected string) (bool, int, float64) {
 			continue
 		}
 		content := strings.ToLower(r.Memory.Content)
-		abstract := strings.ToLower(r.Memory.Abstract)
+		excerpt := strings.ToLower(r.Memory.Excerpt)
 		target := strings.ToLower(expected)
-		if strings.Contains(content, target) || strings.Contains(abstract, target) {
+		if strings.Contains(content, target) || strings.Contains(excerpt, target) {
 			return true, i + 1, r.Score
 		}
 	}

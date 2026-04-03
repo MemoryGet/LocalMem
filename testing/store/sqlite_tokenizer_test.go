@@ -191,7 +191,7 @@ func TestFTS5_SimpleTokenizer_AbstractSummaryWeighting(t *testing.T) {
 	// 创建两条记忆：关键词在不同字段
 	mem1 := &model.Memory{
 		Content:  "这是一段普通文本内容",
-		Abstract: "记忆检索系统",
+		Excerpt: "记忆检索系统",
 		TeamID:   "t1",
 	}
 	mem2 := &model.Memory{
@@ -201,14 +201,14 @@ func TestFTS5_SimpleTokenizer_AbstractSummaryWeighting(t *testing.T) {
 	require.NoError(t, s.Create(ctx, mem1))
 	require.NoError(t, s.Create(ctx, mem2))
 
-	// 搜索"检索"——content 权重 10，abstract 权重 5
+	// 搜索"检索"——content 权重 10，excerpt 权重 5
 	// mem2 关键词在 content（权重 10）应排在前面
 	results, err := s.SearchText(ctx, "检索", &model.Identity{TeamID: "t1", OwnerID: model.SystemOwnerID}, 10)
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(results), 1)
 	if len(results) >= 2 {
 		assert.True(t, results[0].Score >= results[1].Score,
-			"content match (weight=10) should score >= abstract match (weight=5)")
+			"content match (weight=10) should score >= excerpt match (weight=5)")
 	}
 }
 

@@ -107,6 +107,113 @@ func (s *SQLiteMemoryStore) SoftDeleteByDocumentID(ctx context.Context, document
 	return int(affected), nil
 }
 
+// SoftDeleteBySourceRef 按来源引用批量软删除记忆 / Soft delete all memories with a given source_ref
+func (s *SQLiteMemoryStore) SoftDeleteBySourceRef(ctx context.Context, sourceRef string) (int, error) {
+	now := time.Now().UTC()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin soft delete by source_ref tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 先收集需要清理 FTS5 的 rowid 列表 / Collect rowids for FTS5 cleanup
+	rows, err := tx.QueryContext(ctx, `SELECT rowid FROM memories WHERE source_ref = ? AND deleted_at IS NULL`, sourceRef)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query source_ref memories: %w", err)
+	}
+	var rowIDs []int64
+	for rows.Next() {
+		var rowid int64
+		if scanErr := rows.Scan(&rowid); scanErr == nil {
+			rowIDs = append(rowIDs, rowid)
+		}
+	}
+	rows.Close()
+
+	result, err := tx.ExecContext(ctx,
+		`UPDATE memories SET deleted_at = ?, updated_at = ? WHERE source_ref = ? AND deleted_at IS NULL`,
+		now, now, sourceRef,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to soft delete source_ref memories: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	// 清理 FTS5 索引 / Remove FTS5 index entries
+	for _, rowid := range rowIDs {
+		if ftsErr := s.deleteFTS5ByRowIDTx(ctx, tx, rowid); ftsErr != nil {
+			logger.Warn("soft delete by source_ref: FTS5 cleanup failed",
+				zap.String("source_ref", sourceRef),
+				zap.Int64("rowid", rowid),
+				zap.Error(ftsErr),
+			)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit soft delete by source_ref tx: %w", err)
+	}
+
+	return int(affected), nil
+}
+
+// RestoreBySourceRef 按来源引用批量恢复记忆 / Restore all soft-deleted memories with a given source_ref
+func (s *SQLiteMemoryStore) RestoreBySourceRef(ctx context.Context, sourceRef string) (int, error) {
+	now := time.Now().UTC()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin restore by source_ref tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx,
+		`UPDATE memories SET deleted_at = NULL, updated_at = ? WHERE source_ref = ? AND deleted_at IS NOT NULL`,
+		now, sourceRef,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to restore source_ref memories: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	// 重建 FTS5 索引 / Rebuild FTS5 for restored memories
+	restoredRows, err := tx.QueryContext(ctx,
+		`SELECT id, content, COALESCE(excerpt, ''), COALESCE(summary, '') FROM memories WHERE source_ref = ? AND deleted_at IS NULL`,
+		sourceRef,
+	)
+	if err != nil {
+		return int(affected), fmt.Errorf("failed to query restored memories for FTS5: %w", err)
+	}
+	defer restoredRows.Close()
+
+	for restoredRows.Next() {
+		var mem model.Memory
+		if scanErr := restoredRows.Scan(&mem.ID, &mem.Content, &mem.Excerpt, &mem.Summary); scanErr == nil {
+			if syncErr := s.syncFTS5Tx(ctx, tx, &mem); syncErr != nil {
+				logger.Warn("restore by source_ref: FTS5 rebuild failed",
+					zap.String("id", mem.ID),
+					zap.Error(syncErr),
+				)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit restore by source_ref tx: %w", err)
+	}
+
+	return int(affected), nil
+}
+
 // Restore 恢复软删除的记忆 / Restore a soft-deleted memory
 func (s *SQLiteMemoryStore) Restore(ctx context.Context, id string) error {
 	now := time.Now().UTC()
@@ -132,7 +239,7 @@ func (s *SQLiteMemoryStore) Restore(ctx context.Context, id string) error {
 
 	// 重建 FTS5 索引（SoftDelete 时已清除）/ Rebuild FTS5 index (cleared during SoftDelete)
 	var mem model.Memory
-	if err := tx.QueryRowContext(ctx, `SELECT id, content, COALESCE(abstract, ''), COALESCE(summary, '') FROM memories WHERE id = ?`, id).Scan(&mem.ID, &mem.Content, &mem.Abstract, &mem.Summary); err == nil {
+	if err := tx.QueryRowContext(ctx, `SELECT id, content, COALESCE(excerpt, ''), COALESCE(summary, '') FROM memories WHERE id = ?`, id).Scan(&mem.ID, &mem.Content, &mem.Excerpt, &mem.Summary); err == nil {
 		if syncErr := s.syncFTS5Tx(ctx, tx, &mem); syncErr != nil {
 			logger.Warn("failed to rebuild FTS5 on restore", zap.String("id", id), zap.Error(syncErr))
 		}
@@ -355,7 +462,7 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 			return nil, fmt.Errorf("failed to scan search result: %w", err)
 		}
 		bm25Score := -rank
-		coverageScore := wordCoverage(mem.Content+" "+mem.Abstract, queryWords)
+		coverageScore := wordCoverage(mem.Content+" "+mem.Excerpt, queryWords)
 		hybridScore := 0.7*bm25Score + 0.3*coverageScore*bm25Score
 		results = append(results, &model.SearchResult{
 			Memory: mem,
@@ -452,7 +559,7 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 			return nil, fmt.Errorf("failed to scan filtered search result: %w", err)
 		}
 		bm25Score := -rank
-		coverageScore := wordCoverage(mem.Content+" "+mem.Abstract, queryWords)
+		coverageScore := wordCoverage(mem.Content+" "+mem.Excerpt, queryWords)
 		hybridScore := 0.7*bm25Score + 0.3*coverageScore*bm25Score
 		results = append(results, &model.SearchResult{
 			Memory: mem,

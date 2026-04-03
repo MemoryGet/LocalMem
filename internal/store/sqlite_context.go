@@ -17,7 +17,7 @@ import (
 var _ ContextStore = (*SQLiteContextStore)(nil)
 
 // 上下文表全量列名（16列）/ Context table all columns (16 columns)
-const contextColumns = `id, name, path, parent_id, scope, kind, description, mission, directives, disposition, metadata, depth, sort_order, memory_count, created_at, updated_at`
+const contextColumns = `id, name, path, parent_id, scope, context_type, description, mission, directives, disposition, metadata, depth, sort_order, memory_count, created_at, updated_at`
 
 // SQLiteContextStore 基于 SQLite 的上下文存储 / SQLite-backed context store
 type SQLiteContextStore struct {
@@ -62,7 +62,7 @@ func (s *SQLiteContextStore) Create(ctx context.Context, c *model.Context) error
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = s.db.ExecContext(ctx, query,
-		c.ID, c.Name, c.Path, c.ParentID, c.Scope, c.Kind, c.Description,
+		c.ID, c.Name, c.Path, c.ParentID, c.Scope, c.ContextType, c.Description,
 		c.Mission, c.Directives, c.Disposition,
 		metadataJSON, c.Depth, c.SortOrder, c.MemoryCount, c.CreatedAt, c.UpdatedAt,
 	)
@@ -116,11 +116,11 @@ func (s *SQLiteContextStore) Update(ctx context.Context, c *model.Context) error
 
 	c.UpdatedAt = time.Now().UTC()
 
-	query := `UPDATE contexts SET name = ?, description = ?, mission = ?, directives = ?, disposition = ?, metadata = ?, kind = ?, sort_order = ?, updated_at = ?
+	query := `UPDATE contexts SET name = ?, description = ?, mission = ?, directives = ?, disposition = ?, metadata = ?, context_type = ?, sort_order = ?, updated_at = ?
 		WHERE id = ?`
 
 	result, err := s.db.ExecContext(ctx, query,
-		c.Name, c.Description, c.Mission, c.Directives, c.Disposition, metadataJSON, c.Kind, c.SortOrder, c.UpdatedAt,
+		c.Name, c.Description, c.Mission, c.Directives, c.Disposition, metadataJSON, c.ContextType, c.SortOrder, c.UpdatedAt,
 		c.ID,
 	)
 	if err != nil {
@@ -334,7 +334,7 @@ type ctxScanDest struct {
 // scanFields 返回扫描目标字段列表 / Returns scan destination fields
 func (d *ctxScanDest) scanFields() []any {
 	return []any{
-		&d.c.ID, &d.c.Name, &d.c.Path, &d.c.ParentID, &d.c.Scope, &d.c.Kind, &d.c.Description,
+		&d.c.ID, &d.c.Name, &d.c.Path, &d.c.ParentID, &d.c.Scope, &d.c.ContextType, &d.c.Description,
 		&d.c.Mission, &d.c.Directives, &d.c.Disposition,
 		&d.metaStr, &d.c.Depth, &d.c.SortOrder, &d.c.MemoryCount, &d.c.CreatedAt, &d.c.UpdatedAt,
 	}

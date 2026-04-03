@@ -20,17 +20,17 @@ import (
 // 编译期接口检查 / Compile-time interface compliance check
 var _ MemoryStore = (*SQLiteMemoryStore)(nil)
 
-// 全量列名（37列）/ Full column list (37 columns)
-const memoryColumns = `id, content, metadata, team_id, embedding_id, parent_id, is_latest, access_count, created_at, updated_at,
-	uri, context_id, kind, sub_kind, scope, abstract, summary,
+// 全量列名（36列）/ Full column list (36 columns)
+const memoryColumns = `id, content, metadata, team_id, parent_id, is_latest, access_count, created_at, updated_at,
+	uri, context_id, kind, sub_kind, scope, excerpt, summary,
 	happened_at, source_type, source_ref, document_id, chunk_index,
 	deleted_at, strength, decay_rate, last_accessed_at, reinforced_count, expires_at,
 	retention_tier, message_role, turn_number, content_hash, consolidated_into, owner_id, visibility,
 	memory_class, derived_from`
 
 // 带 m. 前缀的全量列名，用于 JOIN 查询 / Full aliased column list for JOIN queries
-const memoryColumnsAliased = `m.id, m.content, m.metadata, m.team_id, m.embedding_id, m.parent_id, m.is_latest, m.access_count, m.created_at, m.updated_at,
-	m.uri, m.context_id, m.kind, m.sub_kind, m.scope, m.abstract, m.summary,
+const memoryColumnsAliased = `m.id, m.content, m.metadata, m.team_id, m.parent_id, m.is_latest, m.access_count, m.created_at, m.updated_at,
+	m.uri, m.context_id, m.kind, m.sub_kind, m.scope, m.excerpt, m.summary,
 	m.happened_at, m.source_type, m.source_ref, m.document_id, m.chunk_index,
 	m.deleted_at, m.strength, m.decay_rate, m.last_accessed_at, m.reinforced_count, m.expires_at,
 	m.retention_tier, m.message_role, m.turn_number, m.content_hash, m.consolidated_into, m.owner_id, m.visibility,
@@ -39,7 +39,7 @@ const memoryColumnsAliased = `m.id, m.content, m.metadata, m.team_id, m.embeddin
 // SQLiteMemoryStore 基于 SQLite 的结构化存储 / SQLite-backed structured memory store
 type SQLiteMemoryStore struct {
 	db          *sql.DB
-	bm25Weights [3]float64          // content, abstract, summary
+	bm25Weights [3]float64          // content, excerpt, summary
 	tokenizer   tokenizer.Tokenizer // 可拔插分词器 / pluggable tokenizer
 }
 
@@ -76,7 +76,7 @@ func NewSQLiteMemoryStore(dbPath string, bm25Weights [3]float64, tok tokenizer.T
 
 	weights := bm25Weights
 	if weights[0] == 0 && weights[1] == 0 && weights[2] == 0 {
-		weights = [3]float64{config.DefaultBM25Content, config.DefaultBM25Abstract, config.DefaultBM25Summary}
+		weights = [3]float64{config.DefaultBM25Content, config.DefaultBM25Excerpt, config.DefaultBM25Summary}
 	}
 
 	if tok == nil {
@@ -139,13 +139,13 @@ func (s *SQLiteMemoryStore) checkTokenizerChange(ctx context.Context) error {
 		return fmt.Errorf("failed to drop FTS5 table: %w", err)
 	}
 	if _, err := tx.Exec(`CREATE VIRTUAL TABLE memories_fts USING fts5(
-		content, abstract, summary,
+		content, excerpt, summary,
 		content=memories, content_rowid=rowid
 	)`); err != nil {
 		return fmt.Errorf("failed to create FTS5 table: %w", err)
 	}
 
-	rows, err := tx.Query(`SELECT rowid, content, COALESCE(abstract,''), COALESCE(summary,'') FROM memories WHERE deleted_at IS NULL`)
+	rows, err := tx.Query(`SELECT rowid, content, COALESCE(excerpt,''), COALESCE(summary,'') FROM memories WHERE deleted_at IS NULL`)
 	if err != nil {
 		return fmt.Errorf("failed to query memories for FTS rebuild: %w", err)
 	}
@@ -154,14 +154,14 @@ func (s *SQLiteMemoryStore) checkTokenizerChange(ctx context.Context) error {
 	count := 0
 	for rows.Next() {
 		var rowid int64
-		var content, abstract, summary string
-		if err := rows.Scan(&rowid, &content, &abstract, &summary); err != nil {
+		var content, excerpt, summary string
+		if err := rows.Scan(&rowid, &content, &excerpt, &summary); err != nil {
 			return fmt.Errorf("failed to scan row: %w", err)
 		}
 		tc, _ := s.tokenizer.Tokenize(ctx, content)
-		ta, _ := s.tokenizer.Tokenize(ctx, abstract)
+		ta, _ := s.tokenizer.Tokenize(ctx, excerpt)
 		ts, _ := s.tokenizer.Tokenize(ctx, summary)
-		if _, err := tx.Exec(`INSERT INTO memories_fts(rowid, content, abstract, summary) VALUES(?,?,?,?)`,
+		if _, err := tx.Exec(`INSERT INTO memories_fts(rowid, content, excerpt, summary) VALUES(?,?,?,?)`,
 			rowid, tc, ta, ts); err != nil {
 			return fmt.Errorf("failed to insert FTS row (rowid=%d): %w", rowid, err)
 		}
@@ -304,14 +304,14 @@ type memScanDest struct {
 	derivedFrom      sql.NullString
 }
 
-// scanFields 返回扫描目标字段列表（与 memoryColumns 顺序一致，37 列）
-// Returns scan destination fields matching memoryColumns order (37 columns)
+// scanFields 返回扫描目标字段列表（与 memoryColumns 顺序一致，36 列）
+// Returns scan destination fields matching memoryColumns order (36 columns)
 func (d *memScanDest) scanFields() []any {
 	return []any{
 		&d.mem.ID, &d.mem.Content, &d.metaStr, &d.mem.TeamID,
-		&d.mem.EmbeddingID, &d.mem.ParentID, &d.isLatestInt, &d.mem.AccessCount,
+		&d.mem.ParentID, &d.isLatestInt, &d.mem.AccessCount,
 		&d.mem.CreatedAt, &d.mem.UpdatedAt,
-		&d.mem.URI, &d.mem.ContextID, &d.mem.Kind, &d.mem.SubKind, &d.mem.Scope, &d.mem.Abstract, &d.mem.Summary,
+		&d.mem.URI, &d.mem.ContextID, &d.mem.Kind, &d.mem.SubKind, &d.mem.Scope, &d.mem.Excerpt, &d.mem.Summary,
 		&d.happenedAt, &d.mem.SourceType, &d.mem.SourceRef, &d.mem.DocumentID, &d.chunkIndex,
 		&d.deletedAt, &d.strength, &d.decayRate, &d.lastAccessedAt, &d.reinforcedCount, &d.expiresAt,
 		&d.retentionTier, &d.messageRole, &d.turnNumber, &d.contentHash, &d.consolidatedInto,
@@ -353,7 +353,7 @@ func (d *memScanDest) toMemory() (*model.Memory, error) {
 	return &d.mem, nil
 }
 
-// scanMemory 从单行扫描 Memory 对象（37 列）/ Scan a Memory from a single row (37 columns)
+// scanMemory 从单行扫描 Memory 对象（36 列）/ Scan a Memory from a single row (36 columns)
 func (s *SQLiteMemoryStore) scanMemory(row *sql.Row) (*model.Memory, error) {
 	var d memScanDest
 	if err := row.Scan(d.scanFields()...); err != nil {
@@ -362,7 +362,7 @@ func (s *SQLiteMemoryStore) scanMemory(row *sql.Row) (*model.Memory, error) {
 	return d.toMemory()
 }
 
-// scanMemoryFromRows 从结果集行扫描 Memory 对象（37 列）/ Scan a Memory from a rows cursor (37 columns)
+// scanMemoryFromRows 从结果集行扫描 Memory 对象（36 列）/ Scan a Memory from a rows cursor (36 columns)
 func (s *SQLiteMemoryStore) scanMemoryFromRows(rows *sql.Rows) (*model.Memory, error) {
 	var d memScanDest
 	if err := rows.Scan(d.scanFields()...); err != nil {
@@ -371,7 +371,7 @@ func (s *SQLiteMemoryStore) scanMemoryFromRows(rows *sql.Rows) (*model.Memory, e
 	return d.toMemory()
 }
 
-// scanMemoryWithRank 扫描带 rank 列的行（38 列 = 37 + rank）/ Scan a Memory + BM25 rank (38 columns)
+// scanMemoryWithRank 扫描带 rank 列的行（37 列 = 36 + rank）/ Scan a Memory + BM25 rank (37 columns)
 func (s *SQLiteMemoryStore) scanMemoryWithRank(rows *sql.Rows) (*model.Memory, float64, error) {
 	var d memScanDest
 	var rank float64
@@ -461,9 +461,9 @@ func (s *SQLiteMemoryStore) syncFTS5Tx(ctx context.Context, tx *sql.Tx, mem *mod
 	if err != nil {
 		content = mem.Content
 	}
-	abstract, err := s.tokenizer.Tokenize(ctx, mem.Abstract)
+	excerpt, err := s.tokenizer.Tokenize(ctx, mem.Excerpt)
 	if err != nil {
-		abstract = mem.Abstract
+		excerpt = mem.Excerpt
 	}
 	summary, err := s.tokenizer.Tokenize(ctx, mem.Summary)
 	if err != nil {
@@ -471,8 +471,8 @@ func (s *SQLiteMemoryStore) syncFTS5Tx(ctx context.Context, tx *sql.Tx, mem *mod
 	}
 
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO memories_fts(rowid, content, abstract, summary) VALUES (?, ?, ?, ?)`,
-		rowid, content, abstract, summary,
+		`INSERT INTO memories_fts(rowid, content, excerpt, summary) VALUES (?, ?, ?, ?)`,
+		rowid, content, excerpt, summary,
 	)
 	return err
 }
@@ -480,8 +480,8 @@ func (s *SQLiteMemoryStore) syncFTS5Tx(ctx context.Context, tx *sql.Tx, mem *mod
 // deleteFTS5ByRowID 通过 rowid 删除 FTS5 条目
 func (s *SQLiteMemoryStore) deleteFTS5ByRowID(ctx context.Context, rowid int64) error {
 	// 先获取旧内容
-	var content, abstract, summary string
-	err := s.db.QueryRowContext(ctx, `SELECT content, COALESCE(abstract, ''), COALESCE(summary, '') FROM memories WHERE rowid = ?`, rowid).Scan(&content, &abstract, &summary)
+	var content, excerpt, summary string
+	err := s.db.QueryRowContext(ctx, `SELECT content, COALESCE(excerpt, ''), COALESCE(summary, '') FROM memories WHERE rowid = ?`, rowid).Scan(&content, &excerpt, &summary)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil
@@ -490,16 +490,16 @@ func (s *SQLiteMemoryStore) deleteFTS5ByRowID(ctx context.Context, rowid int64) 
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO memories_fts(memories_fts, rowid, content, abstract, summary) VALUES('delete', ?, ?, ?, ?)`,
-		rowid, content, abstract, summary,
+		`INSERT INTO memories_fts(memories_fts, rowid, content, excerpt, summary) VALUES('delete', ?, ?, ?, ?)`,
+		rowid, content, excerpt, summary,
 	)
 	return err
 }
 
 // deleteFTS5ByRowIDTx 在事务内通过 rowid 删除 FTS5 条目 / Delete FTS5 entry by rowid within a transaction
 func (s *SQLiteMemoryStore) deleteFTS5ByRowIDTx(ctx context.Context, tx *sql.Tx, rowid int64) error {
-	var content, abstract, summary string
-	err := tx.QueryRowContext(ctx, `SELECT content, COALESCE(abstract, ''), COALESCE(summary, '') FROM memories WHERE rowid = ?`, rowid).Scan(&content, &abstract, &summary)
+	var content, excerpt, summary string
+	err := tx.QueryRowContext(ctx, `SELECT content, COALESCE(excerpt, ''), COALESCE(summary, '') FROM memories WHERE rowid = ?`, rowid).Scan(&content, &excerpt, &summary)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil
@@ -508,8 +508,8 @@ func (s *SQLiteMemoryStore) deleteFTS5ByRowIDTx(ctx context.Context, tx *sql.Tx,
 	}
 
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO memories_fts(memories_fts, rowid, content, abstract, summary) VALUES('delete', ?, ?, ?, ?)`,
-		rowid, content, abstract, summary,
+		`INSERT INTO memories_fts(memories_fts, rowid, content, excerpt, summary) VALUES('delete', ?, ?, ?, ?)`,
+		rowid, content, excerpt, summary,
 	)
 	return err
 }

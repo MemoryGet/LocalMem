@@ -56,8 +56,8 @@ func (h *SearchHandler) Retrieve(c *gin.Context, identity *model.Identity) {
 }
 
 // applyDetailLevel 按 detail_level 裁剪 Memory 字段 / Trim Memory fields by detail_level
-// abstract_only: 仅保留 abstract，清空 content/summary
-// summary: 保留 abstract+summary，清空 content
+// excerpt_only: 仅保留 excerpt，清空 content/summary
+// summary: 保留 excerpt+summary，清空 content
 // full (默认): 全字段返回
 func applyDetailLevel(results []*model.SearchResult, level string) {
 	if level == "" || level == "full" {
@@ -68,7 +68,7 @@ func applyDetailLevel(results []*model.SearchResult, level string) {
 			continue
 		}
 		switch level {
-		case "abstract_only":
+		case "excerpt_only":
 			r.Memory.Content = ""
 			r.Memory.Summary = ""
 		case "summary":
@@ -82,6 +82,7 @@ func applyDetailLevel(results []*model.SearchResult, level string) {
 func (h *SearchHandler) Timeline(c *gin.Context, identity *model.Identity) {
 	var req model.TimelineRequest
 	req.Scope = c.Query("scope")
+	req.SourceRef = c.Query("source_ref")
 	req.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "20"))
 	if req.Limit > 200 {
 		req.Limit = 200

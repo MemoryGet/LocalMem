@@ -30,7 +30,7 @@ func TestScanTool_Definition(t *testing.T) {
 // TestScanTool_Execute_ReturnsCompactIndex 验证返回紧凑索引条目 / Verify compact index items are returned
 func TestScanTool_Execute_ReturnsCompactIndex(t *testing.T) {
 	happenedAt := time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)
-	longContent := "This is a fairly long memory content that should be used to estimate token count and also to verify that the title truncation works correctly when abstract is empty and the content exceeds one hundred rune characters."
+	longContent := "This is a fairly long memory content that should be used to estimate token count and also to verify that the title truncation works correctly when excerpt is empty and the content exceeds one hundred rune characters."
 
 	ret := &mockMemoryRetriever{
 		results: []*model.SearchResult{
@@ -38,7 +38,7 @@ func TestScanTool_Execute_ReturnsCompactIndex(t *testing.T) {
 				Memory: &model.Memory{
 					ID:         "scan-001",
 					Content:    longContent,
-					Abstract:   "Short abstract title",
+					Excerpt:   "Short excerpt title",
 					Kind:       "fact",
 					HappenedAt: &happenedAt,
 				},
@@ -68,9 +68,9 @@ func TestScanTool_Execute_ReturnsCompactIndex(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(result.Content[0].Text), &items))
 	require.Len(t, items, 2)
 
-	// 验证第一个条目使用 Abstract 作为标题 / Verify first item uses Abstract as title
+	// 验证第一个条目使用 Excerpt 作为标题 / Verify first item uses Excerpt as title
 	assert.Equal(t, "scan-001", items[0].ID)
-	assert.Equal(t, "Short abstract title", items[0].Title)
+	assert.Equal(t, "Short excerpt title", items[0].Title)
 	assert.Equal(t, 0.92, items[0].Score)
 	assert.Equal(t, "hybrid", items[0].Source)
 	assert.Equal(t, "fact", items[0].Kind)
@@ -105,7 +105,7 @@ func TestScanTool_Execute_TruncatesLongContent(t *testing.T) {
 				Memory: &model.Memory{
 					ID:      "scan-long",
 					Content: longContent,
-					// Abstract 为空，应触发截断 / Abstract empty, should trigger truncation
+					// Excerpt 为空，应触发截断 / Excerpt empty, should trigger truncation
 				},
 				Score:  0.5,
 				Source: "sqlite",

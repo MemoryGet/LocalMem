@@ -145,7 +145,7 @@ func TestMCPEnhancement_ScanCompactness(t *testing.T) {
 		Kind          string     `json:"kind"`
 		Score         float64    `json:"score"`
 		Source        string     `json:"source"`
-		Abstract      string     `json:"abstract"`
+		Excerpt      string     `json:"excerpt"`
 		Summary       string     `json:"summary"`
 		Scope         string     `json:"scope"`
 		TeamID        string     `json:"team_id"`
@@ -175,7 +175,7 @@ func TestMCPEnhancement_ScanCompactness(t *testing.T) {
 		Kind:          "fact",
 		Score:         0.95,
 		Source:        "fts",
-		Abstract:      content[:80],
+		Excerpt:      content[:80],
 		Summary:       content[:120],
 		Scope:         "engineering",
 		TeamID:        "team-abc-123",

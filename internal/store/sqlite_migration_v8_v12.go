@@ -179,6 +179,131 @@ func migrateV12ToV13(db *sql.DB) error {
 	return tx.Commit()
 }
 
+// migrateV13ToV14 列重命名 + 删除死列 / Column renames + dead column removal
+// abstract→excerpt, contexts.kind→context_type, drop memories.embedding_id
+func migrateV13ToV14(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// --- 1. Rename memories.abstract → excerpt (idempotent) ---
+	hasAbstract := false
+	{
+		rows, err := tx.Query("PRAGMA table_info(memories)")
+		if err != nil {
+			return fmt.Errorf("V13→V14 PRAGMA memories: %w", err)
+		}
+		for rows.Next() {
+			var cid int
+			var name, ctype string
+			var notnull int
+			var dflt sql.NullString
+			var pk int
+			if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+				rows.Close()
+				return fmt.Errorf("V13→V14 scan memories column: %w", err)
+			}
+			if name == "abstract" {
+				hasAbstract = true
+			}
+		}
+		rows.Close()
+	}
+	if hasAbstract {
+		if _, err := tx.Exec(`ALTER TABLE memories RENAME COLUMN abstract TO excerpt`); err != nil {
+			return fmt.Errorf("V13→V14 rename abstract→excerpt: %w", err)
+		}
+	}
+
+	// --- 2. Rename contexts.kind → context_type (idempotent) ---
+	hasKind := false
+	{
+		var cnt int
+		if err := tx.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='contexts'").Scan(&cnt); err != nil {
+			return fmt.Errorf("V13→V14 check contexts table: %w", err)
+		}
+		if cnt > 0 {
+			rows, err := tx.Query("PRAGMA table_info(contexts)")
+			if err != nil {
+				return fmt.Errorf("V13→V14 PRAGMA contexts: %w", err)
+			}
+			for rows.Next() {
+				var cid int
+				var name, ctype string
+				var notnull int
+				var dflt sql.NullString
+				var pk int
+				if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+					rows.Close()
+					return fmt.Errorf("V13→V14 scan contexts column: %w", err)
+				}
+				if name == "kind" {
+					hasKind = true
+				}
+			}
+			rows.Close()
+		}
+	}
+	if hasKind {
+		if _, err := tx.Exec(`ALTER TABLE contexts RENAME COLUMN kind TO context_type`); err != nil {
+			return fmt.Errorf("V13→V14 rename contexts.kind→context_type: %w", err)
+		}
+	}
+
+	// --- 3. Drop dead column memories.embedding_id (idempotent) ---
+	hasEmbeddingID := false
+	{
+		rows, err := tx.Query("PRAGMA table_info(memories)")
+		if err != nil {
+			return fmt.Errorf("V13→V14 PRAGMA memories for embedding_id: %w", err)
+		}
+		for rows.Next() {
+			var cid int
+			var name, ctype string
+			var notnull int
+			var dflt sql.NullString
+			var pk int
+			if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+				rows.Close()
+				return fmt.Errorf("V13→V14 scan memories column: %w", err)
+			}
+			if name == "embedding_id" {
+				hasEmbeddingID = true
+			}
+		}
+		rows.Close()
+	}
+	if hasEmbeddingID {
+		if _, err := tx.Exec(`ALTER TABLE memories DROP COLUMN embedding_id`); err != nil {
+			return fmt.Errorf("V13→V14 drop embedding_id: %w", err)
+		}
+	}
+
+	// --- 4. Rebuild FTS5 (abstract→excerpt column rename) ---
+	if _, err := tx.Exec(`DROP TABLE IF EXISTS memories_fts`); err != nil {
+		return fmt.Errorf("V13→V14 drop FTS5: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE VIRTUAL TABLE memories_fts USING fts5(
+		content, excerpt, summary,
+		content='memories', content_rowid='rowid'
+	)`); err != nil {
+		return fmt.Errorf("V13→V14 create FTS5: %w", err)
+	}
+	if _, err := tx.Exec(`INSERT INTO memories_fts(memories_fts) VALUES('rebuild')`); err != nil {
+		return fmt.Errorf("V13→V14 rebuild FTS5 index: %w", err)
+	}
+
+	// --- 5. Write version ---
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (14, datetime('now'))`); err != nil {
+		return fmt.Errorf("V13→V14 schema_version: %w", err)
+	}
+
+	logger.Info("migration V13→V14 completed: abstract→excerpt, contexts.kind→context_type, drop embedding_id, FTS5 rebuilt")
+	return tx.Commit()
+}
+
 // migrateV11ToV12 记忆演化层级 / Memory evolution layer (memory_class + derived_from)
 func migrateV11ToV12(db *sql.DB) error {
 	tx, err := db.Begin()

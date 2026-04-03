@@ -38,7 +38,7 @@ type Manager struct {
 	tagStore     store.TagStore     // 可为 nil / may be nil
 	contextStore store.ContextStore // 可为 nil / may be nil
 	extractor    *Extractor         // 可为 nil / may be nil
-	llm          llm.Provider       // 可为 nil / may be nil (used for abstract generation)
+	llm          llm.Provider       // 可为 nil / may be nil (used for excerpt generation)
 	taskQueue    TaskEnqueuer       // 可为 nil / may be nil
 	cfg          ManagerConfig
 }
@@ -101,7 +101,7 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		Kind:          req.Kind,
 		SubKind:       req.SubKind,
 		Scope:         req.Scope,
-		Abstract:      req.Abstract,
+		Excerpt:       req.Excerpt,
 		Summary:       req.Summary,
 		HappenedAt:    req.HappenedAt,
 		SourceType:    req.SourceType,
@@ -159,19 +159,17 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 				zap.String("memory_id", mem.ID),
 				zap.Error(err),
 			)
-		} else {
-			mem.EmbeddingID = mem.ID
 		}
 	}
 
-	// 同步生成丰富摘要（确保 FTS 索引包含摘要关联词）/ Sync rich abstract generation for FTS indexing
-	if mem.Abstract == "" && m.llm != nil {
+	// 同步生成丰富摘要（确保 FTS 索引包含摘要关联词）/ Sync rich excerpt generation for FTS indexing
+	if mem.Excerpt == "" && m.llm != nil {
 		if len([]rune(mem.Content)) <= 50 {
-			mem.Abstract = mem.Content
+			mem.Excerpt = mem.Content
 		} else {
-			abstract, err := m.generateAbstract(ctx, mem.Content)
+			excerpt, err := m.generateExcerpt(ctx, mem.Content)
 			if err != nil {
-				logger.Warn("sync abstract generation failed, using content truncation",
+				logger.Warn("sync excerpt generation failed, using content truncation",
 					zap.String("memory_id", mem.ID),
 					zap.Error(err),
 				)
@@ -179,14 +177,14 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 				if len(runes) > 100 {
 					runes = runes[:100]
 				}
-				mem.Abstract = string(runes)
+				mem.Excerpt = string(runes)
 			} else {
-				mem.Abstract = abstract
+				mem.Excerpt = excerpt
 			}
 		}
 		// 更新 SQLite（含 FTS 索引）
 		if err := m.memStore.Update(ctx, mem); err != nil {
-			logger.Warn("failed to update memory with abstract",
+			logger.Warn("failed to update memory with excerpt",
 				zap.String("memory_id", mem.ID),
 				zap.Error(err),
 			)
@@ -241,20 +239,20 @@ func (m *Manager) asyncExtract(req *model.ExtractRequest) {
 	}()
 }
 
-// asyncGenerateAbstract 异步生成记忆摘要 / Async generate memory abstract via LLM
-func (m *Manager) asyncGenerateAbstract(memoryID, content string) {
+// asyncGenerateExcerpt 异步生成记忆摘要 / Async generate memory excerpt via LLM
+func (m *Manager) asyncGenerateExcerpt(memoryID, content string) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("recovered panic in asyncGenerateAbstract", zap.Any("panic", r))
+				logger.Error("recovered panic in asyncGenerateExcerpt", zap.Any("panic", r))
 			}
 		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		abstract, err := m.generateAbstract(ctx, content)
+		excerpt, err := m.generateExcerpt(ctx, content)
 		if err != nil {
-			logger.Warn("async abstract generation failed",
+			logger.Warn("async excerpt generation failed",
 				zap.String("memory_id", memoryID),
 				zap.Error(err),
 			)
@@ -263,15 +261,15 @@ func (m *Manager) asyncGenerateAbstract(memoryID, content string) {
 
 		mem, err := m.memStore.Get(ctx, memoryID)
 		if err != nil {
-			logger.Warn("failed to get memory for abstract update",
+			logger.Warn("failed to get memory for excerpt update",
 				zap.String("memory_id", memoryID),
 				zap.Error(err),
 			)
 			return
 		}
-		mem.Abstract = abstract
+		mem.Excerpt = excerpt
 		if err := m.memStore.Update(ctx, mem); err != nil {
-			logger.Warn("failed to update memory abstract",
+			logger.Warn("failed to update memory excerpt",
 				zap.String("memory_id", memoryID),
 				zap.Error(err),
 			)
@@ -279,8 +277,8 @@ func (m *Manager) asyncGenerateAbstract(memoryID, content string) {
 	}()
 }
 
-// generateAbstract 调用 LLM 生成一句话摘要 / Call LLM to generate one-line abstract
-func (m *Manager) generateAbstract(ctx context.Context, content string) (string, error) {
+// generateExcerpt 调用 LLM 生成一句话摘要 / Call LLM to generate one-line excerpt
+func (m *Manager) generateExcerpt(ctx context.Context, content string) (string, error) {
 	temp := 0.1
 	resp, err := m.llm.Chat(ctx, &llm.ChatRequest{
 		Messages: []llm.ChatMessage{
@@ -292,11 +290,11 @@ func (m *Manager) generateAbstract(ctx context.Context, content string) (string,
 	if err != nil {
 		return "", fmt.Errorf("llm chat failed: %w", err)
 	}
-	abstract := strings.TrimSpace(resp.Content)
-	if len([]rune(abstract)) > 200 {
-		abstract = string([]rune(abstract)[:200])
+	excerpt := strings.TrimSpace(resp.Content)
+	if len([]rune(excerpt)) > 200 {
+		excerpt = string([]rune(excerpt)[:200])
 	}
-	return abstract, nil
+	return excerpt, nil
 }
 
 // Get 获取单条记忆 / Get a memory by ID
@@ -358,8 +356,8 @@ func (m *Manager) Update(ctx context.Context, id string, req *model.UpdateMemory
 	if req.Scope != nil {
 		mem.Scope = *req.Scope
 	}
-	if req.Abstract != nil {
-		mem.Abstract = *req.Abstract
+	if req.Excerpt != nil {
+		mem.Excerpt = *req.Excerpt
 	}
 	if req.Summary != nil {
 		mem.Summary = *req.Summary
@@ -568,9 +566,9 @@ func (m *Manager) IngestConversation(ctx context.Context, req *model.IngestConve
 	// 如果未指定 contextID，创建新的 session context
 	if contextID == "" && m.contextStore != nil {
 		ctxObj := &model.Context{
-			Name:  fmt.Sprintf("conversation-%s", req.Provider),
-			Scope: req.Scope,
-			Kind:  "session",
+			Name:        fmt.Sprintf("conversation-%s", req.Provider),
+			Scope:       req.Scope,
+			ContextType: "session",
 			Metadata: map[string]any{
 				"provider":    req.Provider,
 				"external_id": req.ExternalID,
@@ -663,7 +661,7 @@ func buildVectorPayload(mem *model.Memory) map[string]any {
 		"scope":          mem.Scope,
 		"kind":           mem.Kind,
 		"context_id":     mem.ContextID,
-		"abstract":       mem.Abstract,
+		"excerpt":        mem.Excerpt,
 		"retention_tier": mem.RetentionTier,
 		"message_role":   mem.MessageRole,
 	}
@@ -751,4 +749,44 @@ func (m *Manager) findOrCreateTag(ctx context.Context, name, scope string) (stri
 		return "", fmt.Errorf("failed to create tag: %w", err)
 	}
 	return tag.ID, nil
+}
+
+// ListBySourceRef 按来源引用列出记忆 / List memories by source_ref
+func (m *Manager) ListBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity, offset, limit int) ([]*model.Memory, error) {
+	if sourceRef == "" {
+		return nil, fmt.Errorf("source_ref is required: %w", model.ErrInvalidInput)
+	}
+	return m.memStore.ListBySourceRef(ctx, sourceRef, identity, offset, limit)
+}
+
+// SoftDeleteBySourceRef 按来源引用批量软删除 / Soft delete all memories with a given source_ref
+func (m *Manager) SoftDeleteBySourceRef(ctx context.Context, sourceRef string) (int, error) {
+	if sourceRef == "" {
+		return 0, fmt.Errorf("source_ref is required: %w", model.ErrInvalidInput)
+	}
+	return m.memStore.SoftDeleteBySourceRef(ctx, sourceRef)
+}
+
+// RestoreBySourceRef 按来源引用批量恢复 / Restore all soft-deleted memories with a given source_ref
+func (m *Manager) RestoreBySourceRef(ctx context.Context, sourceRef string) (int, error) {
+	if sourceRef == "" {
+		return 0, fmt.Errorf("source_ref is required: %w", model.ErrInvalidInput)
+	}
+	return m.memStore.RestoreBySourceRef(ctx, sourceRef)
+}
+
+// ListDerivedFrom 查询由指定记忆衍生出的记忆 / List memories derived from a given memory ID
+func (m *Manager) ListDerivedFrom(ctx context.Context, id string, identity *model.Identity) ([]*model.Memory, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id is required: %w", model.ErrInvalidInput)
+	}
+	return m.memStore.ListDerivedFrom(ctx, id, identity)
+}
+
+// ListConsolidatedInto 查询被归纳到指定记忆的原始记忆 / List memories consolidated into a given memory ID
+func (m *Manager) ListConsolidatedInto(ctx context.Context, id string, identity *model.Identity) ([]*model.Memory, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id is required: %w", model.ErrInvalidInput)
+	}
+	return m.memStore.ListConsolidatedInto(ctx, id, identity)
 }

@@ -64,10 +64,10 @@ func (e *Engine) Run(ctx context.Context) error {
 		}
 	}
 
-	// 4. 摘要补漏（需要 LLM）/ Abstract backfill (requires LLM)
+	// 4. 摘要补漏（需要 LLM）/ Excerpt backfill (requires LLM)
 	if e.llm != nil {
-		if err := e.runAbstractBackfill(ctx); err != nil {
-			logger.Warn("heartbeat: abstract backfill failed", zap.Error(err))
+		if err := e.runExcerptBackfill(ctx); err != nil {
+			logger.Warn("heartbeat: excerpt backfill failed", zap.Error(err))
 		}
 	}
 
@@ -82,41 +82,41 @@ func (e *Engine) Run(ctx context.Context) error {
 	return nil
 }
 
-// runAbstractBackfill 补充缺少摘要的记忆 / Backfill memories missing abstract
-func (e *Engine) runAbstractBackfill(ctx context.Context) error {
+// runExcerptBackfill 补充缺少摘要的记忆 / Backfill memories missing excerpt
+func (e *Engine) runExcerptBackfill(ctx context.Context) error {
 	if e.llm == nil {
 		return nil
 	}
 
 	const batchLimit = 20
-	memories, err := e.memStore.ListMissingAbstract(ctx, batchLimit)
+	memories, err := e.memStore.ListMissingExcerpt(ctx, batchLimit)
 	if err != nil {
-		return fmt.Errorf("list missing abstract: %w", err)
+		return fmt.Errorf("list missing excerpt: %w", err)
 	}
 	if len(memories) == 0 {
 		return nil
 	}
 
-	logger.Info("heartbeat: backfilling abstracts", zap.Int("count", len(memories)))
+	logger.Info("heartbeat: backfilling excerpts", zap.Int("count", len(memories)))
 
 	filled := 0
 	for _, mem := range memories {
 		if len([]rune(mem.Content)) <= 50 {
-			mem.Abstract = mem.Content
+			mem.Excerpt = mem.Content
 		} else {
-			abstract, err := e.generateAbstract(ctx, mem.Content)
+			excerpt, err := e.generateExcerpt(ctx, mem.Content)
 			if err != nil {
-				logger.Warn("heartbeat: abstract generation failed, skipping",
+				logger.Warn("heartbeat: excerpt generation failed, skipping",
 					zap.String("memory_id", mem.ID),
 					zap.Error(err),
 				)
 				continue
 			}
-			mem.Abstract = abstract
+			mem.Excerpt = excerpt
 		}
 
 		if err := e.memStore.Update(ctx, mem); err != nil {
-			logger.Warn("heartbeat: abstract update failed",
+			logger.Warn("heartbeat: excerpt update failed",
 				zap.String("memory_id", mem.ID),
 				zap.Error(err),
 			)
@@ -125,12 +125,12 @@ func (e *Engine) runAbstractBackfill(ctx context.Context) error {
 		filled++
 	}
 
-	logger.Info("heartbeat: abstract backfill completed", zap.Int("filled", filled))
+	logger.Info("heartbeat: excerpt backfill completed", zap.Int("filled", filled))
 	return nil
 }
 
-// generateAbstract 调用 LLM 生成摘要 / Generate abstract via LLM
-func (e *Engine) generateAbstract(ctx context.Context, content string) (string, error) {
+// generateExcerpt 调用 LLM 生成摘要 / Generate excerpt via LLM
+func (e *Engine) generateExcerpt(ctx context.Context, content string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
@@ -145,11 +145,11 @@ func (e *Engine) generateAbstract(ctx context.Context, content string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("llm chat failed: %w", err)
 	}
-	abstract := strings.TrimSpace(resp.Content)
-	if len([]rune(abstract)) > 150 {
-		abstract = string([]rune(abstract)[:150])
+	excerpt := strings.TrimSpace(resp.Content)
+	if len([]rune(excerpt)) > 150 {
+		excerpt = string([]rune(excerpt)[:150])
 	}
-	return abstract, nil
+	return excerpt, nil
 }
 
 // runPromotion 晋升高频强化的 episodic 记忆为 semantic / Promote highly reinforced episodic memories to semantic

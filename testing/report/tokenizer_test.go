@@ -219,7 +219,7 @@ func TestTokenizer_FTS5_BM25Weighting(t *testing.T) {
 	tc.Step("创建 SQLite store（SimpleTokenizer）")
 
 	ctx := context.Background()
-	mem1 := &model.Memory{Content: "这是一段普通文本", Abstract: "记忆检索系统", TeamID: "t1"}
+	mem1 := &model.Memory{Content: "这是一段普通文本", Excerpt: "记忆检索系统", TeamID: "t1"}
 	mem2 := &model.Memory{Content: "记忆检索系统的核心架构", TeamID: "t1"}
 	require.NoError(t, s.Create(ctx, mem1))
 	require.NoError(t, s.Create(ctx, mem2))

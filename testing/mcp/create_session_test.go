@@ -34,7 +34,7 @@ func (m *mockContextCreator) Create(_ context.Context, req *model.CreateContextR
 	return &model.Context{
 		ID:    "ctx-test-001",
 		Name:  req.Name,
-		Kind:  req.Kind,
+		ContextType: req.ContextType,
 		Scope: req.Scope,
 	}, nil
 }
@@ -74,11 +74,11 @@ func TestCreateSessionTool_Execute(t *testing.T) {
 				// 验证返回的 context_id 存在 / Verify context_id is present
 				assert.Equal(t, "ctx-test-001", result["context_id"])
 				assert.Equal(t, "session-abc-123", result["session_id"])
-				// 验证 kind=session / Verify kind=session
-				assert.Equal(t, "session", result["kind"])
+				// 验证 context_type=session / Verify context_type=session
+				assert.Equal(t, "session", result["context_type"])
 				// 验证请求中 metadata 包含 session_id / Verify metadata contains session_id
 				require.NotNil(t, mock.lastReq)
-				assert.Equal(t, "session", mock.lastReq.Kind)
+				assert.Equal(t, "session", mock.lastReq.ContextType)
 				assert.Equal(t, "session-abc-123", mock.lastReq.Metadata["session_id"])
 				assert.Equal(t, "/home/user/myproject", mock.lastReq.Metadata["project_dir"])
 				assert.NotEmpty(t, mock.lastReq.Metadata["started_at"])
