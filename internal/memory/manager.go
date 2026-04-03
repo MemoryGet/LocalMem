@@ -81,41 +81,13 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		}
 	}
 
-	// 哈希去重 / Hash deduplication
-	contentHash := ContentHash(req.Content)
-	dedupResult, err := m.checkHashDedup(ctx, contentHash)
+	// 完整去重检查（哈希 + 向量）/ Full dedup check (hash + vector)
+	existing, contentHash, embedding, err := m.dedupCheck(ctx, req.Content, req.Embedding)
 	if err != nil {
-		logger.Warn("hash dedup check failed, proceeding with create", zap.Error(err))
-	} else if dedupResult.IsDuplicate {
-		if err := m.memStore.Reinforce(ctx, dedupResult.ExistingMemory.ID); err != nil {
-			logger.Warn("failed to reinforce duplicate memory", zap.Error(err))
-		}
-		return dedupResult.ExistingMemory, nil
+		return nil, err
 	}
-
-	// 提前生成 embedding（余弦去重 + Qdrant 写入共用）/ Resolve embedding early for vector dedup + upsert
-	var embedding []float32
-	if m.vecStore != nil {
-		embedding, err = m.resolveEmbedding(ctx, req.Embedding, req.Content)
-		if err != nil {
-			logger.Warn("failed to generate embedding, skipping vector dedup",
-				zap.Error(err),
-			)
-		}
-	}
-
-	// 余弦相似度去重 / Cosine similarity dedup
-	dedupCfg := m.cfg.Dedup
-	if embedding != nil {
-		vecDedup, err := checkVectorDedup(ctx, embedding, m.vecStore, dedupCfg)
-		if err != nil {
-			logger.Warn("vector dedup check failed, proceeding with create", zap.Error(err))
-		} else if vecDedup.IsDuplicate && vecDedup.ExistingMemory != nil {
-			if err := m.memStore.Reinforce(ctx, vecDedup.ExistingMemory.ID); err != nil {
-				logger.Warn("failed to reinforce vector-duplicate memory", zap.Error(err))
-			}
-			return vecDedup.ExistingMemory, nil
-		}
+	if existing != nil {
+		return existing, nil
 	}
 
 	mem := &model.Memory{

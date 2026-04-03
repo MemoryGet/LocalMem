@@ -38,6 +38,44 @@ func ContentHash(content string) string {
 	return hashutil.ContentHash(content)
 }
 
+// dedupCheck 执行完整去重检查（哈希 + 向量）/ Run full dedup check (hash + vector)
+// Returns (existingMemory, contentHash, embedding, error).
+// If existingMemory != nil, caller should return it instead of creating new.
+func (m *Manager) dedupCheck(ctx context.Context, content string, reqEmbedding []float32) (existing *model.Memory, contentHash string, embedding []float32, err error) {
+	contentHash = ContentHash(content)
+
+	// 哈希去重 / Hash dedup
+	dedupResult, hashErr := m.checkHashDedup(ctx, contentHash)
+	if hashErr != nil {
+		logger.Warn("hash dedup check failed, proceeding", zap.Error(hashErr))
+	} else if dedupResult.IsDuplicate {
+		_ = m.memStore.Reinforce(ctx, dedupResult.ExistingMemory.ID)
+		return dedupResult.ExistingMemory, contentHash, nil, nil
+	}
+
+	// 提前生成 embedding（余弦去重 + Qdrant 写入共用）/ Resolve embedding early for vector dedup + upsert
+	if m.vecStore != nil {
+		embedding, err = m.resolveEmbedding(ctx, reqEmbedding, content)
+		if err != nil {
+			logger.Warn("failed to generate embedding, skipping vector dedup", zap.Error(err))
+			err = nil
+		}
+	}
+
+	// 余弦相似度去重 / Cosine similarity dedup
+	if embedding != nil {
+		vecResult, vecErr := checkVectorDedup(ctx, embedding, m.vecStore, m.cfg.Dedup)
+		if vecErr != nil {
+			logger.Warn("vector dedup check failed, proceeding", zap.Error(vecErr))
+		} else if vecResult.IsDuplicate && vecResult.ExistingMemory != nil {
+			_ = m.memStore.Reinforce(ctx, vecResult.ExistingMemory.ID)
+			return vecResult.ExistingMemory, contentHash, embedding, nil
+		}
+	}
+
+	return nil, contentHash, embedding, nil
+}
+
 // checkVectorDedup 余弦相似度去重 / Check for semantic duplicate using vector similarity
 // 双阈值：>=skipThreshold 直接跳过，>=mergeThreshold 视为候选
 // 需要 vecStore 和 embedder 非 nil，否则跳过
