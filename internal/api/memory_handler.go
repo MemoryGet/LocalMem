@@ -8,6 +8,7 @@ import (
 
 	"iclude/internal/memory"
 	"iclude/internal/model"
+	"iclude/internal/search"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,12 +16,19 @@ import (
 // MemoryHandler 记忆 CRUD 处理器 / Memory CRUD handler
 type MemoryHandler struct {
 	manager     *memory.Manager
+	recaller    *search.ExperienceRecaller // B7: 可为 nil / may be nil
 	authEnabled bool // 认证开关，关闭时放宽 admin 检查 / Auth toggle, relaxes admin check when disabled
 }
 
 // NewMemoryHandler 创建记忆处理器 / Create memory handler
-func NewMemoryHandler(manager *memory.Manager, authEnabled bool) *MemoryHandler {
-	return &MemoryHandler{manager: manager, authEnabled: authEnabled}
+func NewMemoryHandler(manager *memory.Manager, recaller *search.ExperienceRecaller, authEnabled bool) *MemoryHandler {
+	return &MemoryHandler{manager: manager, recaller: recaller, authEnabled: authEnabled}
+}
+
+// CreateMemoryResponse 创建记忆增强响应 / Enhanced create memory response with experience hints (B7)
+type CreateMemoryResponse struct {
+	*model.Memory
+	ExperienceHints []search.ExperienceHint `json:"experience_hints,omitempty"` // 相关经验提示 / Related procedural hints
 }
 
 // Create 创建记忆 / Create a memory
@@ -48,7 +56,13 @@ func (h *MemoryHandler) Create(c *gin.Context, identity *model.Identity) {
 		return
 	}
 
-	Created(c, mem)
+	// B7: 相似经验主动召回 / Proactive experience recall
+	resp := &CreateMemoryResponse{Memory: mem}
+	if h.recaller != nil {
+		resp.ExperienceHints = h.recaller.Recall(c.Request.Context(), req.Content, identity, 3)
+	}
+
+	Created(c, resp)
 }
 
 // Get 获取记忆 / Get a memory by ID (with visibility check)

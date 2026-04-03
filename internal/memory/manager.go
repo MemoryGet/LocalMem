@@ -792,20 +792,20 @@ func (m *Manager) ListBySourceRef(ctx context.Context, sourceRef string, identit
 	return m.memStore.ListBySourceRef(ctx, sourceRef, identity, offset, limit)
 }
 
-// SoftDeleteBySourceRef 按来源引用批量软删除 / Soft delete all memories with a given source_ref
-func (m *Manager) SoftDeleteBySourceRef(ctx context.Context, sourceRef string) (int, error) {
+// SoftDeleteBySourceRef 按来源引用批量软删除（带归属校验）/ Soft delete with identity filtering
+func (m *Manager) SoftDeleteBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity) (int, error) {
 	if sourceRef == "" {
 		return 0, fmt.Errorf("source_ref is required: %w", model.ErrInvalidInput)
 	}
-	return m.memStore.SoftDeleteBySourceRef(ctx, sourceRef)
+	return m.memStore.SoftDeleteBySourceRef(ctx, sourceRef, identity)
 }
 
-// RestoreBySourceRef 按来源引用批量恢复 / Restore all soft-deleted memories with a given source_ref
-func (m *Manager) RestoreBySourceRef(ctx context.Context, sourceRef string) (int, error) {
+// RestoreBySourceRef 按来源引用批量恢复（带归属校验）/ Restore with identity filtering
+func (m *Manager) RestoreBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity) (int, error) {
 	if sourceRef == "" {
 		return 0, fmt.Errorf("source_ref is required: %w", model.ErrInvalidInput)
 	}
-	return m.memStore.RestoreBySourceRef(ctx, sourceRef)
+	return m.memStore.RestoreBySourceRef(ctx, sourceRef, identity)
 }
 
 // ListDerivedFrom 查询由指定记忆衍生出的记忆 / List memories derived from a given memory ID

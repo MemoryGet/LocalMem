@@ -35,7 +35,10 @@ type Deps struct {
 	DocProcessor   *document.Processor       // nil if DocumentStore unavailable
 	DocFileStore   document.FileStore        // nil if document pipeline disabled
 	ReflectEngine  *reflectpkg.ReflectEngine // nil if LLM unavailable
-	Extractor      *memory.Extractor         // nil if LLM or GraphStore unavailable
+	Extractor      *memory.Extractor             // nil if LLM or GraphStore unavailable
+	Summarizer     *memory.SessionSummarizer    // nil if LLM unavailable
+	LineageTracer  *memory.LineageTracer        // always non-nil when MemoryStore exists
+	ExperienceRecaller *search.ExperienceRecaller // nil if Retriever unavailable
 	Scheduler      *scheduler.Scheduler
 	SchedCancel    context.CancelFunc
 	Queue          *queue.Queue // nil if queue disabled or SQLite unavailable
@@ -220,6 +223,16 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		reflectEngine = reflectpkg.NewReflectEngine(ret, memManager, stores.ContextStore, llmProvider, cfg.Reflect)
 	}
 
+	// B7: Session Summarizer / Lineage Tracer / Experience Recaller
+	var summarizer *memory.SessionSummarizer
+	if llmProvider != nil && stores.MemoryStore != nil {
+		summarizer = memory.NewSessionSummarizer(stores.MemoryStore, stores.ContextStore, llmProvider, memManager, memory.DefaultSummarizerConfig())
+	}
+
+	lineageTracer := memory.NewLineageTracer(stores.MemoryStore)
+
+	experienceRecaller := search.NewExperienceRecaller(ret)
+
 	// Async task queue — created outside scheduler block so Manager can use it
 	// 异步任务队列（在 scheduler 块之外创建，Manager 可直接引用）
 	var taskQueue *queue.Queue
@@ -279,9 +292,12 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		GraphManager:   graphManager,
 		DocProcessor:   docProcessor,
 		DocFileStore:   docFileStore,
-		ReflectEngine:  reflectEngine,
-		Extractor:      extractor,
-		Scheduler:      sched,
+		ReflectEngine:      reflectEngine,
+		Extractor:          extractor,
+		Summarizer:         summarizer,
+		LineageTracer:      lineageTracer,
+		ExperienceRecaller: experienceRecaller,
+		Scheduler:          sched,
 		SchedCancel:    schedCancel,
 		Queue:          taskQueue,
 		Config:         cfg,

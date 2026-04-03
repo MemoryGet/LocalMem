@@ -107,8 +107,8 @@ func (s *SQLiteMemoryStore) SoftDeleteByDocumentID(ctx context.Context, document
 	return int(affected), nil
 }
 
-// SoftDeleteBySourceRef 按来源引用批量软删除记忆 / Soft delete all memories with a given source_ref
-func (s *SQLiteMemoryStore) SoftDeleteBySourceRef(ctx context.Context, sourceRef string) (int, error) {
+// SoftDeleteBySourceRef 按来源引用批量软删除记忆（带归属校验）/ Soft delete with identity filtering
+func (s *SQLiteMemoryStore) SoftDeleteBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity) (int, error) {
 	now := time.Now().UTC()
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -117,8 +117,12 @@ func (s *SQLiteMemoryStore) SoftDeleteBySourceRef(ctx context.Context, sourceRef
 	}
 	defer tx.Rollback()
 
+	// 构建归属过滤条件 / Build identity filter
+	visCond, visArgs := visibilityCondition("", identity)
+
 	// 先收集需要清理 FTS5 的 rowid 列表 / Collect rowids for FTS5 cleanup
-	rows, err := tx.QueryContext(ctx, `SELECT rowid FROM memories WHERE source_ref = ? AND deleted_at IS NULL`, sourceRef)
+	selectArgs := append([]interface{}{sourceRef}, visArgs...)
+	rows, err := tx.QueryContext(ctx, `SELECT rowid FROM memories WHERE source_ref = ? AND deleted_at IS NULL AND `+visCond, selectArgs...)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query source_ref memories: %w", err)
 	}
@@ -131,9 +135,10 @@ func (s *SQLiteMemoryStore) SoftDeleteBySourceRef(ctx context.Context, sourceRef
 	}
 	rows.Close()
 
+	updateArgs := append([]interface{}{now, now, sourceRef}, visArgs...)
 	result, err := tx.ExecContext(ctx,
-		`UPDATE memories SET deleted_at = ?, updated_at = ? WHERE source_ref = ? AND deleted_at IS NULL`,
-		now, now, sourceRef,
+		`UPDATE memories SET deleted_at = ?, updated_at = ? WHERE source_ref = ? AND deleted_at IS NULL AND `+visCond,
+		updateArgs...,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to soft delete source_ref memories: %w", err)
@@ -162,8 +167,8 @@ func (s *SQLiteMemoryStore) SoftDeleteBySourceRef(ctx context.Context, sourceRef
 	return int(affected), nil
 }
 
-// RestoreBySourceRef 按来源引用批量恢复记忆 / Restore all soft-deleted memories with a given source_ref
-func (s *SQLiteMemoryStore) RestoreBySourceRef(ctx context.Context, sourceRef string) (int, error) {
+// RestoreBySourceRef 按来源引用批量恢复记忆（带归属校验）/ Restore with identity filtering
+func (s *SQLiteMemoryStore) RestoreBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity) (int, error) {
 	now := time.Now().UTC()
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -172,9 +177,18 @@ func (s *SQLiteMemoryStore) RestoreBySourceRef(ctx context.Context, sourceRef st
 	}
 	defer tx.Rollback()
 
+	// 恢复时 visibility 过滤使用 owner 匹配（soft-deleted 记忆无 visibility 语义）/ Use owner match for restore
+	ownerCond := "1=1"
+	var ownerArgs []interface{}
+	if identity != nil && identity.TeamID != "" {
+		ownerCond = "team_id = ?"
+		ownerArgs = append(ownerArgs, identity.TeamID)
+	}
+
+	updateArgs := append([]interface{}{now, sourceRef}, ownerArgs...)
 	result, err := tx.ExecContext(ctx,
-		`UPDATE memories SET deleted_at = NULL, updated_at = ? WHERE source_ref = ? AND deleted_at IS NOT NULL`,
-		now, sourceRef,
+		`UPDATE memories SET deleted_at = NULL, updated_at = ? WHERE source_ref = ? AND deleted_at IS NOT NULL AND `+ownerCond,
+		updateArgs...,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to restore source_ref memories: %w", err)
@@ -186,9 +200,10 @@ func (s *SQLiteMemoryStore) RestoreBySourceRef(ctx context.Context, sourceRef st
 	}
 
 	// 重建 FTS5 索引 / Rebuild FTS5 for restored memories
+	ftsArgs := append([]interface{}{sourceRef}, ownerArgs...)
 	restoredRows, err := tx.QueryContext(ctx,
-		`SELECT id, content, COALESCE(excerpt, ''), COALESCE(summary, '') FROM memories WHERE source_ref = ? AND deleted_at IS NULL`,
-		sourceRef,
+		`SELECT id, content, COALESCE(excerpt, ''), COALESCE(summary, '') FROM memories WHERE source_ref = ? AND deleted_at IS NULL AND `+ownerCond,
+		ftsArgs...,
 	)
 	if err != nil {
 		return int(affected), fmt.Errorf("failed to query restored memories for FTS5: %w", err)

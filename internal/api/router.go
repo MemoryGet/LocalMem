@@ -21,8 +21,11 @@ type RouterDeps struct {
 	TagStore           store.TagStore
 	MemStore           store.MemoryReader // 用于标签操作的记忆归属校验 / For memory ownership checks in tag operations
 	ReflectEngine      *reflectpkg.ReflectEngine
-	Extractor          *memory.Extractor      // 可为 nil / may be nil
-	FileStore          document.FileStore     // nil if document disabled
+	Extractor          *memory.Extractor          // 可为 nil / may be nil
+	Summarizer         *memory.SessionSummarizer  // B7: 可为 nil / may be nil
+	LineageTracer      *memory.LineageTracer      // B7: 可为 nil / may be nil
+	ExperienceRecaller *search.ExperienceRecaller // B7: 可为 nil / may be nil
+	FileStore          document.FileStore         // nil if document disabled
 	DocumentConfig     config.DocumentConfig
 	AuthConfig         config.AuthConfig
 	ReflectConfig      config.ReflectConfig
@@ -48,11 +51,20 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 	v1.Use(AuthMiddleware(deps.AuthConfig))
 	v1.Use(IdentityMiddleware())
 	{
-		// 写接口速率限制 / Write endpoint rate limiting
+		// 速率限制 / Rate limiting
 		writeRateLimit := RateLimitMiddleware(20, 40) // 20 rps, burst 40
+		llmRateLimit := RateLimitMiddleware(2, 5)     // 2 rps, burst 5
+
+		// Session collaboration (B6 + B7) — 静态前缀路由需在参数路由前注册 / Static prefix routes before param routes
+		sessionHandler := NewSessionHandler(deps.MemManager, deps.Summarizer, deps.LineageTracer)
+		v1.GET("/memories/by-source/:sourceRef", withIdentity(sessionHandler.ListBySourceRef))
+		v1.DELETE("/memories/by-source/:sourceRef", withIdentity(sessionHandler.SoftDeleteBySourceRef))
+		v1.POST("/memories/by-source/:sourceRef/restore", withIdentity(sessionHandler.RestoreBySourceRef))
+		v1.POST("/sessions/:contextId/summarize", llmRateLimit, withIdentity(sessionHandler.Summarize))
+		v1.POST("/sessions/by-source/:sourceRef/summarize", llmRateLimit, withIdentity(sessionHandler.SummarizeBySourceRef))
 
 		// Memory CRUD
-		memHandler := NewMemoryHandler(deps.MemManager, deps.AuthConfig.Enabled)
+		memHandler := NewMemoryHandler(deps.MemManager, deps.ExperienceRecaller, deps.AuthConfig.Enabled)
 		v1.POST("/memories", writeRateLimit, withIdentity(memHandler.Create))
 		v1.GET("/memories", withIdentity(memHandler.List))
 		v1.GET("/memories/:id", withIdentity(memHandler.Get))
@@ -61,6 +73,9 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 		v1.DELETE("/memories/:id/soft", withIdentity(memHandler.SoftDelete))
 		v1.POST("/memories/:id/restore", withIdentity(memHandler.Restore))
 		v1.POST("/memories/:id/reinforce", withIdentity(memHandler.Reinforce))
+		v1.GET("/memories/:id/derived-from", withIdentity(sessionHandler.ListDerivedFrom))
+		v1.GET("/memories/:id/consolidated-into", withIdentity(sessionHandler.ListConsolidatedInto))
+		v1.GET("/memories/:id/lineage", withIdentity(sessionHandler.Lineage))
 
 		// Batch operations
 		batchHandler := NewBatchHandler(deps.MemManager)
@@ -132,9 +147,6 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 				docGroup.POST("/:id/reprocess", withIdentity(docHandler.Process))
 			}
 		}
-
-		// LLM 密集型接口使用更严格的速率限制 / Stricter rate limit for LLM-intensive endpoints
-		llmRateLimit := RateLimitMiddleware(2, 5) // 2 rps, burst 5
 
 		// Extract 实体抽取 / Entity extraction
 		if deps.Extractor != nil {

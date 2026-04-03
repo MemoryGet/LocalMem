@@ -25,10 +25,11 @@ func NewTimelineTool(querier TimelineQuerier) *TimelineTool {
 
 // timelineArgs iclude_timeline 工具参数 / iclude_timeline tool arguments
 type timelineArgs struct {
-	Scope  string `json:"scope,omitempty"`
-	After  string `json:"after,omitempty"`  // RFC3339
-	Before string `json:"before,omitempty"` // RFC3339
-	Limit  int    `json:"limit,omitempty"`
+	Scope     string `json:"scope,omitempty"`
+	SourceRef string `json:"source_ref,omitempty"`
+	After     string `json:"after,omitempty"`  // RFC3339
+	Before    string `json:"before,omitempty"` // RFC3339
+	Limit     int    `json:"limit,omitempty"`
 }
 
 // Definition 返回工具元数据定义 / Return tool metadata definition
@@ -40,6 +41,7 @@ func (t *TimelineTool) Definition() mcp.ToolDefinition {
             "type":"object",
             "properties":{
                 "scope":{"type":"string","description":"Namespace scope filter"},
+                "source_ref":{"type":"string","description":"Filter by source reference (e.g. session ID)"},
                 "after":{"type":"string","format":"date-time","description":"Return memories after this timestamp (RFC3339)"},
                 "before":{"type":"string","format":"date-time","description":"Return memories before this timestamp (RFC3339)"},
                 "limit":{"type":"integer","minimum":1,"maximum":100,"default":20}
@@ -61,8 +63,9 @@ func (t *TimelineTool) Execute(ctx context.Context, arguments json.RawMessage) (
 	}
 
 	req := &model.TimelineRequest{
-		Scope: args.Scope,
-		Limit: limit,
+		Scope:     args.Scope,
+		SourceRef: args.SourceRef,
+		Limit:     limit,
 	}
 
 	// 注入身份过滤 / Inject identity filtering

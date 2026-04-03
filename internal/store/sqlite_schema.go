@@ -255,6 +255,9 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		`CREATE INDEX idx_memories_team_vis_owner ON memories(team_id, visibility, owner_id) WHERE deleted_at IS NULL`,
 		// V12: memory_class
 		`CREATE INDEX idx_memories_memory_class ON memories(memory_class)`,
+		// V17: source_ref + consolidated_into (B6/B7 high-frequency query paths)
+		`CREATE INDEX idx_memories_source_ref ON memories(source_ref) WHERE source_ref != '' AND deleted_at IS NULL`,
+		`CREATE INDEX idx_memories_consolidated_into ON memories(consolidated_into) WHERE consolidated_into != '' AND deleted_at IS NULL`,
 	}
 	for _, idx := range memIndexes {
 		if _, err := tx.Exec(idx); err != nil {
@@ -334,12 +337,12 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		return fmt.Errorf("fresh schema: memory_derivations target index: %w", err)
 	}
 
-	// --- 记录 schema 版本 = 16 / Record schema version = 16 ---
-	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (16)`); err != nil {
+	// --- 记录 schema 版本 = 17 / Record schema version = 17 ---
+	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (17)`); err != nil {
 		return fmt.Errorf("fresh schema: record version: %w", err)
 	}
 
-	logger.Info("fresh schema V16 created successfully",
+	logger.Info("fresh schema V17 created successfully",
 		zap.String("tokenizer", tokName),
 	)
 

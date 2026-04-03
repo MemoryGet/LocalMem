@@ -104,11 +104,11 @@ type MemoryLifecycle interface {
 	// SoftDeleteByDocumentID 软删除关联文档的所有记忆 / Soft delete all memories linked to a document
 	SoftDeleteByDocumentID(ctx context.Context, documentID string) (int, error)
 
-	// SoftDeleteBySourceRef 按来源引用批量软删除记忆 / Soft delete all memories with a given source_ref
-	SoftDeleteBySourceRef(ctx context.Context, sourceRef string) (int, error)
+	// SoftDeleteBySourceRef 按来源引用批量软删除记忆（带归属校验）/ Soft delete with identity filtering
+	SoftDeleteBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity) (int, error)
 
-	// RestoreBySourceRef 按来源引用批量恢复记忆 / Restore all soft-deleted memories with a given source_ref
-	RestoreBySourceRef(ctx context.Context, sourceRef string) (int, error)
+	// RestoreBySourceRef 按来源引用批量恢复记忆（带归属校验）/ Restore with identity filtering
+	RestoreBySourceRef(ctx context.Context, sourceRef string, identity *model.Identity) (int, error)
 }
 
 // DerivationStore 记忆溯源关联接口 / Memory derivation junction operations
