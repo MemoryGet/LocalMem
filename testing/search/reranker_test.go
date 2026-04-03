@@ -163,3 +163,98 @@ func TestRemoteReranker_FallbackOnError(t *testing.T) {
 	assert.Equal(t, "a", out[0].Memory.ID)
 	assert.Equal(t, "b", out[1].Memory.ID)
 }
+
+func TestRemoteReranker_CircuitBreakerTripsAfterConsecutiveFailures(t *testing.T) {
+	callCount := 0
+	client := &http.Client{
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			callCount++
+			return nil, errors.New("connection refused")
+		}),
+	}
+
+	reranker := search.NewRemoteRerankerWithClient(config.RerankConfig{
+		Enabled:     true,
+		Provider:    "remote",
+		BaseURL:     "http://rerank.local",
+		TopK:        2,
+		ScoreWeight: 1.0,
+	}, client)
+	require.NotNil(t, reranker)
+
+	results := []*model.SearchResult{
+		makeRerankResult("a", 0.90, "阿里云"),
+		makeRerankResult("b", 0.80, "数据库"),
+	}
+
+	// 连续失败 3 次触发熔断 / 3 consecutive failures trip the breaker
+	for i := 0; i < 3; i++ {
+		out := reranker.Rerank(context.Background(), "测试查询", results)
+		require.Len(t, out, 2)
+		assert.Equal(t, "a", out[0].Memory.ID, "fallback should preserve original order")
+	}
+	assert.Equal(t, 3, callCount, "should have made 3 actual HTTP calls")
+
+	// 熔断后不再发起 HTTP 请求 / After trip, no more HTTP calls
+	out := reranker.Rerank(context.Background(), "测试查询", results)
+	require.Len(t, out, 2)
+	assert.Equal(t, "a", out[0].Memory.ID)
+	assert.Equal(t, 3, callCount, "circuit breaker should block the 4th call")
+}
+
+func TestRemoteReranker_CircuitBreakerResetsOnSuccess(t *testing.T) {
+	callCount := 0
+	shouldFail := true
+	client := &http.Client{
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			callCount++
+			if shouldFail {
+				return nil, errors.New("timeout")
+			}
+			body, _ := json.Marshal(map[string]any{
+				"results": []map[string]any{
+					{"index": 1, "relevance_score": 0.95},
+					{"index": 0, "relevance_score": 0.40},
+				},
+			})
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(string(body))),
+			}, nil
+		}),
+	}
+
+	reranker := search.NewRemoteRerankerWithClient(config.RerankConfig{
+		Enabled:     true,
+		Provider:    "remote",
+		BaseURL:     "http://rerank.local",
+		TopK:        2,
+		ScoreWeight: 1.0,
+	}, client)
+	require.NotNil(t, reranker)
+
+	results := []*model.SearchResult{
+		makeRerankResult("a", 0.90, "阿里云"),
+		makeRerankResult("b", 0.80, "数据库"),
+	}
+
+	// 失败 2 次（未达阈值） / 2 failures (below threshold)
+	for i := 0; i < 2; i++ {
+		reranker.Rerank(context.Background(), "测试", results)
+	}
+	assert.Equal(t, 2, callCount)
+
+	// 成功一次，重置计数 / One success resets counter
+	shouldFail = false
+	out := reranker.Rerank(context.Background(), "测试", results)
+	assert.Equal(t, 3, callCount)
+	assert.Equal(t, "b", out[0].Memory.ID, "reranker should reorder on success")
+
+	// 再失败 2 次不会熔断（因为计数被重置） / 2 more failures won't trip (counter was reset)
+	shouldFail = true
+	for i := 0; i < 2; i++ {
+		reranker.Rerank(context.Background(), "测试", results)
+	}
+	assert.Equal(t, 5, callCount, "all calls should go through since breaker was reset")
+}

@@ -18,11 +18,12 @@ import (
 	"go.uber.org/zap"
 )
 
-// RemoteReranker 远程 HTTP 精排器 / Remote HTTP reranker
+// RemoteReranker 远程 HTTP 精排器，内置熔断器 / Remote HTTP reranker with circuit breaker
 type RemoteReranker struct {
 	cfg        config.RerankConfig
 	baseURL    string
 	httpClient *http.Client
+	breaker    *circuitBreaker
 }
 
 type remoteRerankRequest struct {
@@ -73,12 +74,18 @@ func NewRemoteRerankerWithClient(cfg config.RerankConfig, client *http.Client) R
 		cfg:        cfg,
 		baseURL:    baseURL,
 		httpClient: client,
+		breaker:    newCircuitBreaker(3, 30*time.Second),
 	}
 }
 
 // Rerank 调用远程 API 进行精排，失败则回退原始结果 / Call remote API and fall back to original results on failure
 func (r *RemoteReranker) Rerank(ctx context.Context, query string, results []*model.SearchResult) []*model.SearchResult {
 	if err := ctx.Err(); err != nil || len(results) <= 1 {
+		return results
+	}
+
+	if !r.breaker.allow() {
+		logger.Debug("rerank: circuit breaker open, skipping remote call")
 		return results
 	}
 
@@ -104,12 +111,16 @@ func (r *RemoteReranker) Rerank(ctx context.Context, query string, results []*mo
 
 	ranked, err := r.request(ctx, query, docs, subset)
 	if err != nil {
+		r.breaker.recordFailure()
 		logger.Warn("rerank: remote request failed, using original order", zap.Error(err))
 		return results
 	}
 	if len(ranked) == 0 {
+		r.breaker.recordSuccess()
 		return results
 	}
+
+	r.breaker.recordSuccess()
 
 	reranked := append([]*model.SearchResult(nil), results...)
 	for i, res := range ranked {

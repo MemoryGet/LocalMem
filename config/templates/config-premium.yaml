@@ -59,13 +59,13 @@ retrieval:
   access_alpha: 0.15
   rerank:
     enabled: true
-    provider: "overlap"
-    base_url: ""
+    provider: "remote"                          # overlap (本地) | remote (Cohere/Jina/Voyage/TEI)
+    base_url: "https://api.jina.ai/v1"          # Cohere: https://api.cohere.com/v2 | Jina: https://api.jina.ai/v1 | 本地 TEI: http://localhost:8080/v1
     api_key: "${RERANK_API_KEY}"
-    model: ""
-    top_k: 20
+    model: "jina-reranker-v2-base-multilingual"  # Cohere: rerank-multilingual-v3.0 | Jina: jina-reranker-v2-base-multilingual
+    top_k: 25
     score_weight: 0.7
-    timeout: 5s
+    timeout: 3s
   mmr:
     enabled: true  # MMR 多样性重排
     lambda: 0.7
