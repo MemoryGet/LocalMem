@@ -140,7 +140,7 @@ Multi-round LLM reasoning over retrieved memories. Configured via `reflect` conf
 
 ### Database schema
 
-SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 33 columns (including memory_class and derived_from for episodic/semantic/procedural evolution tracking). Migrations are versioned (V0→V1→V2→V3→...→V12) in `sqlite_migration.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
+SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 33 columns (including memory_class and derived_from for episodic/semantic/procedural evolution tracking). Migrations are versioned (V0→V1→V2→V3→...→V13) in `sqlite_migration*.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
 
 ### MCP identity flow
 
@@ -173,7 +173,7 @@ All endpoints under `/v1/`. Core groups:
 - `/v1/memories` — CRUD + soft-delete/restore + reinforce + tag associations
 - `/v1/retrieve`, `/v1/timeline` — search (three-way retrieval with weighted RRF, strength weighting)
 - `/v1/conversations` — conversation ingest (batch) + retrieval by context
-- `/v1/contexts` — hierarchical context tree (materialized path)
+- `/v1/contexts` — hierarchical context tree (materialized path) with behavioral fields (mission/directives/disposition)
 - `/v1/tags` — tag CRUD + memory-tag associations
 - `/v1/entities`, `/v1/entity-relations`, `/v1/memory-entities` — knowledge graph
 - `/v1/documents` — document upload/process/list
