@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,13 +27,13 @@ const (
 	ExtractParseFallback = "fallback"
 )
 
-// 合法的实体类型 / Valid entity types
-var validEntityTypes = map[string]bool{
+// defaultEntityTypes 默认实体类型（配置为空时兜底）/ Default entity types when config is empty
+var defaultEntityTypes = map[string]bool{
 	"person": true, "org": true, "concept": true, "tool": true, "location": true,
 }
 
-// 合法的关系类型 / Valid relation types
-var validRelationTypes = map[string]bool{
+// defaultRelationTypes 默认关系类型（配置为空时兜底）/ Default relation types when config is empty
+var defaultRelationTypes = map[string]bool{
 	"uses": true, "knows": true, "belongs_to": true, "related_to": true,
 }
 
@@ -62,17 +63,6 @@ type normalizeLLMOutput struct {
 	MatchedEntity string `json:"matched_entity"`
 }
 
-const extractSystemPrompt = `You are a knowledge extraction engine. Extract structured entities and relationships from the given text.
-
-Rules:
-- Entity types: person, org, concept, tool, location
-- Relation types: uses, knows, belongs_to, related_to
-- Output strict JSON with "entities" and "relations" arrays
-- Each entity has: name, entity_type, description
-- Each relation has: source (entity name), target (entity name), relation_type
-- Deduplicate: same entity appears only once
-- Relations: source is the actor, target is the object
-- Only extract entities and relations that are clearly stated in the text`
 
 const normalizeSystemPrompt = `You are an entity normalization engine. Determine if a new entity refers to the same thing as one of the candidate entities.
 
@@ -80,25 +70,73 @@ Output strict JSON: {"match": true, "matched_entity": "candidate name"} or {"mat
 
 // Extractor 自动实体抽取器 / Auto entity extractor
 type Extractor struct {
-	llm          llm.Provider
-	graphManager *GraphManager
-	memStore     store.MemoryStore
-	cfg          config.ExtractConfig
+	llm           llm.Provider
+	graphManager  *GraphManager
+	memStore      store.MemoryStore
+	cfg           config.ExtractConfig
+	entityTypes   map[string]bool // 从配置加载 / Loaded from config
+	relationTypes map[string]bool // 从配置加载 / Loaded from config
 }
 
 // NewExtractor 创建实体抽取器 / Create entity extractor
-func NewExtractor(llm llm.Provider, graphManager *GraphManager, memStore store.MemoryStore, cfg config.ExtractConfig) *Extractor {
+func NewExtractor(llmProvider llm.Provider, graphManager *GraphManager, memStore store.MemoryStore, cfg config.ExtractConfig) *Extractor {
+	// 从配置构建类型白名单 / Build type allow-lists from config
+	entityTypes := make(map[string]bool, len(cfg.EntityTypes))
+	for _, t := range cfg.EntityTypes {
+		entityTypes[strings.ToLower(t)] = true
+	}
+	if len(entityTypes) == 0 {
+		entityTypes = defaultEntityTypes
+	}
+
+	relationTypes := make(map[string]bool, len(cfg.RelationTypes))
+	for _, t := range cfg.RelationTypes {
+		relationTypes[strings.ToLower(t)] = true
+	}
+	if len(relationTypes) == 0 {
+		relationTypes = defaultRelationTypes
+	}
+
 	return &Extractor{
-		llm:          llm,
-		graphManager: graphManager,
-		memStore:     memStore,
-		cfg:          cfg,
+		llm:           llmProvider,
+		graphManager:  graphManager,
+		memStore:      memStore,
+		cfg:           cfg,
+		entityTypes:   entityTypes,
+		relationTypes: relationTypes,
 	}
 }
 
 // GetMemoryStore 获取记忆存储（供 API handler 使用）/ Get memory store (for API handler)
 func (e *Extractor) GetMemoryStore() store.MemoryStore {
 	return e.memStore
+}
+
+// buildExtractPrompt 构建抽取提示词（类型列表从配置注入）/ Build extraction prompt with configured types
+func (e *Extractor) buildExtractPrompt() string {
+	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
+	relationList := strings.Join(mapKeys(e.relationTypes), ", ")
+	return fmt.Sprintf(`You are a knowledge extraction engine. Extract structured entities and relationships from the given text.
+
+Rules:
+- Entity types: %s
+- Relation types: %s
+- Output strict JSON with "entities" and "relations" arrays
+- Each entity has: name, entity_type, description
+- Each relation has: source (entity name), target (entity name), relation_type
+- Deduplicate: same entity appears only once
+- Relations: source is the actor, target is the object
+- Only extract entities and relations that are clearly stated in the text`, entityList, relationList)
+}
+
+// mapKeys 提取 map 的键列表（排序）/ Extract map keys as sorted slice
+func mapKeys(m map[string]bool) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // Extract 从文本中抽取实体和关系 / Extract entities and relations from text
@@ -182,7 +220,7 @@ func (e *Extractor) Extract(ctx context.Context, req *model.ExtractRequest) (*mo
 func (e *Extractor) callLLM(ctx context.Context, content string) (*extractLLMOutput, error) {
 	temp := 0.1
 	messages := []llm.ChatMessage{
-		{Role: "system", Content: extractSystemPrompt},
+		{Role: "system", Content: e.buildExtractPrompt()},
 		{Role: "user", Content: content},
 	}
 
@@ -260,7 +298,7 @@ func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
 	valid := make([]extractedEntity, 0, len(output.Entities))
 	for _, ent := range output.Entities {
 		ent.EntityType = strings.ToLower(strings.TrimSpace(ent.EntityType))
-		if validEntityTypes[ent.EntityType] && strings.TrimSpace(ent.Name) != "" {
+		if e.entityTypes[ent.EntityType] && strings.TrimSpace(ent.Name) != "" {
 			valid = append(valid, ent)
 		}
 	}
@@ -275,7 +313,7 @@ func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
 	validRels := make([]extractedRelation, 0, len(output.Relations))
 	for _, rel := range output.Relations {
 		rel.RelationType = strings.ToLower(strings.TrimSpace(rel.RelationType))
-		if validRelationTypes[rel.RelationType] && rel.Source != "" && rel.Target != "" {
+		if e.relationTypes[rel.RelationType] && rel.Source != "" && rel.Target != "" {
 			validRels = append(validRels, rel)
 		}
 	}

@@ -173,6 +173,8 @@ type ExtractConfig struct {
 	NormalizeEnabled    bool          `mapstructure:"normalize_enabled"`
 	NormalizeCandidates int           `mapstructure:"normalize_candidates"`
 	Timeout             time.Duration `mapstructure:"timeout"`
+	EntityTypes         []string      `mapstructure:"entity_types"`   // 实体类型白名单 / Allowed entity types
+	RelationTypes       []string      `mapstructure:"relation_types"` // 关系类型白名单 / Allowed relation types
 }
 
 // RetrievalConfig 检索配置 / Retrieval config
@@ -324,6 +326,8 @@ func LoadConfig() error {
 	viper.SetDefault("extract.normalize_enabled", true)
 	viper.SetDefault("extract.normalize_candidates", 20)
 	viper.SetDefault("extract.timeout", "30s")
+	viper.SetDefault("extract.entity_types", []string{"person", "org", "concept", "tool", "location"})
+	viper.SetDefault("extract.relation_types", []string{"uses", "knows", "belongs_to", "related_to"})
 	// Retrieval 默认值 / Retrieval defaults
 	viper.SetDefault("retrieval.graph_enabled", true)
 	viper.SetDefault("retrieval.graph_depth", 1)
