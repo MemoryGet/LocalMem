@@ -187,10 +187,11 @@ func (r *Runner) Run(ctx context.Context, ds *EvalDataset, mode string) (*EvalRe
 	// 播种记忆 / Seed memories
 	for i, seed := range ds.SeedMemories {
 		req := &model.CreateMemoryRequest{
-			Content: seed.Content,
-			Kind:    seed.Kind,
-			SubKind: seed.SubKind,
-			Scope:   "eval/test",
+			Content:     seed.Content,
+			Kind:        seed.Kind,
+			SubKind:     seed.SubKind,
+			MemoryClass: seed.MemoryClass,
+			Scope:       "eval/test",
 		}
 		if _, err := r.manager.Create(ctx, req); err != nil {
 			return nil, fmt.Errorf("Run: seed memory %d: %w", i, err)

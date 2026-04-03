@@ -10,9 +10,10 @@ import (
 
 // SeedMemory 种子记忆 / Seed memory for evaluation
 type SeedMemory struct {
-	Content string `json:"content"`
-	Kind    string `json:"kind"`
-	SubKind string `json:"sub_kind"`
+	Content     string `json:"content"`
+	Kind        string `json:"kind"`
+	SubKind     string `json:"sub_kind"`
+	MemoryClass string `json:"memory_class,omitempty"` // episodic(default) / semantic / procedural
 }
 
 // EvalCase 评测用例 / Single evaluation case
