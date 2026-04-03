@@ -71,6 +71,13 @@ func (e *Engine) Run(ctx context.Context) error {
 		}
 	}
 
+	// 5. 晋升高频强化的记忆 / Promotion: episodic → semantic when reinforced_count >= threshold
+	if cfg.PromotionEnabled {
+		if err := e.runPromotion(ctx, cfg); err != nil {
+			logger.Warn("heartbeat: promotion check failed", zap.Error(err))
+		}
+	}
+
 	logger.Info("heartbeat: inspection round completed")
 	return nil
 }
@@ -143,4 +150,42 @@ func (e *Engine) generateAbstract(ctx context.Context, content string) (string, 
 		abstract = string([]rune(abstract)[:150])
 	}
 	return abstract, nil
+}
+
+// runPromotion 晋升高频强化的 episodic 记忆为 semantic / Promote highly reinforced episodic memories to semantic
+func (e *Engine) runPromotion(ctx context.Context, cfg config.HeartbeatConfig) error {
+	threshold := cfg.PromotionThreshold
+	if threshold <= 0 {
+		threshold = 5
+	}
+
+	// 查询候选记忆 / List recent memories to check for promotion candidates
+	memories, err := e.memStore.List(ctx, nil, 0, 200)
+	if err != nil {
+		return fmt.Errorf("list memories for promotion: %w", err)
+	}
+
+	promoted := 0
+	for _, mem := range memories {
+		if mem.MemoryClass != "episodic" || mem.ReinforcedCount < threshold {
+			continue
+		}
+		mem.MemoryClass = "semantic"
+		if err := e.memStore.Update(ctx, mem); err != nil {
+			logger.Warn("heartbeat: promotion update failed",
+				zap.String("memory_id", mem.ID),
+				zap.Error(err),
+			)
+			continue
+		}
+		promoted++
+	}
+
+	if promoted > 0 {
+		logger.Info("heartbeat: promoted episodic → semantic",
+			zap.Int("count", promoted),
+			zap.Int("threshold", threshold),
+		)
+	}
+	return nil
 }
