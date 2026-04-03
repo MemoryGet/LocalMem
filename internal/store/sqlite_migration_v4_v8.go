@@ -22,7 +22,7 @@ func migrateV4ToV5(db *sql.DB) error {
 
 	// 新增 consolidated_into 列
 	if _, err := tx.Exec(`ALTER TABLE memories ADD COLUMN consolidated_into TEXT DEFAULT ''`); err != nil {
-		if !isColumnExistsError(err) {
+		if !IsColumnExistsError(err) {
 			return fmt.Errorf("failed to add consolidated_into column: %w", err)
 		}
 	}
@@ -53,7 +53,7 @@ func migrateV5ToV6(db *sql.DB) error {
 	}
 	for _, stmt := range alterColumns {
 		if _, err := tx.Exec(stmt); err != nil {
-			if isColumnExistsError(err) {
+			if IsColumnExistsError(err) {
 				continue
 			}
 			return fmt.Errorf("failed to alter table: %w", err)

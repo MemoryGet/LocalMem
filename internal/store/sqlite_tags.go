@@ -36,7 +36,7 @@ func (s *SQLiteTagStore) CreateTag(ctx context.Context, tag *model.Tag) error {
 	)
 	if err != nil {
 		// 检查 UNIQUE(name, scope) 冲突
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		if IsUniqueConstraintError(err) {
 			return model.ErrConflict
 		}
 		return fmt.Errorf("failed to create tag: %w", err)
@@ -133,7 +133,7 @@ func (s *SQLiteTagStore) TagMemory(ctx context.Context, memoryID, tagID string) 
 	)
 	if err != nil {
 		// 重复关联视为冲突
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		if IsUniqueConstraintError(err) {
 			return model.ErrConflict
 		}
 		return fmt.Errorf("failed to tag memory: %w", err)

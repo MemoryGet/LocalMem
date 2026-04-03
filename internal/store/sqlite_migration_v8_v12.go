@@ -98,7 +98,7 @@ func migrateV9ToV10(db *sql.DB) error {
 	}
 	for _, stmt := range alterStmts {
 		if _, err := tx.Exec(stmt); err != nil {
-			if strings.Contains(err.Error(), "no such table") || isColumnExistsError(err) {
+			if strings.Contains(err.Error(), "no such table") || IsColumnExistsError(err) {
 				continue
 			}
 			return fmt.Errorf("failed to execute %q: %w", stmt, err)
@@ -190,7 +190,7 @@ func migrateV11ToV12(db *sql.DB) error {
 	}
 	for _, stmt := range alterColumns {
 		if _, err := tx.Exec(stmt); err != nil {
-			if isColumnExistsError(err) {
+			if IsColumnExistsError(err) {
 				continue
 			}
 			return fmt.Errorf("failed to alter table: %w", err)

@@ -92,7 +92,7 @@ func (s *SQLiteDocumentStore) Create(ctx context.Context, doc *model.Document) e
 	)
 	if err != nil {
 		// 检测 content_hash 唯一约束冲突
-		if strings.Contains(err.Error(), "UNIQUE") && strings.Contains(err.Error(), "content_hash") {
+		if IsUniqueConstraintError(err) {
 			return fmt.Errorf("document with same content hash already exists: %w", model.ErrDuplicateDocument)
 		}
 		return fmt.Errorf("failed to insert document: %w", err)

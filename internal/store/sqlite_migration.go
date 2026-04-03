@@ -3,7 +3,6 @@ package store
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"iclude/internal/logger"
 	"iclude/pkg/tokenizer"
@@ -147,11 +146,3 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 	return nil
 }
 
-// isColumnExistsError 检查是否为列已存在错误
-func isColumnExistsError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "duplicate column name") || strings.Contains(msg, "already exists")
-}

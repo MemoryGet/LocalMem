@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"iclude/internal/logger"
 	"iclude/pkg/hashutil"
@@ -110,7 +109,7 @@ func migrateV1ToV2(db *sql.DB) error {
 		// 忽略 "duplicate column" 错误（幂等）
 		if _, err := tx.Exec(stmt); err != nil {
 			// SQLite 错误信息包含 "duplicate column name"
-			if isColumnExistsError(err) {
+			if IsColumnExistsError(err) {
 				continue
 			}
 			return fmt.Errorf("failed to alter table: %w", err)
@@ -293,7 +292,7 @@ func migrateV2ToV3(db *sql.DB) error {
 	}
 	for _, stmt := range alterColumns {
 		if _, err := tx.Exec(stmt); err != nil {
-			if isColumnExistsError(err) {
+			if IsColumnExistsError(err) {
 				continue
 			}
 			return fmt.Errorf("failed to alter table: %w", err)
@@ -341,7 +340,7 @@ func migrateV3ToV4(db *sql.DB, tok tokenizer.Tokenizer) error {
 
 	// 1. 新增 content_hash 列
 	if _, err := tx.Exec(`ALTER TABLE memories ADD COLUMN content_hash TEXT DEFAULT ''`); err != nil {
-		if !isColumnExistsError(err) {
+		if !IsColumnExistsError(err) {
 			return fmt.Errorf("failed to add content_hash column: %w", err)
 		}
 	}
@@ -428,7 +427,7 @@ func migrateV3ToV4(db *sql.DB, tok tokenizer.Tokenizer) error {
 		hash := hashutil.ContentHash(content)
 		if _, err := hashStmt.Exec(hash, id); err != nil {
 			// 哈希冲突（重复内容）跳过，不中断迁移
-			if strings.Contains(err.Error(), "UNIQUE constraint") {
+			if IsUniqueConstraintError(err) {
 				logger.Warn("hash backfill skipped duplicate", zap.String("id", id))
 				continue
 			}

@@ -46,7 +46,7 @@ func (s *SQLiteGraphStore) CreateEntity(ctx context.Context, entity *model.Entit
 		metadataJSON, entity.CreatedAt, entity.UpdatedAt,
 	)
 	if err != nil {
-		if isUniqueConstraintError(err) {
+		if IsUniqueConstraintError(err) {
 			return fmt.Errorf("entity with same name, type and scope already exists: %w", model.ErrConflict)
 		}
 		return fmt.Errorf("failed to insert entity: %w", err)
@@ -212,7 +212,7 @@ func (s *SQLiteGraphStore) CreateRelation(ctx context.Context, rel *model.Entity
 		metadataJSON, rel.CreatedAt,
 	)
 	if err != nil {
-		if isUniqueConstraintError(err) {
+		if IsUniqueConstraintError(err) {
 			return fmt.Errorf("relation already exists: %w", model.ErrConflict)
 		}
 		return fmt.Errorf("failed to insert relation: %w", err)
@@ -290,7 +290,7 @@ func (s *SQLiteGraphStore) CreateMemoryEntity(ctx context.Context, me *model.Mem
 
 	_, err := s.db.ExecContext(ctx, query, me.MemoryID, me.EntityID, me.Role, me.CreatedAt)
 	if err != nil {
-		if isUniqueConstraintError(err) {
+		if IsUniqueConstraintError(err) {
 			return fmt.Errorf("memory-entity association already exists: %w", model.ErrConflict)
 		}
 		return fmt.Errorf("failed to insert memory-entity association: %w", err)
@@ -499,7 +499,3 @@ func (s *SQLiteGraphStore) FindEntitiesByName(ctx context.Context, name string, 
 	return entities, nil
 }
 
-// isUniqueConstraintError 检查是否为唯一约束冲突错误
-func isUniqueConstraintError(err error) bool {
-	return strings.Contains(err.Error(), "UNIQUE constraint failed")
-}
