@@ -140,6 +140,8 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		MessageRole:   req.MessageRole,
 		TurnNumber:    req.TurnNumber,
 		ContentHash:   contentHash,
+		MemoryClass:   req.MemoryClass,
+		DerivedFrom:   req.DerivedFrom,
 	}
 
 	// 应用等级默认值
