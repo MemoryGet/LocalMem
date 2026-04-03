@@ -15,6 +15,7 @@ import (
 	"iclude/internal/memory"
 	"iclude/internal/model"
 	"iclude/internal/search"
+	"iclude/internal/store"
 
 	"go.uber.org/zap"
 )
@@ -27,8 +28,8 @@ const (
 	ParseMethodFallback = "fallback"
 )
 
-// systemPrompt 反思引擎系统提示词 / Reflect engine system prompt
-const systemPrompt = `You are a reflection engine that synthesizes information from memory retrieval results.
+// baseSystemPrompt 反思引擎基础系统提示词 / Reflect engine base system prompt
+const baseSystemPrompt = `You are a reflection engine that synthesizes information from memory retrieval results.
 
 You MUST respond with valid JSON in the following format:
 {
@@ -68,20 +69,56 @@ func (o *reflectLLMOutput) validate() error {
 
 // ReflectEngine 反思推理引擎，多轮检索+LLM综合 / Reflect reasoning engine with multi-round retrieval and LLM synthesis
 type ReflectEngine struct {
-	retriever   *search.Retriever
-	manager     *memory.Manager
-	llmProvider llm.Provider
-	cfg         config.ReflectConfig
+	retriever    *search.Retriever
+	manager      *memory.Manager
+	contextStore store.ContextStore // 可为 nil / May be nil
+	llmProvider  llm.Provider
+	cfg          config.ReflectConfig
 }
 
 // NewReflectEngine 创建反思引擎 / Create a new reflect engine
-func NewReflectEngine(retriever *search.Retriever, manager *memory.Manager, llmProvider llm.Provider, cfg config.ReflectConfig) *ReflectEngine {
+func NewReflectEngine(retriever *search.Retriever, manager *memory.Manager, contextStore store.ContextStore, llmProvider llm.Provider, cfg config.ReflectConfig) *ReflectEngine {
 	return &ReflectEngine{
-		retriever:   retriever,
-		manager:     manager,
-		llmProvider: llmProvider,
-		cfg:         cfg,
+		retriever:    retriever,
+		manager:      manager,
+		contextStore: contextStore,
+		llmProvider:  llmProvider,
+		cfg:          cfg,
 	}
+}
+
+// BuildSystemPrompt 构建系统提示词，可选注入 Context 行为约束 / Build system prompt with optional behavioral constraints
+func (e *ReflectEngine) BuildSystemPrompt(ctx context.Context, contextID string) string {
+	// 无 ContextID 或无 ContextStore 时返回基础提示词 / Return base prompt when no ContextID or ContextStore
+	if contextID == "" || e.contextStore == nil {
+		return baseSystemPrompt
+	}
+
+	ctxObj, err := e.contextStore.Get(ctx, contextID)
+	if err != nil {
+		logger.Debug("reflect: failed to load context, using base prompt",
+			zap.String("context_id", contextID),
+			zap.Error(err),
+		)
+		return baseSystemPrompt
+	}
+
+	var constraints []string
+	if ctxObj.Mission != "" {
+		constraints = append(constraints, fmt.Sprintf("Mission: %s", ctxObj.Mission))
+	}
+	if ctxObj.Directives != "" {
+		constraints = append(constraints, fmt.Sprintf("Directives:\n%s", ctxObj.Directives))
+	}
+	if ctxObj.Disposition != "" {
+		constraints = append(constraints, fmt.Sprintf("Disposition: %s", ctxObj.Disposition))
+	}
+
+	if len(constraints) == 0 {
+		return baseSystemPrompt
+	}
+
+	return baseSystemPrompt + "\n\nContext behavioral constraints:\n" + strings.Join(constraints, "\n")
 }
 
 // Reflect 执行多轮反思推理 / Execute multi-round reflect reasoning
@@ -197,8 +234,9 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 				req.Question, round, maxRounds, memoriesText)
 		}
 
+		sysPrompt := e.BuildSystemPrompt(ctx, req.ContextID)
 		messages := []llm.ChatMessage{
-			{Role: "system", Content: systemPrompt},
+			{Role: "system", Content: sysPrompt},
 			{Role: "user", Content: userContent},
 		}
 

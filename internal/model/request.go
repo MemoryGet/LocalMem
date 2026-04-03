@@ -234,6 +234,7 @@ type ConversationMessage struct {
 // ReflectRequest 反思请求 / Reflect request DTO
 type ReflectRequest struct {
 	Question    string `json:"question" binding:"required"`
+	ContextID   string `json:"context_id,omitempty"` // 加载行为约束 / Load behavioral constraints
 	Scope       string `json:"scope,omitempty"`
 	TeamID      string `json:"team_id,omitempty"`
 	OwnerID     string `json:"owner_id,omitempty"`

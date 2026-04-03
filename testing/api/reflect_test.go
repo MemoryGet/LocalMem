@@ -58,7 +58,7 @@ func setupReflectRouter(t *testing.T, llmProvider llm.Provider) (http.Handler, *
 		AutoSave:     false,
 	}
 
-	engine := reflectpkg.NewReflectEngine(ret, mgr, llmProvider, reflectCfg)
+	engine := reflectpkg.NewReflectEngine(ret, mgr, nil, llmProvider, reflectCfg)
 
 	router := api.SetupRouter(&api.RouterDeps{
 		MemManager:    mgr,

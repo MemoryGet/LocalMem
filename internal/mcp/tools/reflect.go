@@ -25,6 +25,7 @@ func NewReflectTool(engine Reflector) *ReflectTool {
 // reflectArgs iclude_reflect 工具参数 / iclude_reflect tool arguments
 type reflectArgs struct {
 	Question  string `json:"question"`
+	ContextID string `json:"context_id,omitempty"`
 	Scope     string `json:"scope,omitempty"`
 	MaxRounds int    `json:"max_rounds,omitempty"`
 }
@@ -38,6 +39,7 @@ func (t *ReflectTool) Definition() mcp.ToolDefinition {
             "type":"object",
             "properties":{
                 "question":{"type":"string","description":"The question or topic to reason about"},
+                "context_id":{"type":"string","description":"Context ID to load behavioral constraints (mission/directives/disposition)"},
                 "scope":{"type":"string","description":"Namespace scope to restrict memory retrieval"},
                 "max_rounds":{"type":"integer","minimum":1,"maximum":10,"description":"Maximum reasoning rounds (default: engine config)"}
             },
@@ -65,6 +67,7 @@ func (t *ReflectTool) Execute(ctx context.Context, arguments json.RawMessage) (*
 
 	req := &model.ReflectRequest{
 		Question:  args.Question,
+		ContextID: args.ContextID,
 		Scope:     args.Scope,
 		MaxRounds: args.MaxRounds,
 	}

@@ -217,7 +217,7 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 
 	var reflectEngine *reflectpkg.ReflectEngine
 	if llmProvider != nil {
-		reflectEngine = reflectpkg.NewReflectEngine(ret, memManager, llmProvider, cfg.Reflect)
+		reflectEngine = reflectpkg.NewReflectEngine(ret, memManager, stores.ContextStore, llmProvider, cfg.Reflect)
 	}
 
 	// Async task queue — created outside scheduler block so Manager can use it
