@@ -77,7 +77,7 @@ func (p *DoclingParser) Parse(ctx context.Context, filePath string, docType stri
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1 MB for error messages
 		return nil, fmt.Errorf("docling returned %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -87,7 +87,8 @@ func (p *DoclingParser) Parse(ctx context.Context, filePath string, docType stri
 		} `json:"document"`
 		Metadata map[string]any `json:"metadata"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&doclingResp); err != nil {
+	const maxDocParserResponseSize = 100 << 20 // 100 MB
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDocParserResponseSize)).Decode(&doclingResp); err != nil {
 		return nil, fmt.Errorf("failed to decode docling response: %w", err)
 	}
 

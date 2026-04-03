@@ -145,7 +145,8 @@ func (e *OpenAIEmbedder) doSingleRequest(ctx context.Context, bodyBytes []byte) 
 	}
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
+	const maxEmbedResponseSize = 10 << 20 // 10 MB
+	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxEmbedResponseSize))
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}

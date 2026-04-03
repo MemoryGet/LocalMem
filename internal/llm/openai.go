@@ -85,7 +85,8 @@ func (p *OpenAIProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatRespo
 	}
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
+	const maxLLMResponseSize = 10 << 20 // 10 MB
+	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxLLMResponseSize))
 	if err != nil {
 		return nil, fmt.Errorf("llm chat: read response: %w", err)
 	}

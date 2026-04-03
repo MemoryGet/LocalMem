@@ -180,6 +180,11 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	dispatchCtx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("recovered panic in MCP dispatch", zap.Any("panic", r))
+			}
+		}()
 		sess.Dispatch(dispatchCtx, body)
 	}()
 	w.WriteHeader(http.StatusAccepted)

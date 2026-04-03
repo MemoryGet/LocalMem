@@ -56,12 +56,13 @@ func (p *TikaParser) Parse(ctx context.Context, filePath string, docType string)
 	}
 	defer resp.Body.Close()
 
+	const maxDocParserResponseSize = 100 << 20 // 100 MB
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1 MB for error messages
 		return nil, fmt.Errorf("tika returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxDocParserResponseSize))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read tika response: %w", err)
 	}

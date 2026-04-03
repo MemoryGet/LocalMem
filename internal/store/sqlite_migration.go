@@ -127,6 +127,7 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		if err := migrateV9ToV10(db); err != nil {
 			return fmt.Errorf("V9→V10 migration failed: %w", err)
 		}
+		version = 10
 	}
 
 	// V10→V11: memory_tags 反向索引 + ConnMaxIdleTime 提示 / memory_tags reverse index
@@ -134,6 +135,7 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		if err := migrateV10ToV11(db); err != nil {
 			return fmt.Errorf("V10→V11 migration failed: %w", err)
 		}
+		version = 11
 	}
 
 	// V11→V12: 记忆演化层级 / Memory evolution layer (memory_class + derived_from)
@@ -141,6 +143,7 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 		if err := migrateV11ToV12(db); err != nil {
 			return fmt.Errorf("V11→V12 migration failed: %w", err)
 		}
+		version = 12
 	}
 
 	return nil

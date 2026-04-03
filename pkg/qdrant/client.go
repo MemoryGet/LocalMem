@@ -269,6 +269,7 @@ func (c *Client) doRequest(ctx context.Context, method, url string, body any) (*
 
 // readError 读取错误响应体并返回格式化错误
 func (c *Client) readError(resp *http.Response, operation string) error {
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	const maxQdrantErrorSize = 1 << 20 // 1 MB for error messages
+	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, maxQdrantErrorSize))
 	return fmt.Errorf("qdrant %s failed (status %d): %s", operation, resp.StatusCode, string(bodyBytes))
 }

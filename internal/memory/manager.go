@@ -225,6 +225,11 @@ func (m *Manager) asyncExtract(req *model.ExtractRequest) {
 		extractTimeout = 30 * time.Second
 	}
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("recovered panic in asyncExtract", zap.Any("panic", r))
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), extractTimeout)
 		defer cancel()
 		if _, err := m.extractor.Extract(ctx, req); err != nil {
@@ -239,6 +244,11 @@ func (m *Manager) asyncExtract(req *model.ExtractRequest) {
 // asyncGenerateAbstract 异步生成记忆摘要 / Async generate memory abstract via LLM
 func (m *Manager) asyncGenerateAbstract(memoryID, content string) {
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("recovered panic in asyncGenerateAbstract", zap.Any("panic", r))
+			}
+		}()
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
