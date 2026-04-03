@@ -43,7 +43,7 @@ Layered Go backend using `cmd/` + `internal/` + `pkg/` Go-idiomatic layout.
 cmd/server/main.go            → Entry point (config → logger → embed → stores → managers → api)
 internal/config/               → Viper + godotenv config (global singleton)
 internal/logger/               → Zap structured logging (package-level functions)
-internal/model/                → Data models (Memory 31 fields), DTOs, sentinel errors, retention tiers
+internal/model/                → Data models (Memory 33 fields), DTOs, sentinel errors, retention tiers
 internal/store/                → Storage interfaces (8) + all SQLite/Qdrant implementations + factory (flat)
 internal/embed/                → Embedding adapters (OpenAI, Ollama)
 internal/memory/               → Manager (CRUD + dual-write), ContextManager, GraphManager, lifecycle
@@ -140,7 +140,7 @@ Multi-round LLM reasoning over retrieved memories. Configured via `reflect` conf
 
 ### Database schema
 
-SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 31 columns. Migrations are versioned (V0→V1→V2→V3) in `sqlite_migration.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
+SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 33 columns (including memory_class and derived_from for episodic/semantic/procedural evolution tracking). Migrations are versioned (V0→V1→V2→V3→...→V12) in `sqlite_migration.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
 
 ### MCP identity flow
 
@@ -165,7 +165,7 @@ Web generator: `tools/config-generator/index.html` (open in browser, select edit
 
 ### Memory model
 
-The `model.Memory` struct supports retention tiers (`permanent` / `long_term` / `standard` / `short_term` / `ephemeral`) with configurable decay rates. Memories have lifecycle fields: `Strength`, `DecayRate`, `DeletedAt` (soft delete), `ExpiresAt`, and `ReinforcedCount`.
+The `model.Memory` struct supports retention tiers (`permanent` / `long_term` / `standard` / `short_term` / `ephemeral`) with configurable decay rates. Memories have lifecycle fields: `Strength`, `DecayRate`, `DeletedAt` (soft delete), `ExpiresAt`, `ReinforcedCount`, and memory evolution fields: `MemoryClass` (episodic/semantic/procedural), `DerivedFrom` (source tracking for consolidation/reflection outputs).
 
 ### API routes
 
