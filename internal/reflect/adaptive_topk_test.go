@@ -18,10 +18,12 @@ func TestAdaptiveTopK(t *testing.T) {
 		expectMax   int
 	}{
 		{"round 1 wide search", 1, 5, 0, 10000, nil, 15, 15},
-		{"round 2 narrows", 2, 5, 1000, 10000, []priorRoundSummary{{}}, 8, 8},
+		{"round 2 strong evidence narrows", 2, 5, 1000, 10000, []priorRoundSummary{{TopScore: 0.9}}, 6, 6},
+		{"round 2 moderate evidence", 2, 5, 1000, 10000, []priorRoundSummary{{TopScore: 0.5}}, 8, 8},
+		{"round 2 weak evidence widens", 2, 5, 1000, 10000, []priorRoundSummary{{TopScore: 0.1}}, 10, 10},
 		{"last round minimal", 5, 5, 5000, 10000, nil, 5, 5},
-		{"low budget reduces", 2, 5, 8000, 10000, []priorRoundSummary{{}}, 3, 6},
-		{"very low budget", 2, 5, 9500, 10000, []priorRoundSummary{{}}, 3, 4},
+		{"low budget reduces", 2, 5, 8000, 10000, []priorRoundSummary{{TopScore: 0.5}}, 3, 6},
+		{"very low budget", 2, 5, 9500, 10000, []priorRoundSummary{{TopScore: 0.5}}, 3, 4},
 		{"no budget set", 1, 3, 0, 0, nil, 15, 15},
 	}
 	for _, tt := range tests {

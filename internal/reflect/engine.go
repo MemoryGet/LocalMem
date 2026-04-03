@@ -154,7 +154,8 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 	}
 
 	seenQueries := make(map[string]bool)
-	var totalTokens int
+	var totalTokens int    // LLM token 消耗 / LLM token consumption
+	var evidenceTokens int // 检索证据 token 消耗 / Retrieval evidence token consumption
 	var lastConclusion string
 	currentQuery := req.Question
 
@@ -213,6 +214,20 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 			return nil, model.ErrReflectNoMemories
 		}
 
+		// B3: 过滤极低分证据，减少 token 浪费 / Filter very low-score evidence to save token budget
+		if len(results) > 1 {
+			results = filterLowQualityEvidence(results, 0.05)
+		}
+
+		// B3: 精确追踪证据 token / Track evidence tokens precisely
+		roundEvidenceTokens := 0
+		for _, r := range results {
+			if r.Memory != nil {
+				roundEvidenceTokens += search.EstimateTokens(r.Memory.Content)
+			}
+		}
+		evidenceTokens += roundEvidenceTokens
+
 		// 收集来源 / Collect source memory IDs
 		retrievedIDs := make([]string, 0, len(results))
 		for _, r := range results {
@@ -262,11 +277,14 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 			break
 		}
 
-		// Token 预算管理 / Token budget tracking
+		// B3: Token 预算管理（LLM + 证据 token 综合计算）/ Token budget tracking (LLM + evidence tokens combined)
 		totalTokens += chatResp.TotalTokens
-		if totalTokens > tokenBudget {
+		effectiveBudget := totalTokens + evidenceTokens
+		if effectiveBudget > tokenBudget {
 			logger.Info("reflect token budget exceeded",
-				zap.Int("total_tokens", totalTokens),
+				zap.Int("llm_tokens", totalTokens),
+				zap.Int("evidence_tokens", evidenceTokens),
+				zap.Int("effective_total", effectiveBudget),
 				zap.Int("budget", tokenBudget),
 			)
 			roundTrace := model.ReflectRound{
@@ -312,12 +330,24 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 			zap.Int("tokens_used", chatResp.TotalTokens),
 		)
 
-		// B3#8: 累积本轮摘要 / Accumulate this round's summary for next round
+			// B3#8: 累积本轮摘要（含证据质量指标）/ Accumulate this round's summary with evidence quality metrics
+		topScore := 0.0
+		evidenceTokens := 0
+		for _, r := range results {
+			if r.Score > topScore {
+				topScore = r.Score
+			}
+			if r.Memory != nil {
+				evidenceTokens += search.EstimateTokens(r.Memory.Content)
+			}
+		}
 		priorRounds = append(priorRounds, priorRoundSummary{
-			Round:     round,
-			Query:     currentQuery,
-			Reasoning: output.Reasoning,
-			Evidence:  summarizeEvidence(results, 3), // 保留 top-3 证据摘要 / Keep top-3 evidence summaries
+			Round:          round,
+			Query:          currentQuery,
+			Reasoning:      output.Reasoning,
+			Evidence:       summarizeEvidence(results, 3), // 保留 top-3 证据摘要 / Keep top-3 evidence summaries
+			TopScore:       topScore,
+			EvidenceTokens: roundEvidenceTokens,
 		})
 
 		if output.Action == "conclusion" {
@@ -338,6 +368,7 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 
 	resp.Metadata.RoundsUsed = len(resp.Trace)
 	resp.Metadata.TotalTokens = totalTokens
+	resp.Metadata.EvidenceTokens = evidenceTokens
 
 	// 去重来源 / Deduplicate sources
 	resp.Sources = dedup(resp.Sources)
@@ -465,8 +496,8 @@ func formatMemoriesForLLM(results []*model.SearchResult) string {
 	return sb.String()
 }
 
-// adaptiveTopK 根据轮次、预算和前轮质量动态调整检索数量 / Dynamically adjust retrieval limit
-// 第 1 轮宽搜（15），后续轮次收窄（8），预算不足时进一步缩减
+// adaptiveTopK 根据轮次、预算和前轮证据质量动态调整检索数量 / Dynamically adjust retrieval limit
+// 综合考虑：轮次阶段、token 预算消耗比、前轮证据质量
 func adaptiveTopK(round, maxRounds, usedTokens, tokenBudget int, priorRounds []priorRoundSummary) int {
 	// 基础值：第 1 轮宽搜，后续精确 / Base: wide search in round 1, narrow later
 	base := 15
@@ -482,6 +513,17 @@ func adaptiveTopK(round, maxRounds, usedTokens, tokenBudget int, priorRounds []p
 		}
 		if remaining < 0.1 {
 			base = base / 2 // 缩减一半
+		}
+	}
+
+	// 证据质量因子：前轮高质量时收窄（已有足够好的线索），低质量时加宽（需要更多候选）
+	// Evidence quality factor: narrow if prior rounds had strong evidence, widen if weak
+	if round > 1 && len(priorRounds) > 0 {
+		lastEvidence := priorRounds[len(priorRounds)-1].TopScore
+		if lastEvidence >= 0.8 {
+			base = base * 3 / 4 // 高质量证据，收窄 25% / Strong evidence, narrow 25%
+		} else if lastEvidence < 0.3 {
+			base = base * 5 / 4 // 低质量证据，加宽 25% / Weak evidence, widen 25%
 		}
 	}
 
@@ -502,10 +544,12 @@ func adaptiveTopK(round, maxRounds, usedTokens, tokenBudget int, priorRounds []p
 
 // priorRoundSummary 前轮摘要 / Summary of a prior reflect round
 type priorRoundSummary struct {
-	Round     int
-	Query     string
-	Reasoning string
-	Evidence  string
+	Round         int
+	Query         string
+	Reasoning     string
+	Evidence      string
+	TopScore      float64 // 本轮最高检索分数，用于证据质量评估 / Top retrieval score for evidence quality assessment
+	EvidenceTokens int    // 本轮证据消耗 token 数 / Token count consumed by evidence this round
 }
 
 // formatPriorRounds 格式化历史轮次 / Format prior rounds for LLM context
@@ -540,6 +584,24 @@ func summarizeEvidence(results []*model.SearchResult, topN int) string {
 		parts = append(parts, fmt.Sprintf("[%.2f] %s", results[i].Score, content))
 	}
 	return strings.Join(parts, " | ")
+}
+
+// filterLowQualityEvidence 过滤极低分证据，保留至少 1 条 / Filter very low-score evidence, keep at least 1 result
+func filterLowQualityEvidence(results []*model.SearchResult, minScore float64) []*model.SearchResult {
+	if len(results) <= 1 {
+		return results
+	}
+	filtered := make([]*model.SearchResult, 0, len(results))
+	for _, r := range results {
+		if r.Score >= minScore {
+			filtered = append(filtered, r)
+		}
+	}
+	// 至少保留 1 条 / Always keep at least 1 result
+	if len(filtered) == 0 {
+		return results[:1]
+	}
+	return filtered
 }
 
 // dedup 字符串切片去重 / Deduplicate a string slice preserving order

@@ -268,6 +268,7 @@ type ReflectRound struct {
 type ReflectMeta struct {
 	RoundsUsed     int  `json:"rounds_used"`
 	TotalTokens    int  `json:"total_tokens"`
+	EvidenceTokens int  `json:"evidence_tokens"`  // B3: 检索证据 token 消耗 / Token count consumed by retrieved evidence
 	ParseFallbacks int  `json:"parse_fallbacks"`
 	Timeout        bool `json:"timeout"`
 	QueryDeduped   bool `json:"query_deduped"`
