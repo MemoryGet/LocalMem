@@ -449,35 +449,6 @@ func applyV3Nullables(mem *model.Memory, retentionTier, messageRole sql.NullStri
 
 // ---- FTS5 同步辅助（external content 模式）----
 
-// syncFTS5 同步 FTS5 索引（INSERT），写入前预分词 / Sync FTS5 index with pre-tokenization
-func (s *SQLiteMemoryStore) syncFTS5(ctx context.Context, mem *model.Memory) error {
-	// 获取 rowid
-	var rowid int64
-	if err := s.db.QueryRowContext(ctx, `SELECT rowid FROM memories WHERE id = ?`, mem.ID).Scan(&rowid); err != nil {
-		return fmt.Errorf("failed to get rowid for FTS5 sync: %w", err)
-	}
-
-	// 预分词：对 content/abstract/summary 分词后写入 FTS5
-	content, err := s.tokenizer.Tokenize(ctx, mem.Content)
-	if err != nil {
-		content = mem.Content // 分词失败回退原文
-	}
-	abstract, err := s.tokenizer.Tokenize(ctx, mem.Abstract)
-	if err != nil {
-		abstract = mem.Abstract
-	}
-	summary, err := s.tokenizer.Tokenize(ctx, mem.Summary)
-	if err != nil {
-		summary = mem.Summary
-	}
-
-	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO memories_fts(rowid, content, abstract, summary) VALUES (?, ?, ?, ?)`,
-		rowid, content, abstract, summary,
-	)
-	return err
-}
-
 // syncFTS5Tx FTS5 原子同步（在事务内执行）/ Atomic FTS5 sync within a transaction
 func (s *SQLiteMemoryStore) syncFTS5Tx(ctx context.Context, tx *sql.Tx, mem *model.Memory) error {
 	// 获取 rowid（事务内查询）

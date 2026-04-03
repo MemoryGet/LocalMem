@@ -55,33 +55,6 @@ func migrateV8ToV9(db *sql.DB) error {
 	return tx.Commit()
 }
 
-// migrateAddPerformanceIndexes 添加性能索引（已纳入 V9，保留向后兼容）/ Add performance indexes (now part of V9, kept for backward compat)
-func migrateAddPerformanceIndexes(db *sql.DB) error {
-	ctx := context.Background()
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin performance index tx: %w", err)
-	}
-	defer tx.Rollback()
-
-	indexes := []string{
-		`CREATE INDEX IF NOT EXISTS idx_memories_strength ON memories(strength) WHERE deleted_at IS NULL`,
-		`CREATE INDEX IF NOT EXISTS idx_memories_updated_at ON memories(updated_at DESC) WHERE deleted_at IS NULL`,
-		`CREATE INDEX IF NOT EXISTS idx_memories_scope_kind ON memories(scope, kind) WHERE deleted_at IS NULL`,
-		`CREATE INDEX IF NOT EXISTS idx_memories_owner_team ON memories(owner_id, team_id) WHERE deleted_at IS NULL`,
-	}
-	for _, idx := range indexes {
-		if _, err := tx.ExecContext(ctx, idx); err != nil {
-			return fmt.Errorf("failed to create index: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit performance index tx: %w", err)
-	}
-	return nil
-}
-
 // migrateV9ToV10 文档扩展字段（documents 表可能不存在）/ Document extension fields (table may not exist)
 func migrateV9ToV10(db *sql.DB) error {
 	tx, err := db.Begin()

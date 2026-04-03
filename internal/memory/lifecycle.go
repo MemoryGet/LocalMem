@@ -61,6 +61,9 @@ func CalculateEffectiveStrength(strength, decayRate float64, lastAccessedAt *tim
 	}
 	decay := strength * math.Exp(-decayRate*hours)
 	accessBoost := 1.0 + accessAlpha*math.Log2(float64(accessCount)+1.0)
+	if accessBoost > 3.0 {
+		accessBoost = 3.0
+	}
 	return decay * accessBoost
 }
 

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"strconv"
 
 	"iclude/internal/memory"
@@ -25,6 +26,11 @@ func (h *ConversationHandler) Ingest(c *gin.Context, identity *model.Identity) {
 	var req model.IngestConversationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Error(c, model.ErrInvalidInput)
+		return
+	}
+
+	if len(req.Messages) > 500 {
+		Error(c, fmt.Errorf("too many messages: max 500, got %d: %w", len(req.Messages), model.ErrInvalidInput))
 		return
 	}
 
