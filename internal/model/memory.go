@@ -46,7 +46,7 @@ type Memory struct {
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	TeamID      string         `json:"team_id,omitempty"`
 	Embedding   []float32      `json:"embedding,omitempty"`
-	ParentID string `json:"parent_id,omitempty"`
+	ParentID    string         `json:"parent_id,omitempty"`
 	IsLatest    bool           `json:"is_latest"`
 	AccessCount int            `json:"access_count"`
 	CreatedAt   time.Time      `json:"created_at"`
@@ -58,13 +58,22 @@ type Memory struct {
 	Kind      string `json:"kind,omitempty"`       // note / fact / skill / profile
 	SubKind   string `json:"sub_kind,omitempty"`   // entity / event / pattern / preference / case
 	Scope     string `json:"scope,omitempty"`      // 顶级命名空间: user/alice, team/eng, agent/bot
-	Excerpt string `json:"excerpt,omitempty"` // 一句话摘要 ≤100字 / One-line abstract ≤100 chars
+	Excerpt   string `json:"excerpt,omitempty"`    // 一句话摘要 ≤100字 / One-line abstract ≤100 chars
 	Summary   string `json:"summary,omitempty"`    // 核心信息 ≤500字
 
 	// 时间线与来源 / Timeline and source tracking
 	HappenedAt *time.Time `json:"happened_at,omitempty"`
-	SourceType string     `json:"source_type,omitempty"` // manual / conversation / document / api
-	SourceRef  string     `json:"source_ref,omitempty"`  // 来源引用标识
+	// SourceType 来源类型 / Source origin type
+	// Values: manual / conversation / document / api / reflect / consolidation
+	SourceType string `json:"source_type,omitempty"`
+	// SourceRef 来源引用标识 / Source reference identifier
+	// 语义取决于 SourceType / Semantics depend on SourceType:
+	//   - conversation → 会话 ID / conversation ID
+	//   - document → 文档 ID / document ID
+	//   - api → 调用方标识 / caller identifier
+	//   - reflect → 反思问题 / reflect question
+	//   - manual → 自由文本 / free text
+	SourceRef string `json:"source_ref,omitempty"`
 
 	// 文档关联 / Document association
 	DocumentID string `json:"document_id,omitempty"` // FK → documents.id
@@ -96,8 +105,10 @@ type Memory struct {
 	Visibility string `json:"visibility,omitempty"` // private / team / public
 
 	// V12: 记忆演化层级 / Memory evolution layer
-	MemoryClass string   `json:"memory_class,omitempty"` // episodic(default) / semantic / procedural
-	DerivedFrom []string `json:"derived_from,omitempty"` // 来源记忆 ID 列表 / Source memory IDs (JSON array)
+	MemoryClass string `json:"memory_class,omitempty"` // episodic(default) / semantic / procedural
+
+	// V16: 从 memory_derivations junction 表加载，非 memories 表列 / Loaded from junction table, not a DB column
+	DerivedFrom []string `json:"derived_from,omitempty"` // 来源记忆 ID 列表 / Source memory IDs
 }
 
 // SearchResult 检索结果 / Search result with score

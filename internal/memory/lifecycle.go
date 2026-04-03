@@ -30,12 +30,20 @@ func ValidateRetentionTier(tier string) error {
 }
 
 // ResolveTierDefaults 根据等级填充默认衰减参数 / Resolve default decay parameters from retention tier
-// 仅填充未显式设置的字段
+//
+// 不变量 / Invariant: retention_tier 与 decay_rate 始终保持一致。
+// decay_rate 总是从 retention_tier 重新计算，防止两列漂移。
+// 调用方若需自定义 decay_rate，应在本函数之后覆盖。
+//
+// Invariant: retention_tier and decay_rate are always kept in sync.
+// decay_rate is always recalculated from retention_tier to prevent drift.
+// Callers needing a custom decay_rate should override it after calling this function.
 func ResolveTierDefaults(mem *model.Memory) {
 	if mem.RetentionTier == "" {
 		mem.RetentionTier = model.TierStandard
 	}
 
+	// 始终从 tier 重算 decay_rate，确保一致性 / Always recalculate from tier to ensure consistency
 	decayRate, expiresIn := model.DefaultDecayParams(mem.RetentionTier)
 	mem.DecayRate = decayRate
 

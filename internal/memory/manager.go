@@ -113,7 +113,6 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 		TurnNumber:    req.TurnNumber,
 		ContentHash:   contentHash,
 		MemoryClass:   req.MemoryClass,
-		DerivedFrom:   req.DerivedFrom,
 	}
 
 	// 应用等级默认值
@@ -133,6 +132,17 @@ func (m *Manager) Create(ctx context.Context, req *model.CreateMemoryRequest) (*
 	// 写入 SQLite
 	if err := m.memStore.Create(ctx, mem); err != nil {
 		return nil, fmt.Errorf("failed to create memory in store: %w", err)
+	}
+
+	// 写入溯源关系到 junction 表 / Write derivation links to junction table
+	if len(req.DerivedFrom) > 0 {
+		if err := m.memStore.AddDerivations(ctx, req.DerivedFrom, mem.ID); err != nil {
+			logger.Warn("failed to add derivation links",
+				zap.String("memory_id", mem.ID),
+				zap.Error(err),
+			)
+		}
+		mem.DerivedFrom = req.DerivedFrom // 保留在内存对象上供调用方使用 / Keep on in-memory object for callers
 	}
 
 	// 处理标签 / Handle tags
@@ -331,11 +341,12 @@ func (m *Manager) Update(ctx context.Context, id string, req *model.UpdateMemory
 		return nil, fmt.Errorf("id is required: %w", model.ErrInvalidInput)
 	}
 
-	// 获取现有记忆
+	// 获取现有记忆（保存旧 context_id 用于计数同步）/ Get existing memory (save old context_id for count sync)
 	mem, err := m.memStore.Get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+	oldContextID := mem.ContextID
 
 	// 更新字段
 	if req.Content != nil {
@@ -407,6 +418,28 @@ func (m *Manager) Update(ctx context.Context, id string, req *model.UpdateMemory
 	// 处理标签更新 / Handle tag updates
 	if m.tagStore != nil && req.Tags != nil {
 		m.handleUpdateTags(ctx, mem.ID, mem.Scope, req.Tags)
+	}
+
+	// context_id 变更时同步 memory_count / Sync memory_count when context_id changes
+	if m.contextStore != nil && oldContextID != mem.ContextID {
+		if oldContextID != "" {
+			if err := m.contextStore.DecrementMemoryCount(ctx, oldContextID); err != nil {
+				logger.Warn("failed to decrement old context memory count on update",
+					zap.String("memory_id", id),
+					zap.String("old_context_id", oldContextID),
+					zap.Error(err),
+				)
+			}
+		}
+		if mem.ContextID != "" {
+			if err := m.contextStore.IncrementMemoryCount(ctx, mem.ContextID); err != nil {
+				logger.Warn("failed to increment new context memory count on update",
+					zap.String("memory_id", id),
+					zap.String("new_context_id", mem.ContextID),
+					zap.Error(err),
+				)
+			}
+		}
 	}
 
 	// 向量更新（best-effort）
