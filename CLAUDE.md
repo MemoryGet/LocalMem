@@ -140,7 +140,7 @@ Multi-round LLM reasoning over retrieved memories. Configured via `reflect` conf
 
 ### Database schema
 
-SQLite has 9 tables + 1 FTS5 virtual table. The `memories` table has 33 columns (including memory_class and derived_from for episodic/semantic/procedural evolution tracking). Migrations are versioned (V0→V1→V2→V3→...→V13) in `sqlite_migration*.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
+SQLite has 10 tables + 1 FTS5 virtual table. The `memories` table has 35 columns (including memory_class for episodic/semantic/procedural evolution tracking). `derived_from` was migrated from a JSON column to a proper `memory_derivations(source_id, target_id)` junction table in V16. Migrations are versioned (V0→V1→V2→V3→...→V16) in `sqlite_migration*.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
 
 ### MCP identity flow
 
@@ -165,7 +165,7 @@ Web generator: `tools/config-generator/index.html` (open in browser, select edit
 
 ### Memory model
 
-The `model.Memory` struct supports retention tiers (`permanent` / `long_term` / `standard` / `short_term` / `ephemeral`) with configurable decay rates. Memories have lifecycle fields: `Strength`, `DecayRate`, `DeletedAt` (soft delete), `ExpiresAt`, `ReinforcedCount`, and memory evolution fields: `MemoryClass` (episodic/semantic/procedural), `DerivedFrom` (source tracking for consolidation/reflection outputs).
+The `model.Memory` struct supports retention tiers (`permanent` / `long_term` / `standard` / `short_term` / `ephemeral`) with configurable decay rates. Memories have lifecycle fields: `Strength`, `DecayRate`, `DeletedAt` (soft delete), `ExpiresAt`, `ReinforcedCount`, and memory evolution fields: `MemoryClass` (episodic/semantic/procedural). `DerivedFrom` (source tracking for consolidation/reflection outputs) is stored in the `memory_derivations` junction table (V16) and loaded separately via `DerivationStore` interface methods.
 
 ### API routes
 

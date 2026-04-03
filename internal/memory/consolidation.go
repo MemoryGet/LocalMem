@@ -291,7 +291,6 @@ func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.
 			RetentionTier: model.TierPermanent,
 			Kind:          inheritKind,
 			MemoryClass:   "semantic",
-			DerivedFrom:   sourceIDs,
 			Strength:      strength,
 			SourceType:    "consolidation",
 			Scope:         inheritScope,
@@ -300,6 +299,13 @@ func (c *Consolidator) consolidateCluster(ctx context.Context, cluster []*model.
 		ResolveTierDefaults(consolidated)
 		if err := c.memStore.Create(ctx, consolidated); err != nil {
 			return fmt.Errorf("failed to create consolidated memory: %w", err)
+		}
+		// 写入溯源关系到 junction 表 / Write derivation links to junction table
+		if err := c.memStore.AddDerivations(ctx, sourceIDs, consolidated.ID); err != nil {
+			logger.Warn("consolidation: failed to add derivation links",
+				zap.String("consolidated_id", consolidated.ID),
+				zap.Error(err),
+			)
 		}
 	}
 
@@ -411,4 +417,3 @@ func agglomerativeClustering(memories []*model.Memory, vectors map[string][]floa
 	}
 	return result
 }
-

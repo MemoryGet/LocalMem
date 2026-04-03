@@ -12,8 +12,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// TestMigrateV11ToV12_AddsColumns 验证 V12 迁移新增 memory_class 和 derived_from 列
-// Verify V12 migration adds memory_class and derived_from columns
+// TestMigrateV11ToV12_AddsColumns 验证 V12 迁移新增 memory_class 列（derived_from 已迁移至 junction 表 V16）
+// Verify V12 migration adds memory_class column (derived_from moved to junction table in V16)
 func TestMigrateV11ToV12_AddsColumns(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -26,26 +26,29 @@ func TestMigrateV11ToV12_AddsColumns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 验证新列存在：插入带 memory_class 的记录 / Verify new columns exist
+	// 验证 memory_class 列存在 / Verify memory_class column exists
 	_, err = db.ExecContext(context.Background(),
-		`INSERT INTO memories (id, content, team_id, memory_class, derived_from, created_at, updated_at)
-		VALUES ('test-v12', 'v12 memory', 'team-a', 'semantic', '["id-1","id-2"]', datetime('now'), datetime('now'))`)
+		`INSERT INTO memories (id, content, team_id, memory_class, created_at, updated_at)
+		VALUES ('test-v12', 'v12 memory', 'team-a', 'semantic', datetime('now'), datetime('now'))`)
 	if err != nil {
-		t.Fatal("new columns should accept values: " + err.Error())
+		t.Fatal("memory_class column should accept values: " + err.Error())
 	}
 
 	var memClass string
-	var derivedFrom sql.NullString
-	err = db.QueryRow(`SELECT memory_class, derived_from FROM memories WHERE id = 'test-v12'`).
-		Scan(&memClass, &derivedFrom)
+	err = db.QueryRow(`SELECT memory_class FROM memories WHERE id = 'test-v12'`).Scan(&memClass)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if memClass != "semantic" {
 		t.Errorf("memory_class = %q, want 'semantic'", memClass)
 	}
-	if !derivedFrom.Valid || derivedFrom.String != `["id-1","id-2"]` {
-		t.Errorf("derived_from = %v, want '[\"id-1\",\"id-2\"]'", derivedFrom)
+
+	// 验证 memory_derivations junction 表存在（V16）/ Verify junction table exists
+	_, err = db.ExecContext(context.Background(),
+		`INSERT INTO memory_derivations (source_id, target_id, created_at)
+		VALUES ('test-v12-src', 'test-v12', datetime('now'))`)
+	if err != nil {
+		t.Fatal("memory_derivations table should exist: " + err.Error())
 	}
 
 	// 验证默认值：不指定 memory_class 的新记录 / Verify default value
@@ -56,23 +59,19 @@ func TestMigrateV11ToV12_AddsColumns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = db.QueryRow(`SELECT memory_class, derived_from FROM memories WHERE id = 'test-default-v12'`).
-		Scan(&memClass, &derivedFrom)
+	err = db.QueryRow(`SELECT memory_class FROM memories WHERE id = 'test-default-v12'`).Scan(&memClass)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if memClass != "episodic" {
 		t.Errorf("default memory_class = %q, want 'episodic'", memClass)
 	}
-	if derivedFrom.Valid {
-		t.Errorf("default derived_from should be NULL, got %q", derivedFrom.String)
-	}
 
 	// 验证版本号 / Verify schema version
 	var version int
 	db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
-	if version != 15 {
-		t.Errorf("schema version = %d, want 15", version)
+	if version != 16 {
+		t.Errorf("schema version = %d, want 16", version)
 	}
 
 	// 验证索引存在 / Verify index exists
@@ -80,6 +79,12 @@ func TestMigrateV11ToV12_AddsColumns(t *testing.T) {
 	db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='index' AND name='idx_memories_memory_class'`).Scan(&idxCount)
 	if idxCount != 1 {
 		t.Error("idx_memories_memory_class index should exist")
+	}
+
+	// 验证 junction 表索引 / Verify junction table index
+	db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='index' AND name='idx_memory_derivations_target'`).Scan(&idxCount)
+	if idxCount != 1 {
+		t.Error("idx_memory_derivations_target index should exist")
 	}
 }
 
@@ -181,8 +186,8 @@ func TestMigrateV11ToV12_BackfillsKind(t *testing.T) {
 	}
 }
 
-// TestMigrateV11ToV12_Idempotent 验证 V12 迁移可安全重跑
-// Verify V12 migration is idempotent (safe to run twice)
+// TestMigrateV11ToV12_Idempotent 验证迁移可安全重跑
+// Verify migration is idempotent (safe to run twice)
 func TestMigrateV11ToV12_Idempotent(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -209,13 +214,13 @@ func TestMigrateV11ToV12_Idempotent(t *testing.T) {
 
 	var version int
 	db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
-	if version != 15 {
-		t.Errorf("schema version = %d, want 15", version)
+	if version != 16 {
+		t.Errorf("schema version = %d, want 16", version)
 	}
 }
 
-// TestMigrateV12_CreateWithMemoryClass 验证 Create 方法正确写入 memory_class 和 derived_from
-// Verify Create method correctly writes memory_class and derived_from
+// TestMigrateV12_CreateWithMemoryClass 验证 Create 方法正确写入 memory_class
+// Verify Create method correctly writes memory_class
 func TestMigrateV12_CreateWithMemoryClass(t *testing.T) {
 	s, err := store.NewSQLiteMemoryStore(":memory:", [3]float64{10, 5, 3}, tokenizer.NewNoopTokenizer())
 	if err != nil {
@@ -228,29 +233,41 @@ func TestMigrateV12_CreateWithMemoryClass(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// 创建用于溯源的来源记忆 / Create source memories for derivation FK
+	src1 := &model.Memory{Content: "source 1", TeamID: "t1"}
+	if err := s.Create(ctx, src1); err != nil {
+		t.Fatal(err)
+	}
+	src2 := &model.Memory{Content: "source 2", TeamID: "t1"}
+	if err := s.Create(ctx, src2); err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
 		name        string
 		mem         model.Memory
+		derivedFrom []string
 		wantClass   string
-		wantDerived []string
+		wantDerived int
 	}{
 		{
 			name:        "default episodic",
 			mem:         model.Memory{Content: "test default", TeamID: "t1"},
 			wantClass:   "episodic",
-			wantDerived: nil,
+			wantDerived: 0,
 		},
 		{
 			name:        "explicit semantic with derived_from",
-			mem:         model.Memory{Content: "test semantic", TeamID: "t1", MemoryClass: "semantic", DerivedFrom: []string{"src-1", "src-2"}},
+			mem:         model.Memory{Content: "test semantic", TeamID: "t1", MemoryClass: "semantic"},
+			derivedFrom: []string{src1.ID, src2.ID},
 			wantClass:   "semantic",
-			wantDerived: []string{"src-1", "src-2"},
+			wantDerived: 2,
 		},
 		{
 			name:        "explicit procedural no derived",
 			mem:         model.Memory{Content: "test procedural", TeamID: "t1", MemoryClass: "procedural"},
 			wantClass:   "procedural",
-			wantDerived: nil,
+			wantDerived: 0,
 		},
 	}
 
@@ -259,6 +276,13 @@ func TestMigrateV12_CreateWithMemoryClass(t *testing.T) {
 			mem := tt.mem
 			if err := s.Create(ctx, &mem); err != nil {
 				t.Fatal(err)
+			}
+
+			// 写入溯源 / Write derivations
+			if len(tt.derivedFrom) > 0 {
+				if err := s.AddDerivations(ctx, tt.derivedFrom, mem.ID); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			got, err := s.Get(ctx, mem.ID)
@@ -270,15 +294,46 @@ func TestMigrateV12_CreateWithMemoryClass(t *testing.T) {
 				t.Errorf("MemoryClass = %q, want %q", got.MemoryClass, tt.wantClass)
 			}
 
-			if len(got.DerivedFrom) != len(tt.wantDerived) {
-				t.Errorf("DerivedFrom len = %d, want %d", len(got.DerivedFrom), len(tt.wantDerived))
-			} else {
-				for i, v := range got.DerivedFrom {
-					if v != tt.wantDerived[i] {
-						t.Errorf("DerivedFrom[%d] = %q, want %q", i, v, tt.wantDerived[i])
-					}
-				}
+			derivedFrom, err := s.GetDerivedFrom(ctx, mem.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(derivedFrom) != tt.wantDerived {
+				t.Errorf("DerivedFrom len = %d, want %d", len(derivedFrom), tt.wantDerived)
 			}
 		})
+	}
+}
+
+// TestMigrateV15ToV16_DerivedFromMigration 验证 V16 迁移将 JSON 数据迁至 junction 表
+// Verify V16 migration moves JSON derived_from data to junction table
+func TestMigrateV15ToV16_DerivedFromMigration(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	// 手动建 V15 schema 并插入带 derived_from 的数据 / Build V15 schema with derived_from data
+	tok := tokenizer.NewNoopTokenizer()
+
+	// 先迁移到 V15
+	if err := store.Migrate(db, tok); err != nil {
+		t.Fatal(err)
+	}
+
+	// 验证 memory_derivations 表存在 / Verify junction table exists
+	var tableCount int
+	db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='memory_derivations'`).Scan(&tableCount)
+	if tableCount != 1 {
+		t.Fatal("memory_derivations table should exist after V16 migration")
+	}
+
+	// 验证版本号 / Verify final schema version
+	var version int
+	db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
+	if version != 16 {
+		t.Errorf("schema version = %d, want 16", version)
 	}
 }

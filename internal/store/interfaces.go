@@ -111,12 +111,25 @@ type MemoryLifecycle interface {
 	RestoreBySourceRef(ctx context.Context, sourceRef string) (int, error)
 }
 
+// DerivationStore 记忆溯源关联接口 / Memory derivation junction operations
+type DerivationStore interface {
+	// AddDerivations 批量添加溯源关系（source → target）/ Batch add derivation links
+	AddDerivations(ctx context.Context, sourceIDs []string, targetID string) error
+
+	// GetDerivedFrom 获取目标记忆的来源 ID 列表 / Get source IDs for a derived memory
+	GetDerivedFrom(ctx context.Context, targetID string) ([]string, error)
+
+	// GetDerivedTo 获取由某记忆衍生出的目标 ID 列表 / Get target IDs derived from a source memory
+	GetDerivedTo(ctx context.Context, sourceID string) ([]string, error)
+}
+
 // MemoryStore 完整记忆存储接口（组合子接口）/ Complete memory store interface (composite)
 type MemoryStore interface {
 	MemoryReader
 	MemoryWriter
 	MemorySearch
 	MemoryLifecycle
+	DerivationStore
 
 	// Init 初始化存储（建表等）/ Initialize storage (create tables etc.)
 	Init(ctx context.Context) error

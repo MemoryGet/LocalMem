@@ -20,13 +20,14 @@ import (
 // 编译期接口检查 / Compile-time interface compliance check
 var _ MemoryStore = (*SQLiteMemoryStore)(nil)
 
-// 全量列名（36列）/ Full column list (36 columns)
+// 全量列名（35列）/ Full column list (35 columns)
+// derived_from 已迁移至 memory_derivations junction 表（V16）/ derived_from moved to junction table in V16
 const memoryColumns = `id, content, metadata, team_id, parent_id, is_latest, access_count, created_at, updated_at,
 	uri, context_id, kind, sub_kind, scope, excerpt, summary,
 	happened_at, source_type, source_ref, document_id, chunk_index,
 	deleted_at, strength, decay_rate, last_accessed_at, reinforced_count, expires_at,
 	retention_tier, message_role, turn_number, content_hash, consolidated_into, owner_id, visibility,
-	memory_class, derived_from`
+	memory_class`
 
 // 带 m. 前缀的全量列名，用于 JOIN 查询 / Full aliased column list for JOIN queries
 const memoryColumnsAliased = `m.id, m.content, m.metadata, m.team_id, m.parent_id, m.is_latest, m.access_count, m.created_at, m.updated_at,
@@ -34,7 +35,7 @@ const memoryColumnsAliased = `m.id, m.content, m.metadata, m.team_id, m.parent_i
 	m.happened_at, m.source_type, m.source_ref, m.document_id, m.chunk_index,
 	m.deleted_at, m.strength, m.decay_rate, m.last_accessed_at, m.reinforced_count, m.expires_at,
 	m.retention_tier, m.message_role, m.turn_number, m.content_hash, m.consolidated_into, m.owner_id, m.visibility,
-	m.memory_class, m.derived_from`
+	m.memory_class`
 
 // SQLiteMemoryStore 基于 SQLite 的结构化存储 / SQLite-backed structured memory store
 type SQLiteMemoryStore struct {
@@ -301,11 +302,11 @@ type memScanDest struct {
 	ownerID          sql.NullString
 	visibility       sql.NullString
 	memoryClass      sql.NullString
-	derivedFrom      sql.NullString
 }
 
-// scanFields 返回扫描目标字段列表（与 memoryColumns 顺序一致，36 列）
-// Returns scan destination fields matching memoryColumns order (36 columns)
+// scanFields 返回扫描目标字段列表（与 memoryColumns 顺序一致，35 列）
+// Returns scan destination fields matching memoryColumns order (35 columns)
+// DerivedFrom 通过 memory_derivations junction 表单独加载（V16）
 func (d *memScanDest) scanFields() []any {
 	return []any{
 		&d.mem.ID, &d.mem.Content, &d.metaStr, &d.mem.TeamID,
@@ -316,7 +317,7 @@ func (d *memScanDest) scanFields() []any {
 		&d.deletedAt, &d.strength, &d.decayRate, &d.lastAccessedAt, &d.reinforcedCount, &d.expiresAt,
 		&d.retentionTier, &d.messageRole, &d.turnNumber, &d.contentHash, &d.consolidatedInto,
 		&d.ownerID, &d.visibility,
-		&d.memoryClass, &d.derivedFrom,
+		&d.memoryClass,
 	}
 }
 
@@ -345,15 +346,11 @@ func (d *memScanDest) toMemory() (*model.Memory, error) {
 	if d.memoryClass.Valid && d.memoryClass.String != "" {
 		d.mem.MemoryClass = d.memoryClass.String
 	}
-	if d.derivedFrom.Valid && d.derivedFrom.String != "" {
-		if err := json.Unmarshal([]byte(d.derivedFrom.String), &d.mem.DerivedFrom); err != nil {
-			d.mem.DerivedFrom = nil
-		}
-	}
+	// DerivedFrom 通过 memory_derivations junction 表单独加载（V16）/ Loaded separately from junction table
 	return &d.mem, nil
 }
 
-// scanMemory 从单行扫描 Memory 对象（36 列）/ Scan a Memory from a single row (36 columns)
+// scanMemory 从单行扫描 Memory 对象（35 列）/ Scan a Memory from a single row (35 columns)
 func (s *SQLiteMemoryStore) scanMemory(row *sql.Row) (*model.Memory, error) {
 	var d memScanDest
 	if err := row.Scan(d.scanFields()...); err != nil {
@@ -362,7 +359,7 @@ func (s *SQLiteMemoryStore) scanMemory(row *sql.Row) (*model.Memory, error) {
 	return d.toMemory()
 }
 
-// scanMemoryFromRows 从结果集行扫描 Memory 对象（36 列）/ Scan a Memory from a rows cursor (36 columns)
+// scanMemoryFromRows 从结果集行扫描 Memory 对象（35 列）/ Scan a Memory from a rows cursor (35 columns)
 func (s *SQLiteMemoryStore) scanMemoryFromRows(rows *sql.Rows) (*model.Memory, error) {
 	var d memScanDest
 	if err := rows.Scan(d.scanFields()...); err != nil {
@@ -371,7 +368,7 @@ func (s *SQLiteMemoryStore) scanMemoryFromRows(rows *sql.Rows) (*model.Memory, e
 	return d.toMemory()
 }
 
-// scanMemoryWithRank 扫描带 rank 列的行（37 列 = 36 + rank）/ Scan a Memory + BM25 rank (37 columns)
+// scanMemoryWithRank 扫描带 rank 列的行（36 列 = 35 + rank）/ Scan a Memory + BM25 rank (36 columns)
 func (s *SQLiteMemoryStore) scanMemoryWithRank(rows *sql.Rows) (*model.Memory, float64, error) {
 	var d memScanDest
 	var rank float64

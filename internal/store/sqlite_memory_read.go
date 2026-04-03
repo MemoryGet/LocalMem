@@ -253,16 +253,14 @@ func (s *SQLiteMemoryStore) ListBySourceRef(ctx context.Context, sourceRef strin
 	return s.scanMemories(rows)
 }
 
-// ListDerivedFrom 查询由指定记忆衍生出的记忆 / List memories whose derived_from contains the given ID
+// ListDerivedFrom 查询由指定记忆衍生出的记忆 / List memories derived from a given source memory ID
+// 通过 memory_derivations junction 表查询（V16）/ Queries via junction table (V16)
 func (s *SQLiteMemoryStore) ListDerivedFrom(ctx context.Context, id string, identity *model.Identity) ([]*model.Memory, error) {
-	visCond, visArgs := visibilityCondition("", identity)
-	// derived_from 是 JSON 数组文本列，用 json_each 精确匹配 / Use json_each for exact match in JSON array
-	query := `SELECT ` + memoryColumns + ` FROM memories
-		WHERE id IN (
-			SELECT memories.id FROM memories, json_each(memories.derived_from) AS j
-			WHERE j.value = ? AND memories.deleted_at IS NULL
-		) AND deleted_at IS NULL AND ` + visCond + `
-		ORDER BY created_at DESC`
+	visCond, visArgs := visibilityCondition("m.", identity)
+	query := `SELECT ` + memoryColumnsAliased + ` FROM memories m
+		INNER JOIN memory_derivations d ON d.target_id = m.id
+		WHERE d.source_id = ? AND m.deleted_at IS NULL AND ` + visCond + `
+		ORDER BY m.created_at DESC`
 
 	args := append([]interface{}{id}, visArgs...)
 	rows, err := s.db.QueryContext(ctx, query, args...)

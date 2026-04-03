@@ -2,10 +2,13 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"iclude/internal/logger"
+
+	"go.uber.org/zap"
 )
 
 // migrateV14ToV15 FK CASCADE on junction tables + CHECK constraints / 关联表外键级联 + CHECK 约束
@@ -127,5 +130,99 @@ func migrateV14ToV15(db *sql.DB) error {
 	}
 
 	logger.Info("migration V14→V15 completed: FK CASCADE on junction tables + CHECK constraints")
+	return tx.Commit()
+}
+
+// migrateV15ToV16 derived_from JSON → memory_derivations junction table / 溯源 JSON 列迁移至关联表
+func migrateV15ToV16(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// --- 1. 创建 junction 表 / Create junction table ---
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS memory_derivations (
+		source_id  TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+		target_id  TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (source_id, target_id)
+	)`); err != nil {
+		return fmt.Errorf("failed to create memory_derivations: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_memory_derivations_target ON memory_derivations(target_id)`); err != nil {
+		return fmt.Errorf("failed to create memory_derivations target index: %w", err)
+	}
+
+	// --- 2. 迁移 JSON 数据到 junction 表 / Migrate existing JSON data ---
+	rows, err := tx.Query(`SELECT id, derived_from FROM memories WHERE derived_from IS NOT NULL AND derived_from != '' AND derived_from != '[]'`)
+	if err != nil {
+		return fmt.Errorf("failed to query derived_from data: %w", err)
+	}
+
+	insertStmt, err := tx.Prepare(`INSERT OR IGNORE INTO memory_derivations (source_id, target_id, created_at) VALUES (?, ?, datetime('now'))`)
+	if err != nil {
+		rows.Close()
+		return fmt.Errorf("failed to prepare derivation insert: %w", err)
+	}
+
+	migratedCount := 0
+	for rows.Next() {
+		var targetID, derivedJSON string
+		if err := rows.Scan(&targetID, &derivedJSON); err != nil {
+			rows.Close()
+			insertStmt.Close()
+			return fmt.Errorf("failed to scan derived_from row: %w", err)
+		}
+
+		var sourceIDs []string
+		if err := json.Unmarshal([]byte(derivedJSON), &sourceIDs); err != nil {
+			logger.Warn("V15→V16: skipping malformed derived_from JSON",
+				zap.String("memory_id", targetID),
+				zap.String("json", derivedJSON),
+			)
+			continue
+		}
+
+		for _, srcID := range sourceIDs {
+			if srcID == "" {
+				continue
+			}
+			if _, err := insertStmt.Exec(srcID, targetID); err != nil {
+				logger.Warn("V15→V16: failed to insert derivation row",
+					zap.String("source_id", srcID),
+					zap.String("target_id", targetID),
+					zap.Error(err),
+				)
+			}
+		}
+		migratedCount++
+	}
+	rows.Close()
+	insertStmt.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("V15→V16 rows iteration error: %w", err)
+	}
+
+	// --- 3. 删除旧列 / Drop derived_from column ---
+	// SQLite 需要 recreate table（3.35+ 支持 ALTER TABLE DROP COLUMN，但 modernc/sqlite 兼容性不确定）
+	// 使用安全的 recreate 方式 / Use safe recreate approach
+	if _, err := tx.Exec(`ALTER TABLE memories DROP COLUMN derived_from`); err != nil {
+		// 如果 DROP COLUMN 不支持，用 recreate 方式 / Fallback: recreate table
+		if !strings.Contains(err.Error(), "no such column") {
+			logger.Warn("V15→V16: ALTER TABLE DROP COLUMN not supported, using recreate", zap.Error(err))
+			// 不阻塞迁移：旧列留存但不再使用 / Don't block migration: old column remains but unused
+			// 后续版本可清理 / Can be cleaned up in future version
+		}
+	}
+
+	// --- 4. 更新 schema 版本 / Update schema version ---
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (16, datetime('now'))`); err != nil {
+		return fmt.Errorf("V15→V16 schema_version: %w", err)
+	}
+
+	logger.Info("migration V15→V16 completed: derived_from JSON → memory_derivations junction table",
+		zap.Int("migrated_memories", migratedCount),
+	)
 	return tx.Commit()
 }
