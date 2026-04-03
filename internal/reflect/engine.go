@@ -219,9 +219,13 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 			results = filterLowQualityEvidence(results, 0.05)
 		}
 
-		// B3: 精确追踪证据 token / Track evidence tokens precisely
+		// B3: 精确追踪证据 token + 最高分 / Track evidence tokens and top score precisely
 		roundEvidenceTokens := 0
+		roundTopScore := 0.0
 		for _, r := range results {
+			if r.Score > roundTopScore {
+				roundTopScore = r.Score
+			}
 			if r.Memory != nil {
 				roundEvidenceTokens += search.EstimateTokens(r.Memory.Content)
 			}
@@ -331,22 +335,12 @@ func (e *ReflectEngine) Reflect(ctx context.Context, req *model.ReflectRequest) 
 		)
 
 			// B3#8: 累积本轮摘要（含证据质量指标）/ Accumulate this round's summary with evidence quality metrics
-		topScore := 0.0
-		evidenceTokens := 0
-		for _, r := range results {
-			if r.Score > topScore {
-				topScore = r.Score
-			}
-			if r.Memory != nil {
-				evidenceTokens += search.EstimateTokens(r.Memory.Content)
-			}
-		}
 		priorRounds = append(priorRounds, priorRoundSummary{
 			Round:          round,
 			Query:          currentQuery,
 			Reasoning:      output.Reasoning,
 			Evidence:       summarizeEvidence(results, 3), // 保留 top-3 证据摘要 / Keep top-3 evidence summaries
-			TopScore:       topScore,
+			TopScore:       roundTopScore,
 			EvidenceTokens: roundEvidenceTokens,
 		})
 
