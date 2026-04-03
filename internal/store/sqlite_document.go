@@ -31,40 +31,41 @@ func NewSQLiteDocumentStore(db *sql.DB) *SQLiteDocumentStore {
 	return &SQLiteDocumentStore{db: db}
 }
 
-// scanDocument 扫描一行到 Document 结构体
-func scanDocument(scanner interface{ Scan(...any) error }) (*model.Document, error) {
-	var doc model.Document
-	var metadataRaw sql.NullString
+// ---- 扫描辅助结构体 / Scan helper structs ----
 
-	err := scanner.Scan(
-		&doc.ID,
-		&doc.Name,
-		&doc.DocType,
-		&doc.Scope,
-		&doc.ContextID,
-		&doc.FilePath,
-		&doc.FileSize,
-		&doc.ContentHash,
-		&doc.Status,
-		&doc.ChunkCount,
-		&metadataRaw,
-		&doc.ErrorMsg,
-		&doc.Stage,
-		&doc.Parser,
-		&doc.CreatedAt,
-		&doc.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
+// docScanDest Document 扫描目标（16列）/ Document scan destination (16 columns)
+type docScanDest struct {
+	doc     model.Document
+	metaStr sql.NullString
+}
+
+// scanFields 返回扫描目标字段列表 / Returns scan destination fields
+func (d *docScanDest) scanFields() []any {
+	return []any{
+		&d.doc.ID, &d.doc.Name, &d.doc.DocType, &d.doc.Scope, &d.doc.ContextID,
+		&d.doc.FilePath, &d.doc.FileSize, &d.doc.ContentHash, &d.doc.Status, &d.doc.ChunkCount,
+		&d.metaStr, &d.doc.ErrorMsg, &d.doc.Stage, &d.doc.Parser,
+		&d.doc.CreatedAt, &d.doc.UpdatedAt,
 	}
+}
 
-	if metadataRaw.Valid && metadataRaw.String != "" {
-		if err := json.Unmarshal([]byte(metadataRaw.String), &doc.Metadata); err != nil {
+// toDocument 将扫描结果转为 Document / Convert scan result to Document
+func (d *docScanDest) toDocument() (*model.Document, error) {
+	if d.metaStr.Valid && d.metaStr.String != "" {
+		if err := json.Unmarshal([]byte(d.metaStr.String), &d.doc.Metadata); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal document metadata: %w", err)
 		}
 	}
+	return &d.doc, nil
+}
 
-	return &doc, nil
+// scanDocument 扫描一行到 Document 结构体 / Scan a row into Document using shared docScanDest
+func scanDocument(scanner interface{ Scan(...any) error }) (*model.Document, error) {
+	var d docScanDest
+	if err := scanner.Scan(d.scanFields()...); err != nil {
+		return nil, err
+	}
+	return d.toDocument()
 }
 
 // Create 创建文档 / Create a new document record

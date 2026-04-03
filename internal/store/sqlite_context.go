@@ -322,57 +322,51 @@ func (s *SQLiteContextStore) DecrementMemoryCount(ctx context.Context, id string
 	return nil
 }
 
-// ---- 扫描辅助函数 ----
+// ---- 扫描辅助结构体 / Scan helper structs ----
 
-// scanContext 从单行扫描 Context 对象（13列）
+// ctxScanDest Context 扫描目标（13列）/ Context scan destination (13 columns)
+type ctxScanDest struct {
+	c       model.Context
+	metaStr sql.NullString
+}
+
+// scanFields 返回扫描目标字段列表 / Returns scan destination fields
+func (d *ctxScanDest) scanFields() []any {
+	return []any{
+		&d.c.ID, &d.c.Name, &d.c.Path, &d.c.ParentID, &d.c.Scope, &d.c.Kind, &d.c.Description,
+		&d.metaStr, &d.c.Depth, &d.c.SortOrder, &d.c.MemoryCount, &d.c.CreatedAt, &d.c.UpdatedAt,
+	}
+}
+
+// toContext 将扫描结果转为 Context / Convert scan result to Context
+func (d *ctxScanDest) toContext() (*model.Context, error) {
+	if d.metaStr.Valid {
+		if err := json.Unmarshal([]byte(d.metaStr.String), &d.c.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+	}
+	return &d.c, nil
+}
+
+// scanContext 从单行扫描 Context 对象 / Scan Context from a single row
 func (s *SQLiteContextStore) scanContext(row *sql.Row) (*model.Context, error) {
-	var (
-		c       model.Context
-		metaStr sql.NullString
-	)
-
-	err := row.Scan(
-		&c.ID, &c.Name, &c.Path, &c.ParentID, &c.Scope, &c.Kind, &c.Description,
-		&metaStr, &c.Depth, &c.SortOrder, &c.MemoryCount, &c.CreatedAt, &c.UpdatedAt,
-	)
-	if err != nil {
+	var d ctxScanDest
+	if err := row.Scan(d.scanFields()...); err != nil {
 		return nil, err
 	}
-
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &c.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
-		}
-	}
-
-	return &c, nil
+	return d.toContext()
 }
 
-// scanContextFromRows 从结果集行扫描 Context 对象（13列）
+// scanContextFromRows 从结果集行扫描 Context 对象 / Scan Context from rows
 func (s *SQLiteContextStore) scanContextFromRows(rows *sql.Rows) (*model.Context, error) {
-	var (
-		c       model.Context
-		metaStr sql.NullString
-	)
-
-	err := rows.Scan(
-		&c.ID, &c.Name, &c.Path, &c.ParentID, &c.Scope, &c.Kind, &c.Description,
-		&metaStr, &c.Depth, &c.SortOrder, &c.MemoryCount, &c.CreatedAt, &c.UpdatedAt,
-	)
-	if err != nil {
+	var d ctxScanDest
+	if err := rows.Scan(d.scanFields()...); err != nil {
 		return nil, err
 	}
-
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &c.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
-		}
-	}
-
-	return &c, nil
+	return d.toContext()
 }
 
-// scanContexts 扫描多行上下文
+// scanContexts 扫描多行上下文 / Scan multiple context rows
 func (s *SQLiteContextStore) scanContexts(rows *sql.Rows) ([]*model.Context, error) {
 	var contexts []*model.Context
 	for rows.Next() {

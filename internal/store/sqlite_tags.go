@@ -47,10 +47,10 @@ func (s *SQLiteTagStore) CreateTag(ctx context.Context, tag *model.Tag) error {
 
 // GetTag 获取标签 / Get a tag by ID
 func (s *SQLiteTagStore) GetTag(ctx context.Context, id string) (*model.Tag, error) {
-	var tag model.Tag
+	var d tagScanDest
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, name, scope, created_at FROM tags WHERE id = ?`, id,
-	).Scan(&tag.ID, &tag.Name, &tag.Scope, &tag.CreatedAt)
+	).Scan(d.scanFields()...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, model.ErrTagNotFound
@@ -58,7 +58,7 @@ func (s *SQLiteTagStore) GetTag(ctx context.Context, id string) (*model.Tag, err
 		return nil, fmt.Errorf("failed to get tag: %w", err)
 	}
 
-	return &tag, nil
+	return d.toTag(), nil
 }
 
 // ListTags 列出标签（可选 scope 过滤）/ List tags with optional scope filter
@@ -79,11 +79,11 @@ func (s *SQLiteTagStore) ListTags(ctx context.Context, scope string) ([]*model.T
 
 	var tags []*model.Tag
 	for rows.Next() {
-		var tag model.Tag
-		if err := rows.Scan(&tag.ID, &tag.Name, &tag.Scope, &tag.CreatedAt); err != nil {
+		var d tagScanDest
+		if err := rows.Scan(d.scanFields()...); err != nil {
 			return nil, fmt.Errorf("failed to scan tag row: %w", err)
 		}
-		tags = append(tags, &tag)
+		tags = append(tags, d.toTag())
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate tag rows: %w", err)
@@ -171,11 +171,11 @@ func (s *SQLiteTagStore) GetMemoryTags(ctx context.Context, memoryID string) ([]
 
 	var tags []*model.Tag
 	for rows.Next() {
-		var tag model.Tag
-		if err := rows.Scan(&tag.ID, &tag.Name, &tag.Scope, &tag.CreatedAt); err != nil {
+		var d tagScanDest
+		if err := rows.Scan(d.scanFields()...); err != nil {
 			return nil, fmt.Errorf("failed to scan memory tag row: %w", err)
 		}
-		tags = append(tags, &tag)
+		tags = append(tags, d.toTag())
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate memory tag rows: %w", err)
@@ -253,18 +253,34 @@ func (s *SQLiteTagStore) GetTagNamesByMemoryIDs(ctx context.Context, ids []strin
 
 // GetTagByName 通过名称获取标签 / Get tag by name and scope
 func (s *SQLiteTagStore) GetTagByName(ctx context.Context, name, scope string) (*model.Tag, error) {
-	row := s.db.QueryRowContext(ctx,
+	var d tagScanDest
+	err := s.db.QueryRowContext(ctx,
 		`SELECT id, name, scope, created_at FROM tags WHERE name = ? AND scope = ?`,
-		name, scope)
-	var tag model.Tag
-	err := row.Scan(&tag.ID, &tag.Name, &tag.Scope, &tag.CreatedAt)
+		name, scope).Scan(d.scanFields()...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, model.ErrTagNotFound
 		}
 		return nil, fmt.Errorf("failed to get tag by name: %w", err)
 	}
-	return &tag, nil
+	return d.toTag(), nil
+}
+
+// ---- 扫描辅助结构体 / Scan helper structs ----
+
+// tagScanDest Tag 扫描目标（4列）/ Tag scan destination (4 columns)
+type tagScanDest struct {
+	tag model.Tag
+}
+
+// scanFields 返回扫描目标字段列表 / Returns scan destination fields
+func (d *tagScanDest) scanFields() []any {
+	return []any{&d.tag.ID, &d.tag.Name, &d.tag.Scope, &d.tag.CreatedAt}
+}
+
+// toTag 将扫描结果转为 Tag / Convert scan result to Tag
+func (d *tagScanDest) toTag() *model.Tag {
+	return &d.tag
 }
 
 // scanMemoryRow 从结果集行扫描 Memory 对象（35 列），复用 memScanDest / Scan a Memory from rows using shared memScanDest

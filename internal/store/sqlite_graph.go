@@ -244,27 +244,14 @@ func (s *SQLiteGraphStore) GetRelation(ctx context.Context, id string) (*model.E
 	query := `SELECT id, source_id, target_id, relation_type, weight, metadata, created_at
 		FROM entity_relations WHERE id = ?`
 
-	row := s.db.QueryRowContext(ctx, query, id)
-	var (
-		rel     model.EntityRelation
-		metaStr sql.NullString
-	)
-	err := row.Scan(
-		&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType,
-		&rel.Weight, &metaStr, &rel.CreatedAt,
-	)
-	if err != nil {
+	var d relationScanDest
+	if err := s.db.QueryRowContext(ctx, query, id).Scan(d.scanFields()...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, model.ErrRelationNotFound
 		}
 		return nil, fmt.Errorf("failed to get relation: %w", err)
 	}
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &rel.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal relation metadata: %w", err)
-		}
-	}
-	return &rel, nil
+	return d.toRelation()
 }
 
 // GetEntityRelations 获取实体的所有关系 / Get all relations for an entity
@@ -393,78 +380,81 @@ func (s *SQLiteGraphStore) GetMemoryEntities(ctx context.Context, memoryID strin
 	return entities, nil
 }
 
-// ---- 扫描辅助函数 ----
+// ---- 扫描辅助结构体 / Scan helper structs ----
 
-// scanEntity 从单行扫描 Entity 对象
+// entityScanDest Entity 扫描目标（8列）/ Entity scan destination (8 columns)
+type entityScanDest struct {
+	entity  model.Entity
+	metaStr sql.NullString
+}
+
+// scanFields 返回扫描目标字段列表 / Returns scan destination fields
+func (d *entityScanDest) scanFields() []any {
+	return []any{
+		&d.entity.ID, &d.entity.Name, &d.entity.EntityType, &d.entity.Scope,
+		&d.entity.Description, &d.metaStr, &d.entity.CreatedAt, &d.entity.UpdatedAt,
+	}
+}
+
+// toEntity 将扫描结果转为 Entity / Convert scan result to Entity
+func (d *entityScanDest) toEntity() (*model.Entity, error) {
+	if d.metaStr.Valid {
+		if err := json.Unmarshal([]byte(d.metaStr.String), &d.entity.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal entity metadata: %w", err)
+		}
+	}
+	return &d.entity, nil
+}
+
+// scanEntity 从单行扫描 Entity 对象 / Scan Entity from a single row
 func scanEntity(row *sql.Row) (*model.Entity, error) {
-	var (
-		entity  model.Entity
-		metaStr sql.NullString
-	)
-
-	err := row.Scan(
-		&entity.ID, &entity.Name, &entity.EntityType, &entity.Scope,
-		&entity.Description, &metaStr, &entity.CreatedAt, &entity.UpdatedAt,
-	)
-	if err != nil {
+	var d entityScanDest
+	if err := row.Scan(d.scanFields()...); err != nil {
 		return nil, err
 	}
-
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &entity.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal entity metadata: %w", err)
-		}
-	}
-
-	return &entity, nil
+	return d.toEntity()
 }
 
-// scanEntityFromRows 从结果集行扫描 Entity 对象
+// scanEntityFromRows 从结果集行扫描 Entity 对象 / Scan Entity from rows
 func scanEntityFromRows(rows *sql.Rows) (*model.Entity, error) {
-	var (
-		entity  model.Entity
-		metaStr sql.NullString
-	)
-
-	err := rows.Scan(
-		&entity.ID, &entity.Name, &entity.EntityType, &entity.Scope,
-		&entity.Description, &metaStr, &entity.CreatedAt, &entity.UpdatedAt,
-	)
-	if err != nil {
+	var d entityScanDest
+	if err := rows.Scan(d.scanFields()...); err != nil {
 		return nil, err
 	}
-
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &entity.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal entity metadata: %w", err)
-		}
-	}
-
-	return &entity, nil
+	return d.toEntity()
 }
 
-// scanRelation 从结果集行扫描 EntityRelation 对象
-func scanRelation(rows *sql.Rows) (*model.EntityRelation, error) {
-	var (
-		rel     model.EntityRelation
-		metaStr sql.NullString
-	)
+// relationScanDest EntityRelation 扫描目标（7列）/ EntityRelation scan destination (7 columns)
+type relationScanDest struct {
+	rel     model.EntityRelation
+	metaStr sql.NullString
+}
 
-	err := rows.Scan(
-		&rel.ID, &rel.SourceID, &rel.TargetID, &rel.RelationType,
-		&rel.Weight, &metaStr, &rel.CreatedAt,
-	)
-	if err != nil {
-		return nil, err
+// scanFields 返回扫描目标字段列表 / Returns scan destination fields
+func (d *relationScanDest) scanFields() []any {
+	return []any{
+		&d.rel.ID, &d.rel.SourceID, &d.rel.TargetID, &d.rel.RelationType,
+		&d.rel.Weight, &d.metaStr, &d.rel.CreatedAt,
 	}
+}
 
-	if metaStr.Valid {
-		if err := json.Unmarshal([]byte(metaStr.String), &rel.Metadata); err != nil {
+// toRelation 将扫描结果转为 EntityRelation / Convert scan result to EntityRelation
+func (d *relationScanDest) toRelation() (*model.EntityRelation, error) {
+	if d.metaStr.Valid {
+		if err := json.Unmarshal([]byte(d.metaStr.String), &d.rel.Metadata); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal relation metadata: %w", err)
 		}
 	}
+	return &d.rel, nil
+}
 
-	return &rel, nil
+// scanRelation 从结果集行扫描 EntityRelation 对象 / Scan EntityRelation from rows
+func scanRelation(rows *sql.Rows) (*model.EntityRelation, error) {
+	var d relationScanDest
+	if err := rows.Scan(d.scanFields()...); err != nil {
+		return nil, err
+	}
+	return d.toRelation()
 }
 
 // FindEntitiesByName 按名称匹配实体（大小写不敏感）/ Find entities by name (case-insensitive)
