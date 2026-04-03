@@ -59,8 +59,8 @@ func TestMigrateV5ToV6_AddsOwnershipFields(t *testing.T) {
 	// 验证版本号
 	var version int
 	db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
-	if version != 14 {
-		t.Errorf("schema version = %d, want 14", version)
+	if version != 15 {
+		t.Errorf("schema version = %d, want 15", version)
 	}
 
 	// 验证索引存在

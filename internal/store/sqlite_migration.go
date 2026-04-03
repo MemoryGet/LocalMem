@@ -11,7 +11,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 14
+const latestVersion = 15
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -160,6 +160,14 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 			return fmt.Errorf("V13→V14 migration failed: %w", err)
 		}
 		version = 14
+	}
+
+	// V14→V15: FK CASCADE on junction tables + CHECK constraints / 关联表外键级联 + CHECK 约束
+	if version < 15 {
+		if err := migrateV14ToV15(db); err != nil {
+			return fmt.Errorf("V14→V15 migration failed: %w", err)
+		}
+		version = 15
 	}
 
 	return nil
