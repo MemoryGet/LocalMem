@@ -14,8 +14,8 @@ type Session struct {
 	State       string     `json:"state"`
 	StartedAt   time.Time  `json:"started_at"`
 	LastSeenAt  time.Time  `json:"last_seen_at"`
-	FinalizedAt *time.Time `json:"finalized_at,omitempty"`
-	Metadata    string     `json:"metadata,omitempty"`
+	FinalizedAt *time.Time      `json:"finalized_at,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
 // Session state constants / 会话状态常量

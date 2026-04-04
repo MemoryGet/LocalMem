@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -21,12 +22,16 @@ func NewSQLiteSessionStore(db *sql.DB) *SQLiteSessionStore {
 
 // Create 创建会话 / Create a session
 func (s *SQLiteSessionStore) Create(ctx context.Context, sess *model.Session) error {
-	_, err := s.db.ExecContext(ctx, `
+	metaJSON, err := marshalMetadata(sess.Metadata)
+	if err != nil {
+		return fmt.Errorf("create session: marshal metadata: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO sessions (id, context_id, user_id, tool_name, project_id, project_dir, profile, state, started_at, last_seen_at, finalized_at, metadata)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sess.ID, sess.ContextID, sess.UserID, sess.ToolName,
 		sess.ProjectID, sess.ProjectDir, sess.Profile, sess.State,
-		sess.StartedAt, sess.LastSeenAt, sess.FinalizedAt, sess.Metadata,
+		sess.StartedAt, sess.LastSeenAt, sess.FinalizedAt, metaJSON,
 	)
 	if err != nil {
 		return fmt.Errorf("create session: %w", err)
@@ -57,8 +62,11 @@ func (s *SQLiteSessionStore) Get(ctx context.Context, id string) (*model.Session
 	if finalizedAt.Valid {
 		sess.FinalizedAt = &finalizedAt.Time
 	}
-	if metadata.Valid {
-		sess.Metadata = metadata.String
+	if metadata.Valid && metadata.String != "" {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(metadata.String), &m); err == nil {
+			sess.Metadata = m
+		}
 	}
 	return sess, nil
 }
@@ -129,8 +137,11 @@ func (s *SQLiteSessionStore) ListPendingFinalize(ctx context.Context, olderThan 
 		if finalizedAt.Valid {
 			sess.FinalizedAt = &finalizedAt.Time
 		}
-		if metadata.Valid {
-			sess.Metadata = metadata.String
+		if metadata.Valid && metadata.String != "" {
+			var m map[string]any
+			if err := json.Unmarshal([]byte(metadata.String), &m); err == nil {
+				sess.Metadata = m
+			}
 		}
 		result = append(result, sess)
 	}
