@@ -51,6 +51,9 @@ func (a *memoryCreatorAdapter) Create(ctx context.Context, mem *model.Memory) (*
 		RetentionTier: mem.RetentionTier,
 		MessageRole:   mem.MessageRole,
 		TurnNumber:    mem.TurnNumber,
+		MemoryClass:   mem.MemoryClass,
+		DerivedFrom:   mem.DerivedFrom,
+		Embedding:     mem.Embedding,
 	}
 	return a.manager.Create(ctx, req)
 }

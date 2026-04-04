@@ -4,7 +4,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"iclude/internal/logger"
@@ -356,20 +355,16 @@ func (s *SQLiteMemoryStore) PurgeDeleted(ctx context.Context, olderThan time.Dur
 		}
 	}
 
-	if len(memoryIDs) > 0 {
-		placeholders := strings.Repeat("?,", len(memoryIDs))
-		placeholders = placeholders[:len(placeholders)-1]
-		args := make([]interface{}, len(memoryIDs))
-		for i, id := range memoryIDs {
-			args[i] = id
-		}
-
-		if _, err := tx.ExecContext(ctx, `DELETE FROM memory_tags WHERE memory_id IN (`+placeholders+`)`, args...); err != nil {
-			return 0, fmt.Errorf("failed to delete memory_tags during purge: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM memory_entities WHERE memory_id IN (`+placeholders+`)`, args...); err != nil {
-			return 0, fmt.Errorf("failed to delete memory_entities during purge: %w", err)
-		}
+	// 使用子查询清理关联表，避免 IN 子句参数爆炸 / Use subquery to clean associations, avoid IN clause parameter explosion
+	purgeSubquery := `SELECT id FROM memories WHERE deleted_at IS NOT NULL AND deleted_at < ?`
+	if _, err := tx.ExecContext(ctx, `DELETE FROM memory_tags WHERE memory_id IN (`+purgeSubquery+`)`, cutoff); err != nil {
+		return 0, fmt.Errorf("failed to delete memory_tags during purge: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM memory_entities WHERE memory_id IN (`+purgeSubquery+`)`, cutoff); err != nil {
+		return 0, fmt.Errorf("failed to delete memory_entities during purge: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM memory_derivations WHERE source_id IN (`+purgeSubquery+`) OR target_id IN (`+purgeSubquery+`)`, cutoff, cutoff); err != nil {
+		return 0, fmt.Errorf("failed to delete memory_derivations during purge: %w", err)
 	}
 
 	// 硬删除

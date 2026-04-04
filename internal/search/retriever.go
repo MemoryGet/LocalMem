@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"iclude/internal/config"
 	"iclude/internal/llm"
 	"iclude/internal/logger"
-	"iclude/internal/memory"
 	"iclude/internal/model"
+	"iclude/pkg/scoring"
 	"iclude/internal/store"
 	"iclude/pkg/tokenutil"
 
@@ -106,65 +107,78 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		}
 	}
 
-	// 收集各路检索结果 / Collect results from each channel
+	// 并行收集各路检索结果 / Collect results from each channel in parallel
+	var mu sync.Mutex
 	var rrfInputs []RRFInput
+	var wg sync.WaitGroup
 
-	// SQLite 全文检索
+	appendInput := func(input RRFInput) {
+		mu.Lock()
+		rrfInputs = append(rrfInputs, input)
+		mu.Unlock()
+	}
+
+	// 通道 1: SQLite FTS + HyDE（共享 SQLite，内部串行）/ Channel 1: FTS + HyDE (share SQLite, serial internally)
 	if hasSQLite && ftsQuery != "" {
-		var textResults []*model.SearchResult
-		var err error
-		if filters != nil {
-			textResults, err = r.memStore.SearchTextFiltered(ctx, ftsQuery, filters, limit)
-		} else {
-			textResults, err = r.memStore.SearchText(ctx, ftsQuery, r.resolveIdentity(req), limit)
-		}
-		if err != nil {
-			logger.Warn("text search failed", zap.Error(err))
-		} else if len(textResults) > 0 {
-			ftsWeight := r.cfg.FTSWeight
-			if plan != nil {
-				ftsWeight = plan.Weights.FTS
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// FTS5 检索 / FTS5 search
+			var textResults []*model.SearchResult
+			var err error
+			if filters != nil {
+				textResults, err = r.memStore.SearchTextFiltered(ctx, ftsQuery, filters, limit)
+			} else {
+				textResults, err = r.memStore.SearchText(ctx, ftsQuery, r.resolveIdentity(req), limit)
 			}
-			if ftsWeight == 0 {
-				ftsWeight = 1.0
+			if err != nil {
+				logger.Warn("text search failed", zap.Error(err))
+			} else if len(textResults) > 0 {
+				ftsWeight := r.cfg.FTSWeight
+				if plan != nil {
+					ftsWeight = plan.Weights.FTS
+				}
+				if ftsWeight == 0 {
+					ftsWeight = 1.0
+				}
+				appendInput(RRFInput{Results: textResults, Weight: ftsWeight})
 			}
-			rrfInputs = append(rrfInputs, RRFInput{Results: textResults, Weight: ftsWeight})
-		}
+
+			// HyDE 通道（串行跟在 FTS 后，共享 SQLite 连接）/ HyDE channel (serial after FTS, share SQLite)
+			if plan != nil && plan.HyDEDoc != "" {
+				var hydeResults []*model.SearchResult
+				var hydeErr error
+				if filters != nil {
+					hydeResults, hydeErr = r.memStore.SearchTextFiltered(ctx, plan.HyDEDoc, filters, limit)
+				} else {
+					hydeResults, hydeErr = r.memStore.SearchText(ctx, plan.HyDEDoc, r.resolveIdentity(req), limit)
+				}
+				if hydeErr != nil {
+					logger.Debug("HyDE search failed", zap.Error(hydeErr))
+				} else if len(hydeResults) > 0 {
+					hydeWeight := 0.8
+					if plan.Weights.FTS > 0 {
+						hydeWeight *= plan.Weights.FTS
+					}
+					appendInput(RRFInput{Results: hydeResults, Weight: hydeWeight})
+				}
+			}
+		}()
 	}
 
-	// HyDE 通道：用 LLM 假设性回答做 FTS 检索，0.8 折扣权重 / HyDE channel with hypothetical doc
-	if hasSQLite && plan != nil && plan.HyDEDoc != "" {
-		var hydeResults []*model.SearchResult
-		var hydeErr error
-		if filters != nil {
-			hydeResults, hydeErr = r.memStore.SearchTextFiltered(ctx, plan.HyDEDoc, filters, limit)
-		} else {
-			hydeResults, hydeErr = r.memStore.SearchText(ctx, plan.HyDEDoc, r.resolveIdentity(req), limit)
-		}
-		if hydeErr != nil {
-			logger.Debug("HyDE search failed", zap.Error(hydeErr))
-		} else if len(hydeResults) > 0 {
-			hydeWeight := 0.8
-			if plan != nil && plan.Weights.FTS > 0 {
-				hydeWeight *= plan.Weights.FTS
-			}
-			rrfInputs = append(rrfInputs, RRFInput{Results: hydeResults, Weight: hydeWeight})
-		}
-	}
-
-	// Qdrant 向量检索（使用 semanticQuery 生成 embedding）
+	// 通道 2: Qdrant 向量检索（独立 goroutine）/ Channel 2: Qdrant vector search (independent goroutine)
 	if hasVector {
-		embedding, err := r.resolveEmbedding(ctx, req.Embedding, semanticQuery)
-		if err != nil {
-			logger.Warn("failed to resolve embedding for search, falling back to text-only",
-				zap.Error(err),
-			)
-			hasVector = false
-		}
-		if len(embedding) == 0 {
-			hasVector = false
-		}
-		if hasVector {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			embedding, err := r.resolveEmbedding(ctx, req.Embedding, semanticQuery)
+			if err != nil {
+				logger.Warn("failed to resolve embedding for search", zap.Error(err))
+				return
+			}
+			if len(embedding) == 0 {
+				return
+			}
 			var vecResults []*model.SearchResult
 			if filters != nil {
 				vecResults, err = r.vecStore.SearchFiltered(ctx, embedding, filters, limit)
@@ -173,7 +187,9 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 			}
 			if err != nil {
 				logger.Warn("vector search failed", zap.Error(err))
-			} else if len(vecResults) > 0 {
+				return
+			}
+			if len(vecResults) > 0 {
 				qdrantWeight := r.cfg.QdrantWeight
 				if plan != nil {
 					qdrantWeight = plan.Weights.Qdrant
@@ -181,47 +197,56 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 				if qdrantWeight == 0 {
 					qdrantWeight = 1.0
 				}
-				rrfInputs = append(rrfInputs, RRFInput{Results: vecResults, Weight: qdrantWeight})
+				appendInput(RRFInput{Results: vecResults, Weight: qdrantWeight})
 			}
-		}
+		}()
 	}
 
-	// Graph 图谱关联检索
+	// 通道 3: Graph 图谱关联检索（独立 goroutine）/ Channel 3: Graph association retrieval (independent goroutine)
 	graphEnabled := r.cfg.GraphEnabled
 	if req.GraphEnabled != nil {
 		graphEnabled = *req.GraphEnabled
 	}
 	if graphEnabled && r.graphStore != nil && req.Query != "" {
-		scope := ""
-		if filters != nil {
-			scope = filters.Scope
-		}
-		var graphResults []*model.SearchResult
-		if plan != nil && len(plan.Entities) > 0 {
-			// 预处理已匹配实体，跳过 FTS5 反查 / Preprocessor matched entities, skip FTS5 reverse lookup
-			graphResults = r.graphRetrieveByEntities(ctx, plan.Entities, limit)
-		} else {
-			graphResults = r.graphRetrieve(ctx, req.Query, req.TeamID, scope, limit)
-		}
-		if len(graphResults) > 0 {
-			graphWeight := r.cfg.GraphWeight
-			if plan != nil {
-				graphWeight = plan.Weights.Graph
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			scope := ""
+			if filters != nil {
+				scope = filters.Scope
 			}
-			if graphWeight == 0 {
-				graphWeight = 0.8
+			var graphResults []*model.SearchResult
+			if plan != nil && len(plan.Entities) > 0 {
+				graphResults = r.graphRetrieveByEntities(ctx, plan.Entities, limit)
+			} else {
+				graphResults = r.graphRetrieve(ctx, req.Query, req.TeamID, scope, limit)
 			}
-			rrfInputs = append(rrfInputs, RRFInput{Results: graphResults, Weight: graphWeight})
-		}
+			if len(graphResults) > 0 {
+				graphWeight := r.cfg.GraphWeight
+				if plan != nil {
+					graphWeight = plan.Weights.Graph
+				}
+				if graphWeight == 0 {
+					graphWeight = 0.8
+				}
+				appendInput(RRFInput{Results: graphResults, Weight: graphWeight})
+			}
+		}()
 	}
 
-	// 时间通道（独立参与 RRF 融合）/ Temporal channel as independent RRF input
+	// 通道 4: 时间通道（独立 goroutine）/ Channel 4: Temporal channel (independent goroutine)
 	if plan != nil && plan.Temporal && plan.TemporalCenter != nil && hasSQLite {
-		temporalResults := r.temporalRetrieve(ctx, req, plan, limit)
-		if len(temporalResults) > 0 {
-			rrfInputs = append(rrfInputs, RRFInput{Results: temporalResults, Weight: 1.2})
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			temporalResults := r.temporalRetrieve(ctx, req, plan, limit)
+			if len(temporalResults) > 0 {
+				appendInput(RRFInput{Results: temporalResults, Weight: 1.2})
+			}
+		}()
 	}
+
+	wg.Wait()
 
 	if len(rrfInputs) == 0 {
 		if !hasSQLite && !hasVector {
@@ -267,7 +292,7 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 
 	// 强度加权（在 MMR 前执行，使过期/弱记忆在多样性选择前降分）
 	// Apply strength weighting before MMR so expired/weak memories are scored down before diversity selection
-	results = memory.ApplyStrengthWeighting(results, r.cfg.AccessAlpha)
+	results = scoring.ApplyStrengthWeighting(results, r.cfg.AccessAlpha)
 
 	// 重排序：classWeight + strengthWeight 修改了分数，需要重新按分数排序
 	// Re-sort after score modifications to ensure ranking reflects updated scores
