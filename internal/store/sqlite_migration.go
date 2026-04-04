@@ -11,7 +11,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 17
+const latestVersion = 21
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -195,6 +195,38 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 			return fmt.Errorf("V16→V17 migration failed: %w", err)
 		}
 		version = 17
+	}
+
+	// V17→V18: sessions 表 / Sessions table
+	if version < 18 {
+		if err := migrateV17ToV18(db); err != nil {
+			return fmt.Errorf("V17→V18 migration failed: %w", err)
+		}
+		version = 18
+	}
+
+	// V18→V19: session_finalize_state 表 / Session finalize state table
+	if version < 19 {
+		if err := migrateV18ToV19(db); err != nil {
+			return fmt.Errorf("V18→V19 migration failed: %w", err)
+		}
+		version = 19
+	}
+
+	// V19→V20: transcript_cursors 表 / Transcript cursors table
+	if version < 20 {
+		if err := migrateV19ToV20(db); err != nil {
+			return fmt.Errorf("V19→V20 migration failed: %w", err)
+		}
+		version = 20
+	}
+
+	// V20→V21: idempotency_keys 表 / Idempotency keys table
+	if version < 21 {
+		if err := migrateV20ToV21(db); err != nil {
+			return fmt.Errorf("V20→V21 migration failed: %w", err)
+		}
+		version = 21
 	}
 
 	return nil

@@ -86,4 +86,16 @@ var (
 
 	// ErrParseFailure 文档解析失败 / Document parse failure
 	ErrParseFailure = errors.New("document parse failure")
+
+	// ErrSessionNotFound 会话不存在 / Session not found
+	ErrSessionNotFound = errors.New("session not found")
+
+	// ErrFinalizeStateNotFound 终态记录不存在 / Finalize state not found
+	ErrFinalizeStateNotFound = errors.New("finalize state not found")
+
+	// ErrCursorNotFound 游标不存在 / Cursor not found
+	ErrCursorNotFound = errors.New("cursor not found")
+
+	// ErrIdempotencyNotFound 幂等记录不存在 / Idempotency record not found
+	ErrIdempotencyNotFound = errors.New("idempotency record not found")
 )

@@ -14,15 +14,19 @@ import (
 
 // Stores 聚合所有存储后端 / Aggregate of all storage backends
 type Stores struct {
-	MemoryStore   MemoryStore
-	VectorStore   VectorStore         // 可为 nil / may be nil
-	Embedder      Embedder            // 可为 nil / may be nil
-	ContextStore  ContextStore        // 可为 nil / may be nil
-	TagStore      TagStore            // 可为 nil / may be nil
-	GraphStore    GraphStore          // 可为 nil / may be nil
-	DocumentStore DocumentStore       // 可为 nil / may be nil
-	Tokenizer     tokenizer.Tokenizer // 可为 nil / may be nil (SQLite 未启用时)
-	RawDB         *sql.DB             // 底层 SQLite 连接（供 queue 等需要直接 DB 访问的组件使用）/ Raw SQLite connection for queue etc.
+	MemoryStore          MemoryStore
+	VectorStore          VectorStore              // 可为 nil / may be nil
+	Embedder             Embedder                 // 可为 nil / may be nil
+	ContextStore         ContextStore             // 可为 nil / may be nil
+	TagStore             TagStore                 // 可为 nil / may be nil
+	GraphStore           GraphStore               // 可为 nil / may be nil
+	DocumentStore        DocumentStore            // 可为 nil / may be nil
+	SessionStore         SessionStore             // 可为 nil / may be nil (V18+)
+	SessionFinalizeStore SessionFinalizeStore     // 可为 nil / may be nil (V19+)
+	TranscriptCursorStore TranscriptCursorStore   // 可为 nil / may be nil (V20+)
+	IdempotencyStore     IdempotencyStore         // 可为 nil / may be nil (V21+)
+	Tokenizer            tokenizer.Tokenizer      // 可为 nil / may be nil (SQLite 未启用时)
+	RawDB                *sql.DB                  // 底层 SQLite 连接（供 queue 等需要直接 DB 访问的组件使用）/ Raw SQLite connection for queue etc.
 }
 
 // InitStores 根据配置初始化存储后端 / Initialize storage backends based on config
@@ -62,7 +66,11 @@ func InitStores(ctx context.Context, cfg config.Config, embedder Embedder) (*Sto
 			stores.TagStore = NewSQLiteTagStore(db)
 			stores.GraphStore = NewSQLiteGraphStore(db)
 			stores.DocumentStore = NewSQLiteDocumentStore(db)
-			logger.Info("additional stores initialized (context, tag, graph, document)")
+			stores.SessionStore = NewSQLiteSessionStore(db)
+			stores.SessionFinalizeStore = NewSQLiteSessionFinalizeStore(db)
+			stores.TranscriptCursorStore = NewSQLiteTranscriptCursorStore(db)
+			stores.IdempotencyStore = NewSQLiteIdempotencyStore(db)
+			logger.Info("additional stores initialized (context, tag, graph, document, session, idempotency)")
 		}
 	}
 

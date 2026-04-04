@@ -10,9 +10,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// createFreshSchema 为新数据库一步创建 V16 终态 schema / Create final V16 schema for new databases in one step
-// 等效于 V0→V16 全部迁移的最终结果，但跳过中间步骤
-// Equivalent to running all V0→V16 migrations, but skips intermediate steps
+// createFreshSchema 为新数据库一步创建 V21 终态 schema / Create final V21 schema for new databases in one step
+// 等效于 V0→V21 全部迁移的最终结果，但跳过中间步骤
+// Equivalent to running all V0→V21 migrations, but skips intermediate steps
 func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -337,12 +337,100 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		return fmt.Errorf("fresh schema: memory_derivations target index: %w", err)
 	}
 
-	// --- 记录 schema 版本 = 17 / Record schema version = 17 ---
-	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (17)`); err != nil {
+	// --- V18: sessions 表 / sessions table ---
+	if _, err := tx.Exec(`
+		CREATE TABLE sessions (
+			id            TEXT PRIMARY KEY,
+			context_id    TEXT NOT NULL DEFAULT '',
+			user_id       TEXT NOT NULL DEFAULT '',
+			tool_name     TEXT NOT NULL DEFAULT '',
+			project_id    TEXT NOT NULL DEFAULT '',
+			project_dir   TEXT NOT NULL DEFAULT '',
+			profile       TEXT NOT NULL DEFAULT '',
+			state         TEXT NOT NULL DEFAULT 'created',
+			started_at    DATETIME NOT NULL,
+			last_seen_at  DATETIME NOT NULL,
+			finalized_at  DATETIME,
+			metadata      TEXT
+		)
+	`); err != nil {
+		return fmt.Errorf("fresh schema: sessions table: %w", err)
+	}
+	sessionIndexes := []string{
+		`CREATE INDEX idx_sessions_context_id ON sessions(context_id) WHERE context_id != ''`,
+		`CREATE INDEX idx_sessions_project_state_last_seen ON sessions(project_id, state, last_seen_at)`,
+		`CREATE INDEX idx_sessions_tool_started_at ON sessions(tool_name, started_at)`,
+		`CREATE INDEX idx_sessions_state_last_seen ON sessions(state, last_seen_at)`,
+	}
+	for _, idx := range sessionIndexes {
+		if _, err := tx.Exec(idx); err != nil {
+			return fmt.Errorf("fresh schema: session index %q: %w", idx, err)
+		}
+	}
+
+	// --- V19: session_finalize_state 表 ---
+	if _, err := tx.Exec(`
+		CREATE TABLE session_finalize_state (
+			session_id             TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+			ingest_version         INTEGER NOT NULL DEFAULT 0,
+			finalize_version       INTEGER NOT NULL DEFAULT 0,
+			conversation_ingested  INTEGER NOT NULL DEFAULT 0,
+			summary_memory_id      TEXT NOT NULL DEFAULT '',
+			last_error             TEXT NOT NULL DEFAULT '',
+			updated_at             DATETIME NOT NULL DEFAULT (datetime('now'))
+		)
+	`); err != nil {
+		return fmt.Errorf("fresh schema: session_finalize_state table: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE INDEX idx_session_finalize_state_updated_at ON session_finalize_state(updated_at)`); err != nil {
+		return fmt.Errorf("fresh schema: session_finalize_state index: %w", err)
+	}
+
+	// --- V20: transcript_cursors 表 ---
+	if _, err := tx.Exec(`
+		CREATE TABLE transcript_cursors (
+			session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+			source_path   TEXT NOT NULL,
+			byte_offset   INTEGER NOT NULL DEFAULT 0,
+			last_turn_id  TEXT NOT NULL DEFAULT '',
+			last_read_at  DATETIME NOT NULL DEFAULT (datetime('now')),
+			PRIMARY KEY (session_id, source_path)
+		)
+	`); err != nil {
+		return fmt.Errorf("fresh schema: transcript_cursors table: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE INDEX idx_transcript_cursors_last_read_at ON transcript_cursors(last_read_at)`); err != nil {
+		return fmt.Errorf("fresh schema: transcript_cursors index: %w", err)
+	}
+
+	// --- V21: idempotency_keys 表 ---
+	if _, err := tx.Exec(`
+		CREATE TABLE idempotency_keys (
+			scope         TEXT NOT NULL,
+			idem_key      TEXT NOT NULL,
+			resource_type TEXT NOT NULL DEFAULT '',
+			resource_id   TEXT NOT NULL DEFAULT '',
+			created_at    DATETIME NOT NULL DEFAULT (datetime('now'))
+		)
+	`); err != nil {
+		return fmt.Errorf("fresh schema: idempotency_keys table: %w", err)
+	}
+	idemIndexes := []string{
+		`CREATE UNIQUE INDEX idx_idempotency_scope_key_unique ON idempotency_keys(scope, idem_key)`,
+		`CREATE INDEX idx_idempotency_created_at ON idempotency_keys(created_at)`,
+	}
+	for _, idx := range idemIndexes {
+		if _, err := tx.Exec(idx); err != nil {
+			return fmt.Errorf("fresh schema: idempotency index %q: %w", idx, err)
+		}
+	}
+
+	// --- 记录 schema 版本 = 21 / Record schema version = 21 ---
+	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (21)`); err != nil {
 		return fmt.Errorf("fresh schema: record version: %w", err)
 	}
 
-	logger.Info("fresh schema V17 created successfully",
+	logger.Info("fresh schema V21 created successfully",
 		zap.String("tokenizer", tokName),
 	)
 

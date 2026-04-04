@@ -3,6 +3,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"iclude/internal/model"
@@ -316,4 +317,78 @@ type DocumentStore interface {
 
 	// UpdateErrorMsg 更新文档错误信息 / Update document error message
 	UpdateErrorMsg(ctx context.Context, id string, msg string) error
+}
+
+// SessionStore 会话存储接口 / Session storage interface
+type SessionStore interface {
+	// Create 创建会话 / Create a session
+	Create(ctx context.Context, s *model.Session) error
+
+	// Get 获取会话 / Get session by ID
+	Get(ctx context.Context, id string) (*model.Session, error)
+
+	// UpdateState 更新会话状态 / Update session state
+	UpdateState(ctx context.Context, id, state string) error
+
+	// Touch 更新最后活跃时间 / Update last seen timestamp
+	Touch(ctx context.Context, id string, ts time.Time) error
+
+	// ListPendingFinalize 列出待终结会话 / List sessions pending finalize
+	ListPendingFinalize(ctx context.Context, olderThan time.Duration, limit int) ([]*model.Session, error)
+}
+
+// SessionFinalizeStore 会话终态存储接口 / Session finalize state storage interface
+type SessionFinalizeStore interface {
+	// Get 获取终态记录 / Get finalize state by session ID
+	Get(ctx context.Context, sessionID string) (*model.SessionFinalizeState, error)
+
+	// Upsert 插入或更新终态记录 / Insert or update finalize state
+	Upsert(ctx context.Context, st *model.SessionFinalizeState) error
+
+	// MarkIngested 标记 conversation 已 ingest / Mark conversation as ingested
+	MarkIngested(ctx context.Context, sessionID string, version int) error
+
+	// MarkFinalized 标记已终结 / Mark session as finalized
+	MarkFinalized(ctx context.Context, sessionID string, version int, summaryMemoryID string) error
+
+	// ListUnfinalized 列出未完成 finalize 的记录 / List unfinalized session states
+	ListUnfinalized(ctx context.Context, limit int) ([]*model.SessionFinalizeState, error)
+}
+
+// TranscriptCursorStore transcript 游标存储接口 / Transcript cursor storage interface
+type TranscriptCursorStore interface {
+	// Get 获取游标 / Get cursor by session ID and source path
+	Get(ctx context.Context, sessionID, sourcePath string) (*model.TranscriptCursor, error)
+
+	// Upsert 插入或更新游标 / Insert or update cursor
+	Upsert(ctx context.Context, c *model.TranscriptCursor) error
+
+	// ListBySession 列出会话的所有游标 / List all cursors for a session
+	ListBySession(ctx context.Context, sessionID string) ([]*model.TranscriptCursor, error)
+
+	// DeleteBySession 删除会话的所有游标 / Delete all cursors for a session
+	DeleteBySession(ctx context.Context, sessionID string) error
+}
+
+// IdempotencyStore 幂等键存储接口 / Idempotency key storage interface
+type IdempotencyStore interface {
+	// Reserve 尝试预留幂等键，返回 true 表示首次预留成功 / Try to reserve key, returns true if first reservation
+	Reserve(ctx context.Context, scope, key, resourceType string) (bool, error)
+
+	// BindResource 绑定已预留的幂等键到具体资源 / Bind reserved key to resource ID
+	BindResource(ctx context.Context, scope, key, resourceID string) error
+
+	// Get 获取幂等记录 / Get idempotency record
+	Get(ctx context.Context, scope, key string) (*model.IdempotencyRecord, error)
+
+	// PurgeExpired 清理过期幂等键 / Purge expired idempotency keys
+	PurgeExpired(ctx context.Context, olderThan time.Duration) (int, error)
+}
+
+// Stores 聚合所有存储后端 / Aggregate all storage backends
+// 注意：Stores 结构体定义在 factory.go 中 / Note: Stores struct is defined in factory.go
+
+// RawDBProvider 提供底层 *sql.DB 的接口 / Interface for accessing underlying *sql.DB
+type RawDBProvider interface {
+	RawDB() *sql.DB
 }

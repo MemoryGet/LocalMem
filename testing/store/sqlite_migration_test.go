@@ -24,15 +24,15 @@ func TestMigrate_FreshDB(t *testing.T) {
 	err = s.Init(context.Background())
 	require.NoError(t, err)
 
-	// 验证 schema_version 为 17（V15→V16 derived_from → junction table）
+	// 验证 schema_version 为 21（V17→V21 session/runtime 表）
 	db := s.DB().(*sql.DB)
 	var version int
 	err = db.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 17, version)
+	assert.Equal(t, 21, version)
 
 	// 验证新表存在
-	tables := []string{"memories", "contexts", "tags", "memory_tags", "entities", "entity_relations", "memory_entities", "documents", "async_tasks"}
+	tables := []string{"memories", "contexts", "tags", "memory_tags", "entities", "entity_relations", "memory_entities", "documents", "async_tasks", "sessions", "session_finalize_state", "transcript_cursors", "idempotency_keys"}
 	for _, tbl := range tables {
 		var count int
 		err = db.QueryRow("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", tbl).Scan(&count)
@@ -75,7 +75,7 @@ func TestFreshSchema_MatchesIncremental(t *testing.T) {
 	var freshVersion int
 	err = freshDB.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&freshVersion)
 	require.NoError(t, err)
-	assert.Equal(t, 17, freshVersion)
+	assert.Equal(t, 21, freshVersion)
 
 	// 验证所有表存在 / Verify all tables exist
 	expectedTables := []string{
@@ -145,7 +145,7 @@ func TestFreshSchema_MatchesIncremental(t *testing.T) {
 	require.NoError(t, err)
 	// 预期索引：memories(22) + contexts(2) + entities(1) + entity_relations(2)
 	//          + memory_entities(2) + memory_tags(1) + documents(4) + async_tasks(2) + memory_derivations(1) = 37
-	assert.Equal(t, 39, indexCount, "fresh schema should have 39 named indexes")
+	assert.Equal(t, 47, indexCount, "fresh schema should have 47 named indexes")
 
 	// 验证 meta 表 tokenizer 记录 / Verify meta table has tokenizer record
 	var tokName string
@@ -252,11 +252,11 @@ func TestMigrate_V2ToV3(t *testing.T) {
 
 	rawDB := s.DB().(*sql.DB)
 
-	// 验证 schema_version 为 17（V15→V16 derived_from → junction table）
+	// 验证 schema_version 为 21（V17→V21 session/runtime 表）
 	var version int
 	err = rawDB.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 17, version)
+	assert.Equal(t, 21, version)
 
 	// 验证 V3 新增列存在
 	v3Columns := []string{"retention_tier", "message_role", "turn_number"}
