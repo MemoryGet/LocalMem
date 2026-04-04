@@ -189,6 +189,7 @@ LocalMem 对外暴露三类接入面：
 | `iclude_fetch` | yes | 按 ID 获取完整记忆 |
 | `iclude_retain` | yes | 保存单条事件/事实 |
 | `iclude_ingest_conversation` | recommended | 对话/会话归档 |
+| `iclude_finalize_session` | recommended | 会话终结（幂等关闭 + 摘要生成 + 状态推进） |
 | `iclude_timeline` | optional | 时间线回顾 |
 | `iclude_reflect` | optional | 跨记忆综合推理 |
 
@@ -257,6 +258,43 @@ LocalMem 对外暴露三类接入面：
 - 幂等
 - 可重复提交
 - 可截断长 transcript
+
+#### `iclude_finalize_session`
+
+用途：
+
+- 会话终结的明确协议动作
+- 触发摘要生成、标记会话关闭、推进 finalize 状态
+
+最小输入：
+
+- `session_id`
+- `tool_name`
+- `idempotency_key`
+
+可选输入：
+
+- `context_id`
+- `summary`（adapter 侧预生成摘要）
+
+输出：
+
+- `finalized`（是否成功终结）
+- `conversation_ingested`
+- `summary_memory_id`
+- `finalized_at`
+
+要求：
+
+- 幂等：重复调用返回已有状态，不产生副作用
+- 可部分成功：摘要失败不阻塞 finalize 本身
+- 可修复：失败后可由 RepairService 补执行
+
+说明：
+
+- `finalize_session` 负责"关闭会话并保证完整收尾"
+- `ingest_conversation` 负责"导入内容"
+- 二者不可互相替代
 
 ---
 
@@ -340,14 +378,15 @@ LocalMem 对外暴露三类接入面：
 
 必须动作：
 
-1. 聚合本会话关键 observation
-2. 调用 `iclude_ingest_conversation` 或等价汇总入口
-3. 必要时生成 `session_summary`
+1. 调用 `iclude_finalize_session`（推荐）或 `iclude_ingest_conversation` + 手动标记
+2. `finalize_session` 内部自动聚合摘要、推进状态、保证幂等
+3. finalize 失败时降级为 `iclude_retain` 保存基础 summary
 
 规范要求：
 
 - stop 阶段必须是幂等的
-- 即使 stop hook 丢失，也应允许 scheduler/repair job 补归档
+- 即使 stop hook 丢失，也应允许 RepairService 补归档
+- finalize 优先于 ingest_conversation 作为 stop 动作
 
 ### 9.5 Phase E: Repair / Recovery
 
@@ -421,6 +460,22 @@ LocalMem 对外暴露三类接入面：
 
 四个目标工具不要求用同一种接法。协议定义四类 profile。
 
+### 11.0 Reading Guide
+
+本章中的 profile 分为两种语义：
+
+1. **recommended profile**
+   表示按宿主能力边界，长期最适合采用的接法
+2. **current implementation status**
+   表示按当前仓库实现，已经落地到什么程度
+
+除非显式写明 `current implementation status`，否则本章默认描述的是：
+
+- **目标接法**
+- **推荐演进方向**
+
+而不是“当前已经实现的能力”。
+
 ### 11.1 Profile A: Native Hook + MCP
 
 适用：
@@ -492,9 +547,15 @@ LocalMem 对外暴露三类接入面：
 - `AGENTS.md` / developer instructions 注入
 - 可选 launcher/wrapper 补 session finalize
 
-当前建议 profile：
+recommended profile：
 
 - **Profile B**
+
+current implementation status：
+
+- 已有 `MCP + instruction injection`
+- 尚无完整 launcher / wrapper finalize 闭环
+- 因此当前更接近 **Profile B 的部分实现**
 
 执行规范：
 
@@ -517,17 +578,26 @@ LocalMem 对外暴露三类接入面：
 - SessionStart / PostToolUse / Stop hooks
 - CLI adapter
 
-当前建议 profile：
+recommended profile：
 
 - **Profile A**
+
+current implementation status：
+
+- 已有 `SessionStart / PostToolUse / Stop` hooks
+- 已有 CLI hook adapter
+- Stop hook 已切换到 `iclude_finalize_session`（失败降级为 retain）
+- SessionService + FinalizeService + RepairService 已落地
+- 幂等键 + 摘要生成 + 状态推进已接通
+- 当前已达到 **Profile A / L4 行为**
 
 执行规范：
 
 1. `SessionStart` -> `iclude_create_session` + `iclude_scan`
 2. `PostToolUse` -> `iclude_retain`
-3. `Stop` -> `iclude_ingest_conversation` 或 summary retain
+3. `Stop` -> `iclude_finalize_session`（幂等，失败降级 retain）
 
-这是当前最接近完整统一协议的宿主。
+这是当前唯一达到完整 L4 的宿主。
 
 ### 12.3 Cursor
 
@@ -537,9 +607,15 @@ LocalMem 对外暴露三类接入面：
 - 若存在扩展 API，则由 extension bridge 补 session lifecycle
 - 若无 hook，则加 workspace launcher
 
-当前建议 profile：
+recommended profile：
 
 - **Profile B** 或 **Profile D**
+
+current implementation status：
+
+- 当前文档中仅定义目标接法
+- 当前仓库尚无稳定 Cursor bridge / extension runtime 实现
+- 因此这里应视为 **规划状态**，不是当前能力声明
 
 执行规范：
 
@@ -561,9 +637,15 @@ LocalMem 对外暴露三类接入面：
 - wrapper / transcript bridge
 - 项目规则注入
 
-当前建议 profile：
+recommended profile：
 
 - **Profile C**
+
+current implementation status：
+
+- 当前仓库尚无 `iclude launch cline`
+- 当前也没有完整 wrapper runtime
+- 因此这里描述的是 **目标接法**，不是现状
 
 执行规范：
 
@@ -581,6 +663,8 @@ LocalMem 对外暴露三类接入面：
 
 ## 13. Capability Matrix
 
+下表描述的是**宿主能力判断与推荐接法**，不是当前仓库“已实现能力矩阵”。
+
 | Capability | Codex | Claude Code | Cursor | Cline |
 |-----------|-------|-------------|--------|-------|
 | MCP tools | yes | yes | yes | yes |
@@ -590,6 +674,13 @@ LocalMem 对外暴露三类接入面：
 | Native session stop hook | weak/unknown | strong | tool-dependent | weak |
 | Wrapper viability | high | medium | high | high |
 | Recommended profile | B | A | B/D | C |
+
+当前仓库已实现程度：
+
+- `Codex`: MCP + instruction injection 为主（Profile B 部分实现）
+- `Claude Code`: hooks + finalize + repair 已全链路落地（**Profile A / L4 已达成**）
+- `Cursor`: 仍以规划为主
+- `Cline`: 仍以规划为主
 
 ---
 
@@ -697,12 +788,12 @@ LocalMem 对外暴露三类接入面：
 - 有 repair path
 - 有统一归档
 
-建议目标：
+建议目标与当前状态：
 
-- Codex: 先做到 L2，再推进 L3
-- Claude Code: 直接做到 L4
-- Cursor: 先做到 L2/L3，再看扩展能力升到 L4
-- Cline: 通过 wrapper 争取做到 L3/L4
+- Codex: 先做到 L2，再推进 L3（当前：**L2**）
+- Claude Code: 直接做到 L4（当前：**L4 已达成** — hooks + finalize + repair 全链路）
+- Cursor: 先做到 L2/L3，再看扩展能力升到 L4（当前：规划中）
+- Cline: 通过 wrapper 争取做到 L3/L4（当前：规划中）
 
 ---
 
@@ -750,7 +841,7 @@ LocalMem 对外暴露三类接入面：
 1. Cursor 当前可用的正式 session / transcript 扩展接口边界是什么
 2. Codex 后续是否会提供正式 session-stop 或 tool hooks
 3. Cline 是否有稳定事件流可替代 transcript 解析
-4. 是否需要增加 `iclude_finalize_session` 作为比 `ingest_conversation` 更明确的协议动作
+4. ~~是否需要增加 `iclude_finalize_session`~~ → **已实现**：`iclude_finalize_session` 已作为核心协议动作落地，含幂等、摘要、repair 链路
 5. 是否需要发布独立的 `LocalMem Adapter SDK`
 
 ---
@@ -768,4 +859,3 @@ LocalMem 对外暴露三类接入面：
 - repair queue
 - idempotency key 规则
 - `finalize_session` 语义
-
