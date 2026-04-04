@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"iclude/internal/config"
-	"iclude/internal/hooks"
 	"iclude/internal/mcp/client"
 )
 
@@ -21,7 +20,7 @@ type sessionStopInput struct {
 	LastAssistantMessage string `json:"last_assistant_message"`
 }
 
-// runSessionStop Stop hook 生成会话摘要 / Generate session summary via Stop hook
+// runSessionStop Stop hook 调用 finalize_session 完成会话终结 / Call finalize_session to finalize the session
 func runSessionStop() error {
 	// 1. 读 stdin JSON / Read stdin JSON
 	input, err := io.ReadAll(os.Stdin)
@@ -45,7 +44,7 @@ func runSessionStop() error {
 	cfg := config.GetConfig()
 
 	// 4. 连接 MCP / Connect to MCP
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
 
 	mcpURL := cfg.Hooks.MCPURL
@@ -57,8 +56,28 @@ func runSessionStop() error {
 		// MCP 不可达时静默退出 / Silent exit when MCP unreachable
 		return nil
 	}
+	defer c.Close()
 
-	// 5. 生成会话摘要 / Generate session summary
+	// 5. 构建幂等键 / Build idempotency key
+	idemKey := fmt.Sprintf("finalize:claude-code:%s:v1", hookInput.SessionID)
+
+	// 6. 调用 finalize_session / Call finalize_session
+	err = c.CallTool(ctx, "iclude_finalize_session", map[string]any{
+		"session_id":      hookInput.SessionID,
+		"tool_name":       "claude-code",
+		"idempotency_key": idemKey,
+	})
+	if err != nil {
+		// finalize 失败时降级为 retain summary / Fallback to retain summary on finalize failure
+		fmt.Fprintf(os.Stderr, "iclude: finalize_session failed, falling back to retain: %v\n", err)
+		return fallbackRetainSummary(ctx, c, hookInput)
+	}
+
+	return nil
+}
+
+// fallbackRetainSummary finalize 失败时降级为旧的 retain 行为 / Fallback to legacy retain behavior when finalize fails
+func fallbackRetainSummary(ctx context.Context, c *client.Client, hookInput sessionStopInput) error {
 	sessionShort := hookInput.SessionID
 	if len(sessionShort) > 8 {
 		sessionShort = sessionShort[:8]
@@ -68,12 +87,7 @@ func runSessionStop() error {
 		time.Now().UTC().Format(time.RFC3339),
 		hookInput.CWD,
 	)
-	if hookInput.LastAssistantMessage != "" {
-		summary += "\nLast action: " + hooks.Truncate(hookInput.LastAssistantMessage, 300)
-	}
 
-	// 6. 存储会话摘要（Stop hook 必须静默失败）/ Store session summary (Stop hook must be silent)
-	defer c.Close()
 	if err := c.CallTool(ctx, "iclude_retain", map[string]any{
 		"content":      summary,
 		"kind":         "session_summary",

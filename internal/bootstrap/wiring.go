@@ -18,6 +18,7 @@ import (
 	"iclude/internal/model"
 	"iclude/internal/queue"
 	reflectpkg "iclude/internal/reflect"
+	"iclude/internal/runtime"
 	"iclude/internal/scheduler"
 	"iclude/internal/search"
 	"iclude/internal/store"
@@ -39,6 +40,8 @@ type Deps struct {
 	Summarizer     *memory.SessionSummarizer    // nil if LLM unavailable
 	LineageTracer  *memory.LineageTracer        // always non-nil when MemoryStore exists
 	ExperienceRecaller *search.ExperienceRecaller // nil if Retriever unavailable
+	SessionService  *runtime.SessionService     // nil if SessionStore unavailable
+	FinalizeService *runtime.FinalizeService    // nil if SessionStore/FinalizeStore unavailable
 	Scheduler      *scheduler.Scheduler
 	SchedCancel    context.CancelFunc
 	Queue          *queue.Queue // nil if queue disabled or SQLite unavailable
@@ -233,6 +236,21 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 
 	experienceRecaller := search.NewExperienceRecaller(ret)
 
+	// Runtime services / 运行时服务
+	var sessionService *runtime.SessionService
+	var finalizeService *runtime.FinalizeService
+	if stores.SessionStore != nil {
+		sessionService = runtime.NewSessionService(stores.SessionStore)
+	}
+	if stores.SessionStore != nil && stores.SessionFinalizeStore != nil && stores.IdempotencyStore != nil {
+		var sum runtime.Summarizer
+		if summarizer != nil {
+			sum = summarizer
+		}
+		finalizeService = runtime.NewFinalizeService(stores.SessionStore, stores.SessionFinalizeStore, stores.IdempotencyStore, sum)
+		logger.Info("runtime services initialized (session, finalize)")
+	}
+
 	// Async task queue — created outside scheduler block so Manager can use it
 	// 异步任务队列（在 scheduler 块之外创建，Manager 可直接引用）
 	var taskQueue *queue.Queue
@@ -297,6 +315,8 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		Summarizer:         summarizer,
 		LineageTracer:      lineageTracer,
 		ExperienceRecaller: experienceRecaller,
+		SessionService:     sessionService,
+		FinalizeService:    finalizeService,
 		Scheduler:          sched,
 		SchedCancel:    schedCancel,
 		Queue:          taskQueue,

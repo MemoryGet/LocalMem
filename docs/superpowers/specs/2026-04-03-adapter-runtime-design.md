@@ -108,6 +108,109 @@ launcher 负责：
 7. 启动 transcript collector / process watcher
 8. 宿主退出后执行 finalize 流程
 
+### 5.1.1 Current Status
+
+截至当前仓库状态，CLI 仍然只有 hook 入口：
+
+- `session-start`
+- `capture`
+- `session-stop`
+
+即：
+
+- 当前已有 **hook adapter**
+- 当前**没有完整 launcher runtime**
+
+因此在实现优先级上，launcher 应被视为：
+
+- **必须设计**
+- **延后完整实现**
+
+而不是“当前已经存在的能力”。
+
+### 5.1.2 Why Launcher Is Still Needed
+
+尽管当前未实现完整 launcher，但从多工具接入角度看，launcher 仍然是必要设计项。
+
+原因：
+
+1. 某些宿主没有可靠 hook
+2. 某些宿主无法稳定提供 stop/finalize 事件
+3. transcript 只能通过外层 wrapper 采集
+4. 对 `Cline` / 部分 `Cursor` / 未来弱宿主场景，launcher 是最稳的生命周期控制点
+
+### 5.1.3 Why Launcher Is Not the Immediate First Implementation
+
+当前更高优先级的是：
+
+- `SessionService`
+- `FinalizeService`
+- `RepairService`
+- `iclude_finalize_session`
+
+原因：
+
+- 如果 runtime 主链路尚未接通，先实现 launcher 只能得到一个“外层壳”，内部 finalize / repair / idempotency 仍不完整
+- launcher 应建立在 session/finalize 主链路稳定之后，否则只会放大后续返工成本
+
+因此当前推荐策略是：
+
+1. **现在先完成 launcher 设计**
+2. **现在先预留 launcher 接口**
+3. **等 runtime 主链路接通后再实现 launcher**
+
+### 5.1.4 Minimal Launcher Interface
+
+建议为后续 launcher 预留最小接口，而不是一开始就实现完整 feature set。
+
+建议最小接口：
+
+```go
+type Launcher interface {
+    Launch(ctx context.Context, req LaunchRequest) error
+}
+```
+
+建议最小请求结构：
+
+```go
+type LaunchRequest struct {
+    ToolName    string
+    ProjectDir  string
+    SessionID   string
+    Args        []string
+    Environment map[string]string
+}
+```
+
+### 5.1.5 Minimal Launcher Responsibilities
+
+首版 launcher 只应负责：
+
+1. 解析宿主 profile
+2. 解析 `project_id`
+3. 创建或绑定 `session_id`
+4. 调用 session bootstrap
+5. 启动宿主进程
+6. 监听进程退出
+7. 退出时触发 finalize
+
+首版 launcher 不应负责：
+
+1. 完整 transcript 语义解析
+2. 多 profile 深度适配
+3. UI 注入层定制
+4. 复杂插件桥接能力
+
+### 5.1.6 Recommended Delivery Strategy
+
+建议交付顺序：
+
+1. 文档中锁定 launcher 职责边界
+2. 在 runtime 包中预留 `launcher.go`
+3. 先不接入生产主流程
+4. 待 finalize / repair / idempotency 主链路稳定后，再实现 `iclude launch <tool>`
+
 ### 5.2 Session Registry
 
 作用：
@@ -662,7 +765,164 @@ Adapter Runtime 必须执行以下边界：
 
 ---
 
-## 18. Key Decisions
+## 18. Recommended Two-Week Execution Plan
+
+本节将 runtime 设计进一步压缩为一个适合当前仓库状态的两周实施顺序。
+
+当前前提：
+
+- 数据库 migration 已补到 `sessions / session_finalize_state / transcript_cursors / idempotency_keys`
+- store 接口与 SQLite 实现已存在
+- 但 runtime service、MCP finalize、CLI stop hook 仍未真正接通主流程
+
+因此接下来的目标不是继续扩 schema，而是把新结构接成真实运行时行为。
+
+### Week 1: 接通 Runtime 主链路
+
+#### 1. `SessionService`
+
+目标：
+
+- 封装 `SessionStore`
+- 提供 `create/get/update/touch`
+- 不让 CLI/MCP 直接拼接 store 逻辑
+
+建议产物：
+
+- `internal/runtime/session_service.go`
+
+#### 2. `FinalizeService`
+
+目标：
+
+- 封装 `SessionFinalizeStore + IdempotencyStore + TranscriptCursorStore`
+- 负责：
+  - ingest 状态推进
+  - finalize 状态推进
+  - summary memory 绑定
+  - finalize 幂等
+
+建议产物：
+
+- `internal/runtime/finalize_service.go`
+
+#### 3. 新增 `iclude_finalize_session`
+
+目标：
+
+- MCP 层暴露明确 finalize 动作
+- 不再只靠 `ingest_conversation` 语义承载“关闭会话”
+
+建议产物：
+
+- `internal/mcp/tools/finalize_session.go`
+- `cmd/mcp/main.go` 注册该 tool
+
+#### 4. 改造 `session-stop` hook
+
+目标：
+
+- 将 `cmd/cli/hook_session_stop.go` 从“retain 一条 summary”
+- 改为“调用 finalize_session”
+
+最低要求：
+
+- finalize 成功时推进 `session_finalize_state`
+- finalize 失败时保留后续 repair 入口
+
+#### 5. `bootstrap/wiring.go` 接入 runtime service
+
+目标：
+
+- 让新增 store 变成真正的业务依赖
+- 而不是只存在 `Stores` 结构里
+
+建议：
+
+- 在 `Deps` 中补 runtime 相关服务字段
+
+### Week 1 验收标准
+
+- `session-stop -> finalize` 跑通
+- MCP 层可显式调用 `iclude_finalize_session`
+- `SessionStore / SessionFinalizeStore / IdempotencyStore` 已被主流程使用
+
+### Week 2: Repair + 最小验证闭环
+
+#### 1. `RepairService`
+
+目标：
+
+- 查询 `pending_repair`
+- 读取 `transcript_cursors`
+- 补执行 ingest / finalize
+
+建议产物：
+
+- `internal/runtime/repair_service.go`
+
+#### 2. store 层测试
+
+优先补：
+
+- `session_store_test`
+- `idempotency_store_test`
+- `transcript_cursor_store_test`
+
+#### 3. finalize 测试
+
+优先补：
+
+- `finalize_service_test`
+- `finalize_session_tool_test`
+
+#### 4. CLI stop hook 测试
+
+目标：
+
+- 验证 stop hook 不再只是 retain summary
+- 验证 finalize 路径至少具备基本幂等
+
+#### 5. 第一批 compliance cases
+
+不要一开始铺满全部 profile，先做最小高价值用例：
+
+- bootstrap
+- finalize
+- idempotency
+- repair
+
+### Week 2 验收标准
+
+- finalize 有专门测试覆盖
+- repair 具备最小可运行实现
+- compliance 首批用例可验证 runtime 关键链路
+
+### 两周内明确不做
+
+为避免重构失控，这两周不建议做：
+
+- 完整 launcher 实现
+- Cursor/Cline 全 profile 适配
+- 大规模 compliance matrix
+- 新一轮数据库结构扩展
+- PostgreSQL / Qdrant 集群化相关工作
+
+### 两周后的预期结果
+
+完成这两周后，系统应从：
+
+- “数据库层已经准备好”
+
+进入到：
+
+- “runtime 主链路已接通，且可被测试验证”
+
+这是后续继续做 launcher、repair 扩展、profile 适配和正式 compliance matrix 的基础。
+
+---
+
+## 19. Key Decisions
 
 本设计锁定以下决策：
 
@@ -675,7 +935,7 @@ Adapter Runtime 必须执行以下边界：
 
 ---
 
-## 19. Open Questions
+## 20. Open Questions
 
 1. runtime 本地 registry 应使用 SQLite 还是复用现有主库
 2. transcript 快照是否需要压缩存储
@@ -685,7 +945,7 @@ Adapter Runtime 必须执行以下边界：
 
 ---
 
-## 20. Recommended Next Spec
+## 21. Recommended Next Spec
 
 下一份建议补：
 
@@ -697,4 +957,3 @@ Adapter Runtime 必须执行以下边界：
 - bootstrap/finalize 幂等测试
 - scope 隔离测试
 - repair 回放测试
-

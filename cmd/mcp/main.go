@@ -131,6 +131,9 @@ func main() {
 	if deps.ContextManager != nil {
 		reg.RegisterTool(tools.NewCreateSessionTool(deps.ContextManager))
 	}
+	if deps.FinalizeService != nil {
+		reg.RegisterTool(tools.NewFinalizeSessionTool(deps.FinalizeService))
+	}
 
 	// 注册资源 / Register resources
 	reg.RegisterResource(resources.NewRecentResource(deps.Retriever, 20))
