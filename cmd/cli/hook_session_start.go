@@ -10,6 +10,7 @@ import (
 
 	"iclude/internal/config"
 	"iclude/internal/mcp/client"
+	"iclude/pkg/identity"
 )
 
 // sessionStartInput Claude Code SessionStart hook stdin JSON
@@ -80,6 +81,7 @@ func runSessionStart() error {
 	createResult, err := c.CallToolSync(ctx, "iclude_create_session", map[string]any{
 		"session_id":  hookInput.SessionID,
 		"project_dir": hookInput.CWD,
+		"project_id":  identity.ResolveProjectID(hookInput.CWD),
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "iclude: create session failed: %v\n", err)
