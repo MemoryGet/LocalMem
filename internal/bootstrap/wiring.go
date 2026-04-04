@@ -42,6 +42,7 @@ type Deps struct {
 	ExperienceRecaller *search.ExperienceRecaller // nil if Retriever unavailable
 	SessionService  *runtime.SessionService     // nil if SessionStore unavailable
 	FinalizeService *runtime.FinalizeService    // nil if SessionStore/FinalizeStore unavailable
+	RepairService   *runtime.RepairService     // nil if FinalizeService unavailable
 	Scheduler      *scheduler.Scheduler
 	SchedCancel    context.CancelFunc
 	Queue          *queue.Queue // nil if queue disabled or SQLite unavailable
@@ -251,6 +252,11 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		logger.Info("runtime services initialized (session, finalize)")
 	}
 
+	var repairService *runtime.RepairService
+	if finalizeService != nil {
+		repairService = runtime.NewRepairService(stores.SessionStore, finalizeService, runtime.DefaultRepairConfig())
+	}
+
 	// Async task queue — created outside scheduler block so Manager can use it
 	// 异步任务队列（在 scheduler 块之外创建，Manager 可直接引用）
 	var taskQueue *queue.Queue
@@ -286,6 +292,9 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		if consolidator != nil {
 			sched.Register("consolidation", cfg.Scheduler.ConsolidationInterval, consolidator.Run)
 		}
+		if repairService != nil {
+			sched.Register("session-repair", 10*time.Minute, repairService.Run)
+		}
 		if cfg.Heartbeat.Enabled {
 			hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, llmProvider, cfg.Heartbeat)
 			sched.Register("heartbeat", cfg.Heartbeat.Interval, hbEngine.Run)
@@ -317,6 +326,7 @@ func Init(ctx context.Context, cfg config.Config) (*Deps, func(), error) {
 		ExperienceRecaller: experienceRecaller,
 		SessionService:     sessionService,
 		FinalizeService:    finalizeService,
+		RepairService:      repairService,
 		Scheduler:          sched,
 		SchedCancel:    schedCancel,
 		Queue:          taskQueue,
