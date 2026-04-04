@@ -94,7 +94,9 @@ func fallbackRetainSummary(ctx context.Context, c *client.Client, hookInput sess
 		"source_type":  "hook",
 		"message_role": "system",
 		"metadata": map[string]string{
-			"session_id": hookInput.SessionID,
+			"session_id":   hookInput.SessionID,
+			"host_tool":    "claude-code",
+			"capture_mode": "auto",
 		},
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "iclude: session stop retain failed: %v\n", err)

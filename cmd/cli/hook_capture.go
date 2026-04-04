@@ -51,9 +51,11 @@ func runCapture() error {
 
 	// 5. 构造 metadata / Build metadata
 	metadata := map[string]string{
-		"tool_name":   hookInput.ToolName,
-		"tool_use_id": hookInput.ToolUseID,
-		"session_id":  hookInput.SessionID,
+		"tool_name":    hookInput.ToolName,
+		"tool_use_id":  hookInput.ToolUseID,
+		"session_id":   hookInput.SessionID,
+		"host_tool":    "claude-code",
+		"capture_mode": "auto",
 	}
 	if inputTrunc := hooks.Truncate(string(hookInput.ToolInput), cfg.Hooks.MaxInputChars); len(inputTrunc) > 0 {
 		metadata["tool_input"] = inputTrunc
