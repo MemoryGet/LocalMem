@@ -30,6 +30,7 @@ type retainArgs struct {
 	ContextID   string            `json:"context_id,omitempty"`
 	SourceType  string            `json:"source_type,omitempty"`
 	MessageRole string            `json:"message_role,omitempty"`
+	MemoryClass string            `json:"memory_class,omitempty"`
 }
 
 // Definition 返回工具元数据定义 / Return tool metadata definition
@@ -63,6 +64,12 @@ func (t *RetainTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 	if args.Content == "" {
 		return mcp.ErrorResult("content is required"), nil
 	}
+	if err := ValidateWritePolicy(args.MemoryClass, args.SourceType); err != nil {
+		return mcp.ErrorResult(err.Error()), nil
+	}
+	if err := ValidateScope(args.Scope); err != nil {
+		return mcp.ErrorResult(err.Error()), nil
+	}
 
 	id := mcp.IdentityFromContext(ctx)
 	mem := &model.Memory{
@@ -72,6 +79,7 @@ func (t *RetainTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 		ContextID:   args.ContextID,
 		SourceType:  args.SourceType,
 		MessageRole: args.MessageRole,
+		MemoryClass: args.MemoryClass,
 	}
 	if id != nil {
 		mem.TeamID = id.TeamID

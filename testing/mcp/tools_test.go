@@ -146,7 +146,7 @@ func (m *mockMemoryCreator) Create(_ context.Context, mem *model.Memory) (*model
 func TestRetainTool_Execute_success(t *testing.T) {
 	creator := &mockMemoryCreator{}
 	tool := tools.NewRetainTool(creator)
-	args, _ := json.Marshal(map[string]any{"content": "The answer is 42", "scope": "test"})
+	args, _ := json.Marshal(map[string]any{"content": "The answer is 42", "scope": "project/test"})
 	result, err := tool.Execute(context.Background(), args)
 	require.NoError(t, err)
 	assert.False(t, result.IsError)

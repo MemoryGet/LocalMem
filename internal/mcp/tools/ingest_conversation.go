@@ -70,6 +70,9 @@ func (t *IngestConversationTool) Execute(ctx context.Context, arguments json.Raw
 	if len(args.Messages) == 0 {
 		return mcp.ErrorResult("messages is required and must not be empty"), nil
 	}
+	if err := ValidateScope(args.Scope); err != nil {
+		return mcp.ErrorResult(err.Error()), nil
+	}
 
 	req := &model.IngestConversationRequest{
 		Messages:   args.Messages,
