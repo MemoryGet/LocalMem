@@ -238,7 +238,7 @@ func setupRouter(rerankMode string, retrievalCfg config.RetrievalConfig, overrid
 		return nil, nil, fmt.Errorf("rerank mode remote requires retrieval.rerank.base_url or --rerank-base-url")
 	}
 
-	memMgr := memory.NewManager(memStore, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
+	memMgr := memory.NewManager(memory.ManagerDeps{MemStore: memStore})
 	ret := search.NewRetriever(memStore, nil, nil, nil, nil, cfg, nil, nil)
 	router := api.SetupRouter(&api.RouterDeps{
 		MemManager:         memMgr,

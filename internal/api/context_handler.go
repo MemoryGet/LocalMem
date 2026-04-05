@@ -40,12 +40,15 @@ func (h *ContextHandler) Create(c *gin.Context, identity *model.Identity) {
 // Get 获取上下文 / Get context
 // GET /v1/contexts/:id
 func (h *ContextHandler) Get(c *gin.Context, identity *model.Identity) {
-	_ = identity // 身份已验证 / Identity verified
-
 	id := c.Param("id")
 	ctx, err := h.manager.Get(c.Request.Context(), id)
 	if err != nil {
 		Error(c, err)
+		return
+	}
+	// 授权检查：验证上下文归属 / Authorization: verify context ownership
+	if ctx.Scope != "" && ctx.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
 		return
 	}
 	Success(c, ctx)
@@ -104,9 +107,17 @@ func (h *ContextHandler) Delete(c *gin.Context, identity *model.Identity) {
 // ListChildren 列出子上下文 / List child contexts
 // GET /v1/contexts/:id/children
 func (h *ContextHandler) ListChildren(c *gin.Context, identity *model.Identity) {
-	_ = identity // 身份已验证，读操作无需 scope 过滤 / Identity verified; read ops need no scope filter
-
 	id := c.Param("id")
+	// 授权检查：验证父上下文归属 / Authorization: verify parent context ownership
+	parent, err := h.manager.Get(c.Request.Context(), id)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if parent.Scope != "" && parent.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 	children, err := h.manager.ListChildren(c.Request.Context(), id)
 	if err != nil {
 		Error(c, err)
@@ -118,9 +129,17 @@ func (h *ContextHandler) ListChildren(c *gin.Context, identity *model.Identity) 
 // ListSubtree 列出子树 / List subtree
 // GET /v1/contexts/:id/tree
 func (h *ContextHandler) ListSubtree(c *gin.Context, identity *model.Identity) {
-	_ = identity // 身份已验证 / Identity verified
-
 	id := c.Param("id")
+	// 授权检查：验证根上下文归属 / Authorization: verify root context ownership
+	root, err := h.manager.Get(c.Request.Context(), id)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if root.Scope != "" && root.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 	tree, err := h.manager.ListSubtree(c.Request.Context(), id)
 	if err != nil {
 		Error(c, err)
@@ -159,8 +178,17 @@ func (h *ContextHandler) Move(c *gin.Context, identity *model.Identity) {
 // ListMemories 列出上下文中的记忆 / List memories in context
 // GET /v1/contexts/:id/memories
 func (h *ContextHandler) ListMemories(c *gin.Context, identity *model.Identity) {
-	_ = identity // 身份已验证 / Identity verified
-
+	id := c.Param("id")
+	// 授权检查：验证上下文归属 / Authorization: verify context ownership
+	ctx, err := h.manager.Get(c.Request.Context(), id)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	if ctx.Scope != "" && ctx.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 	// 由 memory handler 的 List 配合 context_id 过滤处理
 	// Handled by memory handler's List with context_id filter
 	Success(c, nil)

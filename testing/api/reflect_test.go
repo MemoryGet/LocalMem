@@ -48,7 +48,7 @@ func setupReflectRouter(t *testing.T, llmProvider llm.Provider) (http.Handler, *
 	err = s.Init(context.Background())
 	require.NoError(t, err)
 
-	mgr := memory.NewManager(s, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
+	mgr := memory.NewManager(memory.ManagerDeps{MemStore: s})
 	ret := search.NewRetriever(s, nil, nil, nil, nil, config.RetrievalConfig{}, nil, nil)
 
 	reflectCfg := config.ReflectConfig{

@@ -29,6 +29,14 @@ func (h *SearchHandler) Retrieve(c *gin.Context, identity *model.Identity) {
 		return
 	}
 
+	// Limit 上界防护 / Cap limit at handler level
+	if req.Limit <= 0 {
+		req.Limit = 20
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
 	// 强制覆盖身份字段 / Force override identity from middleware
 	req.TeamID = identity.TeamID
 	if req.Filters == nil {

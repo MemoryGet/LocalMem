@@ -8,6 +8,10 @@ import (
 	"iclude/internal/model"
 )
 
+// minEffectiveStrength 最低有效强度下限，确保高相关性的老记忆仍有机会被检索到
+// Minimum effective strength floor to ensure highly relevant old memories remain discoverable
+const minEffectiveStrength = 0.05
+
 // CalculateEffectiveStrength 计算有效记忆强度（含访问频率加成）/ Calculate effective memory strength with decay and access boost
 // accessAlpha 为访问频率阻尼系数，推荐值 0.15
 func CalculateEffectiveStrength(strength, decayRate float64, lastAccessedAt *time.Time, retentionTier string, accessCount int, accessAlpha float64) float64 {
@@ -37,10 +41,17 @@ func ApplyStrengthWeighting(results []*model.SearchResult, accessAlpha float64) 
 	var filtered []*model.SearchResult
 
 	for _, r := range results {
+		if r == nil || r.Memory == nil {
+			continue
+		}
 		if r.Memory.ExpiresAt != nil && r.Memory.ExpiresAt.Before(now) {
 			continue
 		}
 		effective := CalculateEffectiveStrength(r.Memory.Strength, r.Memory.DecayRate, r.Memory.LastAccessedAt, r.Memory.RetentionTier, r.Memory.AccessCount, accessAlpha)
+		// 强度下限：确保高相关性的老记忆仍有机会被检索到 / Floor: ensure highly relevant old memories remain discoverable
+		if effective < minEffectiveStrength {
+			effective = minEffectiveStrength
+		}
 		r.Score *= effective
 		filtered = append(filtered, r)
 	}

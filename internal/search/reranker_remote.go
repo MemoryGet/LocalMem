@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -221,7 +222,7 @@ func (r *RemoteReranker) request(ctx context.Context, query string, docs []strin
 	}
 
 	sort.SliceStable(ranked, func(i, j int) bool {
-		if ranked[i].score != ranked[j].score {
+		if math.Abs(ranked[i].score-ranked[j].score) > rerankerEpsilon {
 			return ranked[i].score > ranked[j].score
 		}
 		return ranked[i].index < ranked[j].index
@@ -235,8 +236,10 @@ func (r *RemoteReranker) request(ctx context.Context, query string, docs []strin
 		}
 		seen[item.index] = true
 		baseNorm := item.res.Score / maxBaseScore
-		item.res.Score = (1-weight)*baseNorm + weight*item.score
-		out = append(out, item.res)
+		// 创建副本避免修改传入的 results / Create copy to avoid mutating input results
+		resCopy := *item.res
+		resCopy.Score = (1-weight)*baseNorm + weight*item.score
+		out = append(out, &resCopy)
 	}
 	for idx, res := range subset {
 		if !seen[idx] {

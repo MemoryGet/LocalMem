@@ -73,9 +73,10 @@ func (s *SQLiteSessionStore) Get(ctx context.Context, id string) (*model.Session
 
 // UpdateState 更新会话状态 / Update session state
 func (s *SQLiteSessionStore) UpdateState(ctx context.Context, id, state string) error {
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 	result, err := s.db.ExecContext(ctx, `
-		UPDATE sessions SET state = ?, last_seen_at = datetime('now')
-		WHERE id = ?`, state, id)
+		UPDATE sessions SET state = ?, last_seen_at = ?
+		WHERE id = ?`, state, now, id)
 	if err != nil {
 		return fmt.Errorf("update session state: %w", err)
 	}
@@ -146,4 +147,54 @@ func (s *SQLiteSessionStore) ListPendingFinalize(ctx context.Context, olderThan 
 		result = append(result, sess)
 	}
 	return result, rows.Err()
+}
+
+// UpdateMetadata 合并更新会话元数据（事务内 read-modify-write，防止 TOCTOU 竞争）
+// Merge-update session metadata within a transaction to prevent TOCTOU races
+func (s *SQLiteSessionStore) UpdateMetadata(ctx context.Context, id string, patch map[string]any) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("update metadata: begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. 事务内读现有 metadata / Read existing metadata within transaction
+	var raw sql.NullString
+	if err := tx.QueryRowContext(ctx, `SELECT metadata FROM sessions WHERE id = ?`, id).Scan(&raw); err != nil {
+		if err == sql.ErrNoRows {
+			return model.ErrSessionNotFound
+		}
+		return fmt.Errorf("update metadata: read: %w", err)
+	}
+
+	merged := make(map[string]any)
+	if raw.Valid && raw.String != "" {
+		_ = json.Unmarshal([]byte(raw.String), &merged)
+	}
+
+	// 2. 合并 patch / Merge patch
+	for k, v := range patch {
+		if v == nil {
+			delete(merged, k)
+		} else {
+			merged[k] = v
+		}
+	}
+
+	// 3. 事务内写回 / Write back within transaction
+	out, err := json.Marshal(merged)
+	if err != nil {
+		return fmt.Errorf("update metadata: marshal: %w", err)
+	}
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+	result, err := tx.ExecContext(ctx, `UPDATE sessions SET metadata = ?, last_seen_at = ? WHERE id = ?`, string(out), now, id)
+	if err != nil {
+		return fmt.Errorf("update metadata: write: %w", err)
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return model.ErrSessionNotFound
+	}
+
+	return tx.Commit()
 }

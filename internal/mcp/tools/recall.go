@@ -54,7 +54,7 @@ func (t *RecallTool) Definition() mcp.ToolDefinition {
 func (t *RecallTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp.ToolResult, error) {
 	var args recallArgs
 	if err := json.Unmarshal(arguments, &args); err != nil {
-		return mcp.ErrorResult("invalid arguments: " + err.Error()), nil
+		return toolInputError("invalid arguments")
 	}
 	if args.Query == "" {
 		return mcp.ErrorResult("query is required"), nil
@@ -94,7 +94,7 @@ func (t *RecallTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 
 	results, err := t.retriever.Retrieve(ctx, req)
 	if err != nil {
-		return mcp.ErrorResult("retrieval failed: " + err.Error()), nil
+		return toolError("recall", err)
 	}
 
 	out, _ := json.Marshal(results)

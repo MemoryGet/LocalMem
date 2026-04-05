@@ -41,8 +41,9 @@ type CreateMemoryRequest struct {
 	Visibility string `json:"visibility,omitempty"` // private(default) / team / public
 
 	// V12: Memory evolution layer / 记忆演化层级
-	MemoryClass string   `json:"memory_class,omitempty"` // episodic(default) / semantic / procedural
-	DerivedFrom []string `json:"derived_from,omitempty"` // 来源记忆 ID / Source memory IDs
+	MemoryClass  string   `json:"memory_class,omitempty"`  // episodic(default) / semantic / procedural
+	CandidateFor string   `json:"candidate_for,omitempty"` // semantic_candidate / procedural_candidate / core_candidate
+	DerivedFrom  []string `json:"derived_from,omitempty"`  // 来源记忆 ID / Source memory IDs
 }
 
 // UpdateMemoryRequest 更新记忆请求 / Update memory request DTO
@@ -96,6 +97,9 @@ type RetrieveRequest struct {
 
 	// V12: Memory class filter / 记忆层级过滤
 	MemoryClass string `json:"memory_class,omitempty"` // 过滤指定层级 / Filter by memory class
+
+	// V23: Core memory injection / 核心记忆注入
+	IncludeCore *bool `json:"include_core,omitempty"` // 默认 true，自动注入 core memory / Default true, auto-inject core memories
 }
 
 // ListRequest 分页列表请求 / Paginated list request DTO

@@ -54,7 +54,7 @@ func (t *FinalizeSessionTool) Definition() mcp.ToolDefinition {
 func (t *FinalizeSessionTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp.ToolResult, error) {
 	var args finalizeSessionArgs
 	if err := json.Unmarshal(arguments, &args); err != nil {
-		return mcp.ErrorResult("invalid arguments: " + err.Error()), nil
+		return toolInputError("invalid arguments")
 	}
 	if args.SessionID == "" {
 		return mcp.ErrorResult("session_id is required"), nil
@@ -75,7 +75,7 @@ func (t *FinalizeSessionTool) Execute(ctx context.Context, arguments json.RawMes
 
 	resp, err := t.finalizer.Finalize(ctx, req, identity)
 	if err != nil {
-		return mcp.ErrorResult("finalize failed: " + err.Error()), nil
+		return toolError("finalize_session", err)
 	}
 
 	out, _ := json.Marshal(resp)

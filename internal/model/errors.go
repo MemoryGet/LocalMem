@@ -98,4 +98,13 @@ var (
 
 	// ErrIdempotencyNotFound 幂等记录不存在 / Idempotency record not found
 	ErrIdempotencyNotFound = errors.New("idempotency record not found")
+
+	// ErrUnsupportedTool 不支持的宿主工具 / Unsupported host tool
+	ErrUnsupportedTool = errors.New("unsupported host tool")
+
+	// ErrToolNotFound 宿主工具未安装 / Host tool not found in PATH
+	ErrToolNotFound = errors.New("host tool not found in PATH")
+
+	// ErrScopePolicyNotFound scope 策略不存在 / Scope policy not found
+	ErrScopePolicyNotFound = errors.New("scope policy not found")
 )

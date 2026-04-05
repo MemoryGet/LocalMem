@@ -11,6 +11,7 @@ import (
 	"iclude/internal/config"
 	"iclude/internal/hooks"
 	"iclude/internal/mcp/client"
+	"iclude/pkg/identity"
 )
 
 // captureInput Claude Code PostToolUse hook stdin JSON
@@ -54,8 +55,8 @@ func runCapture() error {
 		"tool_name":    hookInput.ToolName,
 		"tool_use_id":  hookInput.ToolUseID,
 		"session_id":   hookInput.SessionID,
-		"host_tool":    "claude-code",
-		"capture_mode": "auto",
+		"host_tool":    cfg.Hooks.ResolvedHostTool(),
+		"capture_mode": cfg.Hooks.ResolvedCaptureMode(),
 	}
 	if inputTrunc := hooks.Truncate(string(hookInput.ToolInput), cfg.Hooks.MaxInputChars); len(inputTrunc) > 0 {
 		metadata["tool_input"] = inputTrunc
@@ -78,15 +79,26 @@ func runCapture() error {
 		return nil
 	}
 
+	// 自动推导 scope / Auto-derive scope from CWD
+	projectID := identity.ResolveProjectID(hookInput.CWD)
+	scope := ""
+	if projectID != "" {
+		scope = "project/" + projectID
+	}
+
 	// PostToolUse 钩子必须静默失败，非零退出码会影响 Claude Code
 	// PostToolUse hooks must be silent — non-zero exit disrupts Claude Code.
-	if err := c.CallTool(ctx, "iclude_retain", map[string]any{
+	retainArgs := map[string]any{
 		"content":      content,
 		"kind":         "observation",
 		"source_type":  "hook",
 		"message_role": "tool",
 		"metadata":     metadata,
-	}); err != nil {
+	}
+	if scope != "" {
+		retainArgs["scope"] = scope
+	}
+	if err := c.CallTool(ctx, "iclude_retain", retainArgs); err != nil {
 		fmt.Fprintf(os.Stderr, "iclude: capture retain failed: %v\n", err)
 	}
 	return nil

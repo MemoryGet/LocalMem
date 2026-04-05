@@ -26,7 +26,7 @@ func setupManager(t *testing.T) (*memory.Manager, func()) {
 	err = s.Init(context.Background())
 	require.NoError(t, err)
 
-	mgr := memory.NewManager(s, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
+	mgr := memory.NewManager(memory.ManagerDeps{MemStore: s})
 	return mgr, func() {
 		s.Close()
 		os.RemoveAll(dir)

@@ -50,6 +50,12 @@ type MemoryReader interface {
 
 	// ListConsolidatedInto 查询被归纳到指定记忆的原始记忆 / List memories consolidated into a given memory ID
 	ListConsolidatedInto(ctx context.Context, id string, identity *model.Identity) ([]*model.Memory, error)
+
+	// ListCoreByScope 列出指定 scope 下的 core memory（memory_class=core）/ List core memories by scope
+	ListCoreByScope(ctx context.Context, scope string, identity *model.Identity, limit int) ([]*model.Memory, error)
+
+	// ListCandidates 列出待晋升的候选记忆（candidate_for 非空）/ List memories with non-empty candidate_for
+	ListCandidates(ctx context.Context, limit int) ([]*model.Memory, error)
 }
 
 // MemoryWriter 记忆写入接口 / Memory write operations
@@ -335,6 +341,9 @@ type SessionStore interface {
 
 	// ListPendingFinalize 列出待终结会话 / List sessions pending finalize
 	ListPendingFinalize(ctx context.Context, olderThan time.Duration, limit int) ([]*model.Session, error)
+
+	// UpdateMetadata 合并更新会话元数据 / Merge-update session metadata
+	UpdateMetadata(ctx context.Context, id string, patch map[string]any) error
 }
 
 // SessionFinalizeStore 会话终态存储接口 / Session finalize state storage interface
@@ -383,6 +392,15 @@ type IdempotencyStore interface {
 
 	// PurgeExpired 清理过期幂等键 / Purge expired idempotency keys
 	PurgeExpired(ctx context.Context, olderThan time.Duration) (int, error)
+}
+
+// ScopePolicyStore scope 权限策略存储接口 / Scope policy storage interface
+type ScopePolicyStore interface {
+	Create(ctx context.Context, p *model.ScopePolicy) error
+	GetByScope(ctx context.Context, scope string) (*model.ScopePolicy, error)
+	List(ctx context.Context, teamID string) ([]*model.ScopePolicy, error)
+	Update(ctx context.Context, p *model.ScopePolicy) error
+	Delete(ctx context.Context, scope string) error
 }
 
 // Stores 聚合所有存储后端 / Aggregate all storage backends

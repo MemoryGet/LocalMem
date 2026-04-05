@@ -377,7 +377,7 @@ Respond ONLY with valid JSON, no markdown.`,
 	}
 
 	// HyDE: 生成假设性回答文档 / Generate Hypothetical Document Embedding
-	hydeCtx, hydeCancel := context.WithTimeout(context.Background(), timeout)
+	hydeCtx, hydeCancel := context.WithTimeout(ctx, timeout)
 	defer hydeCancel()
 
 	hydeResp, hydeErr := p.llm.Chat(hydeCtx, &llm.ChatRequest{

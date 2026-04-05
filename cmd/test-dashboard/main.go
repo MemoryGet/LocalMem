@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,9 @@ import (
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
 )
+
+// validSuite suite 名称白名单正则 / Whitelist regex for suite name
+var validSuite = regexp.MustCompile(`^[a-zA-Z0-9_\-]+$`)
 
 // Hub 管理 WebSocket 客户端和测试运行状态 / Manages WebSocket clients and test run state
 type Hub struct {
@@ -122,6 +126,13 @@ func (h *Hub) runTests(ctx context.Context, suite string) {
 	h.cancel = cancel
 	h.mu.Unlock()
 	defer cancel()
+
+	// 校验 suite 名称，防止命令注入 / Validate suite name to prevent command injection
+	if suite != "" && !validSuite.MatchString(suite) {
+		msg, _ := json.Marshal(map[string]any{"type": "error", "msg": "invalid suite name: must be alphanumeric, underscore or hyphen"})
+		h.broadcast(msg)
+		return
+	}
 
 	// 构造 go test 命令
 	pkg := "./testing/..."
@@ -341,6 +352,6 @@ func main() {
 		}
 	})
 
-	log.Printf("Test Dashboard server running on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Printf("Test Dashboard server running on 127.0.0.1:%s", port)
+	log.Fatal(http.ListenAndServe("127.0.0.1:"+port, nil))
 }

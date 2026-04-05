@@ -54,7 +54,7 @@ func (t *TimelineTool) Definition() mcp.ToolDefinition {
 func (t *TimelineTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp.ToolResult, error) {
 	var args timelineArgs
 	if err := json.Unmarshal(arguments, &args); err != nil {
-		return mcp.ErrorResult("invalid arguments: " + err.Error()), nil
+		return toolInputError("invalid arguments")
 	}
 
 	limit := args.Limit
@@ -78,21 +78,21 @@ func (t *TimelineTool) Execute(ctx context.Context, arguments json.RawMessage) (
 	if args.After != "" {
 		ts, err := time.Parse(time.RFC3339, args.After)
 		if err != nil {
-			return mcp.ErrorResult("invalid after timestamp: " + err.Error()), nil
+			return toolInputError("invalid after timestamp")
 		}
 		req.After = &ts
 	}
 	if args.Before != "" {
 		ts, err := time.Parse(time.RFC3339, args.Before)
 		if err != nil {
-			return mcp.ErrorResult("invalid before timestamp: " + err.Error()), nil
+			return toolInputError("invalid before timestamp")
 		}
 		req.Before = &ts
 	}
 
 	results, err := t.querier.Timeline(ctx, req)
 	if err != nil {
-		return mcp.ErrorResult("timeline query failed: " + err.Error()), nil
+		return toolError("timeline", err)
 	}
 
 	out, _ := json.Marshal(results)

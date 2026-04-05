@@ -11,7 +11,8 @@ type LaunchRequest struct {
 	Environment map[string]string // 额外环境变量 / Extra environment variables
 }
 
-// Launcher 宿主工具启动器接口（预留，暂不实现）/ Host tool launcher interface (reserved, not yet implemented)
+// Launcher 宿主工具启动器接口 / Host tool launcher interface
+// 实现：ExecLauncher（exec_launcher.go）/ Implementation: ExecLauncher (exec_launcher.go)
 type Launcher interface {
 	Launch(ctx context.Context, req LaunchRequest) error
 }

@@ -127,7 +127,7 @@ func (p *Processor) ProcessAsync(docID string) {
 				)
 				ctx := context.Background()
 				_ = p.docStore.UpdateStatus(ctx, docID, "failed")
-				_ = p.docStore.UpdateErrorMsg(ctx, docID, fmt.Sprintf("panic: %v", r))
+				_ = p.docStore.UpdateErrorMsg(ctx, docID, "internal processing error")
 			}
 		}()
 
@@ -143,7 +143,7 @@ func (p *Processor) ProcessAsync(docID string) {
 				zap.Error(err),
 			)
 			_ = p.docStore.UpdateStatus(ctx, docID, "failed")
-			_ = p.docStore.UpdateErrorMsg(ctx, docID, err.Error())
+			_ = p.docStore.UpdateErrorMsg(ctx, docID, "document processing failed")
 		}
 	}()
 }

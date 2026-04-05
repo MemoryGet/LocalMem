@@ -147,6 +147,12 @@ func (s *SQLiteMemoryStore) GetByContentHash(ctx context.Context, contentHash st
 }
 
 // ListTimeline 时间线查询 / List memories by timeline
+// 注意: ORDER BY COALESCE(happened_at, created_at) 无法利用索引，因为是表达式排序。
+// 在当前数据量（<100k 行）和 limit ≤200 下可接受。如果数据量增长到百万级，
+// 考虑拆分为两步查询（happened_at IS NOT NULL / IS NULL 各自利用索引）或添加 generated column。
+// Note: ORDER BY COALESCE(happened_at, created_at) cannot use an index (expression sort).
+// Acceptable at current scale (<100k rows, limit ≤200). If data grows to millions,
+// consider splitting into two queries or adding a generated column.
 func (s *SQLiteMemoryStore) ListTimeline(ctx context.Context, req *model.TimelineRequest) ([]*model.Memory, error) {
 	limit := req.Limit
 	if limit <= 0 {
@@ -283,6 +289,55 @@ func (s *SQLiteMemoryStore) ListConsolidatedInto(ctx context.Context, id string,
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list consolidated-into memories: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanMemories(rows)
+}
+
+// ListCandidates 列出待晋升的候选记忆 / List memories with non-empty candidate_for
+func (s *SQLiteMemoryStore) ListCandidates(ctx context.Context, limit int) ([]*model.Memory, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	query := `SELECT ` + memoryColumns + ` FROM memories
+		WHERE candidate_for != '' AND candidate_for IS NOT NULL AND deleted_at IS NULL
+		ORDER BY reinforced_count DESC, created_at ASC
+		LIMIT ?`
+
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list candidates: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanMemories(rows)
+}
+
+// ListCoreByScope 列出指定 scope 下的 core memory / List core memories by scope
+func (s *SQLiteMemoryStore) ListCoreByScope(ctx context.Context, scope string, identity *model.Identity, limit int) ([]*model.Memory, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 20 {
+		limit = 20
+	}
+
+	visCond, visArgs := visibilityCondition("", identity)
+	query := `SELECT ` + memoryColumns + ` FROM memories
+		WHERE memory_class = 'core' AND scope = ? AND deleted_at IS NULL AND ` + visCond + `
+		ORDER BY reinforced_count DESC, created_at DESC
+		LIMIT ?`
+
+	args := append([]interface{}{scope}, visArgs...)
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list core by scope: %w", err)
 	}
 	defer rows.Close()
 

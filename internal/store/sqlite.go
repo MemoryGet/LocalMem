@@ -20,14 +20,14 @@ import (
 // 编译期接口检查 / Compile-time interface compliance check
 var _ MemoryStore = (*SQLiteMemoryStore)(nil)
 
-// 全量列名（35列）/ Full column list (35 columns)
+// 全量列名（36列）/ Full column list (36 columns)
 // derived_from 已迁移至 memory_derivations junction 表（V16）/ derived_from moved to junction table in V16
 const memoryColumns = `id, content, metadata, team_id, parent_id, is_latest, access_count, created_at, updated_at,
 	uri, context_id, kind, sub_kind, scope, excerpt, summary,
 	happened_at, source_type, source_ref, document_id, chunk_index,
 	deleted_at, strength, decay_rate, last_accessed_at, reinforced_count, expires_at,
 	retention_tier, message_role, turn_number, content_hash, consolidated_into, owner_id, visibility,
-	memory_class`
+	memory_class, candidate_for`
 
 // 带 m. 前缀的全量列名，用于 JOIN 查询 / Full aliased column list for JOIN queries
 const memoryColumnsAliased = `m.id, m.content, m.metadata, m.team_id, m.parent_id, m.is_latest, m.access_count, m.created_at, m.updated_at,
@@ -35,7 +35,7 @@ const memoryColumnsAliased = `m.id, m.content, m.metadata, m.team_id, m.parent_i
 	m.happened_at, m.source_type, m.source_ref, m.document_id, m.chunk_index,
 	m.deleted_at, m.strength, m.decay_rate, m.last_accessed_at, m.reinforced_count, m.expires_at,
 	m.retention_tier, m.message_role, m.turn_number, m.content_hash, m.consolidated_into, m.owner_id, m.visibility,
-	m.memory_class`
+	m.memory_class, m.candidate_for`
 
 // SQLiteMemoryStore 基于 SQLite 的结构化存储 / SQLite-backed structured memory store
 type SQLiteMemoryStore struct {
@@ -47,26 +47,27 @@ type SQLiteMemoryStore struct {
 // NewSQLiteMemoryStore 创建 SQLite 存储实例 / Create a new SQLite memory store
 // tok 可为 nil，此时使用 NoopTokenizer（不分词）
 func NewSQLiteMemoryStore(dbPath string, bm25Weights [3]float64, tok tokenizer.Tokenizer) (*SQLiteMemoryStore, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	// PRAGMAs are set via DSN _pragma parameters so every connection in the pool
+	// inherits them automatically. db.Exec PRAGMAs only apply to the current
+	// connection — new pool connections would miss critical settings like
+	// foreign_keys=ON, which breaks FK CASCADE behavior.
+	dsn := dbPath +
+		"?_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(1)" +
+		"&_pragma=busy_timeout(5000)" +
+		"&_pragma=synchronous(NORMAL)" +
+		"&_pragma=cache_size(-32000)" +
+		"&_pragma=temp_store(MEMORY)"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite database: %w", err)
 	}
 
-	// 性能优化 PRAGMAs
-	pragmas := []string{
-		"PRAGMA journal_mode=WAL",
-		"PRAGMA foreign_keys=ON",
-		"PRAGMA busy_timeout=5000",
-		"PRAGMA mmap_size=268435456",
-		"PRAGMA synchronous = NORMAL",
-		"PRAGMA cache_size = -32000",
-		"PRAGMA temp_store = MEMORY",
-	}
-	for _, pragma := range pragmas {
-		if _, err := db.Exec(pragma); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to set pragma %q: %w", pragma, err)
-		}
+	// mmap_size is a global setting that persists per database file, so it only
+	// needs to be set once rather than per-connection via DSN.
+	if _, err := db.Exec("PRAGMA mmap_size=268435456"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to set pragma mmap_size: %w", err)
 	}
 
 	// 连接池配置 / Connection pool configuration
@@ -302,10 +303,11 @@ type memScanDest struct {
 	ownerID          sql.NullString
 	visibility       sql.NullString
 	memoryClass      sql.NullString
+	candidateFor     sql.NullString
 }
 
-// scanFields 返回扫描目标字段列表（与 memoryColumns 顺序一致，35 列）
-// Returns scan destination fields matching memoryColumns order (35 columns)
+// scanFields 返回扫描目标字段列表（与 memoryColumns 顺序一致，36 列）
+// Returns scan destination fields matching memoryColumns order (36 columns)
 // DerivedFrom 通过 memory_derivations junction 表单独加载（V16）
 func (d *memScanDest) scanFields() []any {
 	return []any{
@@ -317,7 +319,7 @@ func (d *memScanDest) scanFields() []any {
 		&d.deletedAt, &d.strength, &d.decayRate, &d.lastAccessedAt, &d.reinforcedCount, &d.expiresAt,
 		&d.retentionTier, &d.messageRole, &d.turnNumber, &d.contentHash, &d.consolidatedInto,
 		&d.ownerID, &d.visibility,
-		&d.memoryClass,
+		&d.memoryClass, &d.candidateFor,
 	}
 }
 
@@ -345,6 +347,9 @@ func (d *memScanDest) toMemory() (*model.Memory, error) {
 	}
 	if d.memoryClass.Valid && d.memoryClass.String != "" {
 		d.mem.MemoryClass = d.memoryClass.String
+	}
+	if d.candidateFor.Valid && d.candidateFor.String != "" {
+		d.mem.CandidateFor = d.candidateFor.String
 	}
 	// DerivedFrom 通过 memory_derivations junction 表单独加载（V16）/ Loaded separately from junction table
 	return &d.mem, nil
@@ -469,25 +474,6 @@ func (s *SQLiteMemoryStore) syncFTS5Tx(ctx context.Context, tx *sql.Tx, mem *mod
 
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO memories_fts(rowid, content, excerpt, summary) VALUES (?, ?, ?, ?)`,
-		rowid, content, excerpt, summary,
-	)
-	return err
-}
-
-// deleteFTS5ByRowID 通过 rowid 删除 FTS5 条目
-func (s *SQLiteMemoryStore) deleteFTS5ByRowID(ctx context.Context, rowid int64) error {
-	// 先获取旧内容
-	var content, excerpt, summary string
-	err := s.db.QueryRowContext(ctx, `SELECT content, COALESCE(excerpt, ''), COALESCE(summary, '') FROM memories WHERE rowid = ?`, rowid).Scan(&content, &excerpt, &summary)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil
-		}
-		return fmt.Errorf("failed to get old content for FTS5 delete: %w", err)
-	}
-
-	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO memories_fts(memories_fts, rowid, content, excerpt, summary) VALUES('delete', ?, ?, ?, ?)`,
 		rowid, content, excerpt, summary,
 	)
 	return err

@@ -107,6 +107,10 @@ type Memory struct {
 	// V12: 记忆演化层级 / Memory evolution layer
 	MemoryClass string `json:"memory_class,omitempty"` // episodic(default) / semantic / procedural
 
+	// V23: 晋升候选标记 / Promotion candidate marker
+	// Values: "" (普通记忆) / semantic_candidate / procedural_candidate / core_candidate
+	CandidateFor string `json:"candidate_for,omitempty"`
+
 	// V16: 从 memory_derivations junction 表加载，非 memories 表列 / Loaded from junction table, not a DB column
 	DerivedFrom []string `json:"derived_from,omitempty"` // 来源记忆 ID 列表 / Source memory IDs
 }

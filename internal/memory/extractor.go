@@ -250,7 +250,7 @@ func parseExtractOutput(ctx context.Context, raw string, prevMessages []llm.Chat
 	}
 
 	// L2: 正则提取 JSON 对象 / Regex extract JSON object
-	re := regexp.MustCompile(`\{[\s\S]*"entities"[\s\S]*\}`)
+	re := regexp.MustCompile(`\{(?:[^{}]|\{[^{}]*\})*"entities"(?:[^{}]|\{[^{}]*\})*\}`)
 	if match := re.FindString(raw); match != "" {
 		var extracted extractLLMOutput
 		if err := json.Unmarshal([]byte(match), &extracted); err == nil {

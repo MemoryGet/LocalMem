@@ -55,7 +55,7 @@ func (t *FetchTool) Definition() mcp.ToolDefinition {
 func (t *FetchTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp.ToolResult, error) {
 	var args fetchArgs
 	if err := json.Unmarshal(arguments, &args); err != nil {
-		return mcp.ErrorResult("invalid arguments: " + err.Error()), nil
+		return toolInputError("invalid arguments")
 	}
 	if len(args.IDs) == 0 {
 		return mcp.ErrorResult("ids is required and must not be empty"), nil
@@ -75,7 +75,7 @@ func (t *FetchTool) Execute(ctx context.Context, arguments json.RawMessage) (*mc
 				logger.Debug("iclude_fetch: memory not found, skipping", zap.String("id", id))
 				continue
 			}
-			return mcp.ErrorResult("failed to fetch memory " + id + ": " + err.Error()), nil
+			return toolError("fetch", err)
 		}
 		items = append(items, FetchResultItem{Memory: mem})
 	}

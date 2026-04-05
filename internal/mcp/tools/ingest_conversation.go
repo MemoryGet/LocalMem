@@ -65,13 +65,13 @@ func (t *IngestConversationTool) Definition() mcp.ToolDefinition {
 func (t *IngestConversationTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp.ToolResult, error) {
 	var args ingestArgs
 	if err := json.Unmarshal(arguments, &args); err != nil {
-		return mcp.ErrorResult("invalid arguments: " + err.Error()), nil
+		return toolInputError("invalid arguments")
 	}
 	if len(args.Messages) == 0 {
 		return mcp.ErrorResult("messages is required and must not be empty"), nil
 	}
 	if err := ValidateScope(args.Scope); err != nil {
-		return mcp.ErrorResult(err.Error()), nil
+		return toolError("ingest:validate", err)
 	}
 
 	req := &model.IngestConversationRequest{
@@ -84,7 +84,7 @@ func (t *IngestConversationTool) Execute(ctx context.Context, arguments json.Raw
 
 	ctxID, mems, err := t.manager.IngestConversation(ctx, req, mcp.IdentityFromContext(ctx))
 	if err != nil {
-		return mcp.ErrorResult("ingest failed: " + err.Error()), nil
+		return toolError("ingest", err)
 	}
 
 	out, _ := json.Marshal(map[string]any{"context_id": ctxID, "saved": len(mems)})

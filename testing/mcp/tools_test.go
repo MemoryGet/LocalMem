@@ -145,7 +145,7 @@ func (m *mockMemoryCreator) Create(_ context.Context, mem *model.Memory) (*model
 
 func TestRetainTool_Execute_success(t *testing.T) {
 	creator := &mockMemoryCreator{}
-	tool := tools.NewRetainTool(creator)
+	tool := tools.NewRetainTool(creator, nil)
 	args, _ := json.Marshal(map[string]any{"content": "The answer is 42", "scope": "project/test"})
 	result, err := tool.Execute(context.Background(), args)
 	require.NoError(t, err)
@@ -154,14 +154,14 @@ func TestRetainTool_Execute_success(t *testing.T) {
 }
 
 func TestRetainTool_Execute_missingContent(t *testing.T) {
-	tool := tools.NewRetainTool(&mockMemoryCreator{})
+	tool := tools.NewRetainTool(&mockMemoryCreator{}, nil)
 	result, err := tool.Execute(context.Background(), json.RawMessage(`{}`))
 	require.NoError(t, err)
 	assert.True(t, result.IsError)
 }
 
 func TestRetainTool_Execute_invalidJSON(t *testing.T) {
-	tool := tools.NewRetainTool(&mockMemoryCreator{})
+	tool := tools.NewRetainTool(&mockMemoryCreator{}, nil)
 	result, err := tool.Execute(context.Background(), json.RawMessage(`not-json`))
 	require.NoError(t, err)
 	assert.True(t, result.IsError)
@@ -170,7 +170,7 @@ func TestRetainTool_Execute_invalidJSON(t *testing.T) {
 
 func TestRetainTool_Execute_creatorError(t *testing.T) {
 	creator := &mockMemoryCreator{err: errors.New("db unavailable")}
-	tool := tools.NewRetainTool(creator)
+	tool := tools.NewRetainTool(creator, nil)
 	args, _ := json.Marshal(map[string]any{"content": "some memory"})
 	result, err := tool.Execute(context.Background(), args)
 	require.NoError(t, err)
@@ -180,7 +180,7 @@ func TestRetainTool_Execute_creatorError(t *testing.T) {
 
 func TestRetainTool_Execute_withIdentity(t *testing.T) {
 	creator := &mockMemoryCreator{}
-	tool := tools.NewRetainTool(creator)
+	tool := tools.NewRetainTool(creator, nil)
 
 	id := &model.Identity{TeamID: "team-42", OwnerID: "owner-1"}
 	ctx := mcp.WithIdentity(context.Background(), id)
@@ -194,7 +194,7 @@ func TestRetainTool_Execute_withIdentity(t *testing.T) {
 }
 
 func TestRetainTool_Definition(t *testing.T) {
-	tool := tools.NewRetainTool(&mockMemoryCreator{})
+	tool := tools.NewRetainTool(&mockMemoryCreator{}, nil)
 	def := tool.Definition()
 	assert.Equal(t, "iclude_retain", def.Name)
 	assert.NotEmpty(t, def.Description)

@@ -59,7 +59,7 @@ type reflectOutput struct {
 func (t *ReflectTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp.ToolResult, error) {
 	var args reflectArgs
 	if err := json.Unmarshal(arguments, &args); err != nil {
-		return mcp.ErrorResult("invalid arguments: " + err.Error()), nil
+		return toolInputError("invalid arguments")
 	}
 	if args.Question == "" {
 		return mcp.ErrorResult("question is required"), nil
@@ -80,7 +80,7 @@ func (t *ReflectTool) Execute(ctx context.Context, arguments json.RawMessage) (*
 
 	resp, err := t.engine.Reflect(ctx, req)
 	if err != nil {
-		return mcp.ErrorResult("reflect failed: " + err.Error()), nil
+		return toolError("reflect", err)
 	}
 
 	out := reflectOutput{

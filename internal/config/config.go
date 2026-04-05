@@ -280,6 +280,15 @@ type PreprocessConfig struct {
 	LLMTimeout    time.Duration `mapstructure:"llm_timeout"`
 	StopwordFiles []string      `mapstructure:"stopword_files"` // 外部停用词文件路径 / External stopword file paths
 	SynonymFiles  []string      `mapstructure:"synonym_files"`  // 同义词词典文件路径 / Synonym dictionary file paths
+	HyDEWeight    float64       `mapstructure:"hyde_weight"`    // HyDE 通道权重系数（默认 0.8）/ HyDE channel weight factor (default 0.8)
+}
+
+// ResolvedHyDEWeight 返回 HyDE 权重，未配置时默认 0.8 / Return HyDE weight with default
+func (p PreprocessConfig) ResolvedHyDEWeight() float64 {
+	if p.HyDEWeight > 0 {
+		return p.HyDEWeight
+	}
+	return 0.8
 }
 
 // AppConfig 全局配置单例 / Global config singleton
@@ -381,7 +390,7 @@ func LoadConfig() error {
 	viper.SetDefault("mcp.port", 8081)
 	viper.SetDefault("mcp.default_team_id", "default")
 	viper.SetDefault("mcp.default_owner_id", "mcp-user")
-	viper.SetDefault("mcp.cors_allowed_origin", "*")
+	viper.SetDefault("mcp.cors_allowed_origin", "http://localhost:3000")
 	viper.SetDefault("mcp.api_token", "")
 	// Queue 默认值 / Queue defaults
 	viper.SetDefault("queue.enabled", true)
@@ -398,7 +407,7 @@ func LoadConfig() error {
 	viper.SetDefault("hooks.summary_limit", 50)
 	// Auth 默认值 / Auth defaults
 	viper.SetDefault("auth.enabled", true)
-	viper.SetDefault("auth.cors_allowed_origins", []string{"*"})
+	viper.SetDefault("auth.cors_allowed_origins", []string{"http://localhost:3000", "http://localhost:8080"})
 	// Document 默认值 / Document defaults
 	viper.SetDefault("document.enabled", false)
 	viper.SetDefault("document.max_concurrent", 3)
@@ -455,6 +464,14 @@ func LoadConfig() error {
 	AppConfig.LLM.Claude.APIKey = os.ExpandEnv(AppConfig.LLM.Claude.APIKey)
 	AppConfig.Retrieval.Rerank.APIKey = os.ExpandEnv(AppConfig.Retrieval.Rerank.APIKey)
 	AppConfig.Retrieval.Rerank.BaseURL = os.ExpandEnv(AppConfig.Retrieval.Rerank.BaseURL)
+	AppConfig.MCP.APIToken = os.ExpandEnv(AppConfig.MCP.APIToken)
+	for i := range AppConfig.LLM.Fallback {
+		AppConfig.LLM.Fallback[i].APIKey = os.ExpandEnv(AppConfig.LLM.Fallback[i].APIKey)
+	}
+	// 展开 auth.api_keys 中的环境变量 / Expand env vars in auth API keys
+	for i := range AppConfig.Auth.APIKeys {
+		AppConfig.Auth.APIKeys[i].Key = os.ExpandEnv(AppConfig.Auth.APIKeys[i].Key)
+	}
 
 	// 兼容旧配置 / Backward compatibility: server.auth_enabled → auth.enabled
 	if AppConfig.Server.AuthEnabled && !AppConfig.Auth.Enabled {
@@ -464,13 +481,13 @@ func LoadConfig() error {
 
 	// 确保数据目录存在
 	dataDir := filepath.Dir(AppConfig.Storage.SQLite.Path)
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0750); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 
 	if AppConfig.Partition.Enabled {
 		partitionDir := filepath.Dir(AppConfig.Partition.CatalogPath)
-		if err := os.MkdirAll(partitionDir, 0755); err != nil {
+		if err := os.MkdirAll(partitionDir, 0750); err != nil {
 			return fmt.Errorf("failed to create partition directory: %w", err)
 		}
 	}

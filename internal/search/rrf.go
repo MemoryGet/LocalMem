@@ -1,12 +1,16 @@
 package search
 
 import (
+	"math"
 	"sort"
 
 	"iclude/internal/model"
 )
 
 const defaultRRFK = 60
+
+// rrfScoreEpsilon 浮点比较容差 / Float64 equality tolerance for RRF score comparison
+const rrfScoreEpsilon = 1e-12
 
 // MergeRRF 使用 Reciprocal Rank Fusion 融合多路检索结果 / Merge results using RRF algorithm
 func MergeRRF(resultSets [][]*model.SearchResult, limit int) []*model.SearchResult {
@@ -45,7 +49,7 @@ func MergeRRFWithK(resultSets [][]*model.SearchResult, limit int, k int) []*mode
 
 	// 按 RRF 分数降序排列，同分按 ID 字典序保证稳定 / Sort by score desc, tie-break by ID asc for stability
 	sort.Slice(merged, func(i, j int) bool {
-		if merged[i].Score != merged[j].Score {
+		if math.Abs(merged[i].Score-merged[j].Score) > rrfScoreEpsilon {
 			return merged[i].Score > merged[j].Score
 		}
 		return merged[i].Memory.ID < merged[j].Memory.ID
@@ -96,7 +100,7 @@ func MergeWeightedRRF(inputs []RRFInput, k int, limit int) []*model.SearchResult
 	}
 
 	sort.Slice(merged, func(i, j int) bool {
-		if merged[i].Score != merged[j].Score {
+		if math.Abs(merged[i].Score-merged[j].Score) > rrfScoreEpsilon {
 			return merged[i].Score > merged[j].Score
 		}
 		return merged[i].Memory.ID < merged[j].Memory.ID

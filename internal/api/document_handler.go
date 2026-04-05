@@ -99,7 +99,12 @@ func (h *DocumentHandler) Upload(c *gin.Context, identity *model.Identity) {
 		Error(c, fmt.Errorf("file store not configured: %w", model.ErrStorageUnavailable))
 		return
 	}
-	filePath, err := h.fileStore.Save(c.Request.Context(), doc.ID, header.Filename, teeReader)
+	// 清理文件名防止路径穿越 / Sanitize filename to prevent path traversal
+	safeFilename := filepath.Base(filepath.Clean(header.Filename))
+	if safeFilename == "." || safeFilename == "/" || safeFilename == "" {
+		safeFilename = doc.ID
+	}
+	filePath, err := h.fileStore.Save(c.Request.Context(), doc.ID, safeFilename, teeReader)
 	if err != nil {
 		Error(c, fmt.Errorf("failed to save file: %w", err))
 		return
@@ -241,7 +246,9 @@ func (h *DocumentHandler) isAllowedType(ext string) bool {
 func isAllowedMIME(mime string) bool {
 	allowed := []string{
 		"application/pdf",
-		"application/zip",          // docx/pptx/xlsx are ZIP-based
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",   // docx
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",         // xlsx
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation", // pptx
 		"application/x-gzip",
 		"text/plain",
 		"text/html",

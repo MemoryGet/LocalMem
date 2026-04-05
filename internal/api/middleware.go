@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -63,6 +64,11 @@ func IdentityMiddleware() gin.HandlerFunc {
 		}
 
 		ownerID := c.GetHeader("X-User-ID")
+		// 验证格式 / Validate format before use
+		if ownerID != "" && !validateOwnerID(ownerID) {
+			c.AbortWithStatusJSON(400, gin.H{"error": "invalid X-User-ID: max 128 chars, allowed [a-zA-Z0-9_\\-@.]"})
+			return
+		}
 		// 禁止客户端冒充系统身份 / Prevent clients from impersonating the system identity
 		if ownerID == "" || ownerID == "__system__" {
 			ownerID = "anonymous"
@@ -226,6 +232,17 @@ func withIdentity(fn IdentityHandler) gin.HandlerFunc {
 		}
 		fn(c, identity)
 	}
+}
+
+// ownerIDPattern 合法 Owner ID 正则 / Valid Owner ID regex pattern
+var ownerIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_\-@.]+$`)
+
+// validateOwnerID 校验 Owner ID 格式 / Validate Owner ID format: max 128 chars, alphanumeric + _-@.
+func validateOwnerID(id string) bool {
+	if len(id) > 128 {
+		return false
+	}
+	return ownerIDPattern.MatchString(id)
 }
 
 // SecurityHeadersMiddleware 安全响应头中间件 / Security response headers middleware

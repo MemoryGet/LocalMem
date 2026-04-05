@@ -38,14 +38,14 @@ func main() {
 		ContextManager:     deps.ContextManager,
 		GraphManager:       deps.GraphManager,
 		DocProcessor:       deps.DocProcessor,
-		TagStore:           deps.Stores.TagStore,
-		MemStore:           deps.Stores.MemoryStore,
+		TagManager:         deps.TagManager,
 		ReflectEngine:      deps.ReflectEngine,
 		Extractor:          deps.Extractor,
 		Summarizer:         deps.Summarizer,
 		LineageTracer:      deps.LineageTracer,
 		ExperienceRecaller: deps.ExperienceRecaller,
 		FileStore:          deps.DocFileStore,
+		ScopePolicyStore:   deps.Stores.ScopePolicyStore,
 		DocumentConfig:     cfg.Document,
 		AuthConfig:         cfg.Auth,
 		ReflectConfig:      cfg.Reflect,
@@ -54,10 +54,12 @@ func main() {
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	srv := &http.Server{
-		Addr:         addr,
-		Handler:      router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		Addr:              addr,
+		Handler:           router,
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	srvErr := make(chan error, 1)

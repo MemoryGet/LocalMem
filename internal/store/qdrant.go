@@ -102,6 +102,9 @@ func (s *QdrantVectorStore) Search(ctx context.Context, embedding []float32, ide
 		return nil, fmt.Errorf("failed to search vectors: %w", err)
 	}
 
+	// 精确可见性后过滤 / Exact visibility post-filter
+	results = filterByVisibility(results, identity)
+
 	searchResults := make([]*model.SearchResult, 0, len(results))
 	for _, r := range results {
 		memID := r.ID
@@ -121,30 +124,61 @@ func (s *QdrantVectorStore) Search(ctx context.Context, embedding []float32, ide
 	return searchResults, nil
 }
 
-// buildVisibilityFilter 构建 Qdrant 可见性过滤器 / Build Qdrant visibility filter from identity
-// 策略: public OR (team_id 匹配 AND visibility=team) OR (owner_id 匹配 AND visibility=private)
-// Strategy: public OR (same team AND team) OR (same owner AND private)
+// buildVisibilityFilter 构建 Qdrant 可见性过滤器（宽松预过滤）/ Build Qdrant visibility pre-filter
+// Qdrant flat FieldCondition 无法表达嵌套 AND-in-OR，此处使用宽松 should 预过滤，
+// 由 filterByVisibility 做精确后过滤保证正确性。
+// Strategy: pre-filter allows superset, post-filter enforces exact visibility rules.
 func buildVisibilityFilter(identity *model.Identity) *qdrant.Filter {
-	// public 记忆总是可见 / public memories are always visible
 	should := []qdrant.FieldCondition{
 		{Key: "visibility", Match: qdrant.MatchValue{Value: model.VisibilityPublic}},
 	}
 
 	if identity.TeamID != "" {
-		// team 记忆对同 team 成员可见 / team memories visible to same team members
 		should = append(should,
-			qdrant.FieldCondition{Key: "team_id", Match: qdrant.MatchValue{Value: identity.TeamID}},
+			qdrant.FieldCondition{Key: "visibility", Match: qdrant.MatchValue{Value: model.VisibilityTeam}},
 		)
 	}
 
 	if identity.OwnerID != "" && !identity.IsSystem() {
-		// private 记忆仅 owner 可见 / private memories visible only to owner
 		should = append(should,
 			qdrant.FieldCondition{Key: "owner_id", Match: qdrant.MatchValue{Value: identity.OwnerID}},
 		)
 	}
 
 	return &qdrant.Filter{Should: should}
+}
+
+// filterByVisibility 对 Qdrant 结果做精确可见性后过滤 / Post-filter results for exact visibility enforcement
+// 弥补 Qdrant flat filter 无法表达 (team_id=X AND visibility=team) 的限制
+func filterByVisibility(results []qdrant.SearchResult, identity *model.Identity) []qdrant.SearchResult {
+	if identity == nil {
+		// 无身份：仅保留 public / No identity: only public
+		filtered := make([]qdrant.SearchResult, 0, len(results))
+		for _, r := range results {
+			if vis, _ := r.Payload["visibility"].(string); vis == model.VisibilityPublic {
+				filtered = append(filtered, r)
+			}
+		}
+		return filtered
+	}
+
+	filtered := make([]qdrant.SearchResult, 0, len(results))
+	for _, r := range results {
+		vis, _ := r.Payload["visibility"].(string)
+		switch vis {
+		case model.VisibilityPublic:
+			filtered = append(filtered, r)
+		case model.VisibilityTeam:
+			if tid, _ := r.Payload["team_id"].(string); tid != "" && tid == identity.TeamID {
+				filtered = append(filtered, r)
+			}
+		case model.VisibilityPrivate, "":
+			if oid, _ := r.Payload["owner_id"].(string); oid != "" && oid == identity.OwnerID {
+				filtered = append(filtered, r)
+			}
+		}
+	}
+	return filtered
 }
 
 // SearchFiltered 带过滤条件的向量检索 / Vector search with filters
@@ -196,14 +230,37 @@ func (s *QdrantVectorStore) SearchFiltered(ctx context.Context, embedding []floa
 		}
 	}
 
-	if len(must) > 0 {
-		req.Filter = &qdrant.Filter{Must: must}
+	// 可见性过滤：从 filters 中提取身份信息构建 should 条件 / Visibility filtering from identity in filters
+	var visibilityIdentity *model.Identity
+	if filters != nil && (filters.TeamID != "" || filters.OwnerID != "") {
+		visibilityIdentity = &model.Identity{TeamID: filters.TeamID, OwnerID: filters.OwnerID}
+	}
+
+	if visibilityIdentity != nil {
+		visFilter := buildVisibilityFilter(visibilityIdentity)
+		// 合并: must 条件（业务过滤）+ should 条件（可见性）共存于同一 Filter
+		// Merge: must conditions (business) + should conditions (visibility) in the same Filter
+		req.Filter = &qdrant.Filter{Must: must, Should: visFilter.Should}
+	} else {
+		// 无身份时仅返回公开记忆（与 Search 方法行为一致）/ No identity: only public (consistent with Search)
+		publicOnly := []qdrant.FieldCondition{
+			{Key: "visibility", Match: qdrant.MatchValue{Value: model.VisibilityPublic}},
+		}
+		if len(must) > 0 {
+			req.Filter = &qdrant.Filter{Must: append(must, publicOnly...)}
+		} else {
+			req.Filter = &qdrant.Filter{Must: publicOnly}
+		}
 	}
 
 	results, err := s.client.Search(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search vectors with filters: %w", err)
 	}
+
+	// 精确可见性后过滤（nil identity 时 filterByVisibility 仅保留 public）
+	// Exact visibility post-filter (nil identity keeps only public via filterByVisibility)
+	results = filterByVisibility(results, visibilityIdentity)
 
 	searchResults := make([]*model.SearchResult, 0, len(results))
 	for _, r := range results {

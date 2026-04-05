@@ -126,6 +126,8 @@ mcp:
 
 hooks:
   enabled: true
+  host_tool: "claude-code"
+  capture_mode: "auto"
 
 scheduler:
   enabled: true
@@ -146,14 +148,33 @@ configure_claude() {
     mkdir -p "$claude_dir"
 
     local mcp_file="$claude_dir/.mcp.json"
-    if [ -f "$mcp_file" ] && grep -q "iclude" "$mcp_file" 2>/dev/null; then
+    if [ -f "$mcp_file" ] && grep -q '"iclude"' "$mcp_file" 2>/dev/null; then
         info "Claude Code MCP config already contains iclude, skipping"
-    else
-        if [ -f "$mcp_file" ]; then
-            cp "$mcp_file" "${mcp_file}.bak"
-            warn "Backed up existing .mcp.json to .mcp.json.bak"
+        return
+    fi
+
+    if [ -f "$mcp_file" ]; then
+        cp "$mcp_file" "${mcp_file}.bak"
+        warn "Backed up existing .mcp.json to .mcp.json.bak"
+        # 合并：在现有 mcpServers 中追加 iclude / Merge: append iclude to existing mcpServers
+        if command -v python3 &>/dev/null; then
+            python3 -c "
+import json, sys
+with open('$mcp_file.bak') as f:
+    data = json.load(f)
+data.setdefault('mcpServers', {})['iclude'] = {
+    'type': 'stdio',
+    'command': '${BIN_DIR}/iclude-mcp',
+    'args': ['--stdio', '--config', '${INSTALL_DIR}/config.yaml']
+}
+with open('$mcp_file', 'w') as f:
+    json.dump(data, f, indent=2)
+" && info "Merged iclude into existing ${mcp_file}" && return
+            warn "Python3 merge failed, overwriting .mcp.json (backup saved)"
         fi
-        cat > "$mcp_file" << JSON
+    fi
+
+    cat > "$mcp_file" << JSON
 {
   "mcpServers": {
     "iclude": {
@@ -164,7 +185,78 @@ configure_claude() {
   }
 }
 JSON
-        info "Claude Code MCP config written to ${mcp_file}"
+    info "Claude Code MCP config written to ${mcp_file}"
+}
+
+# ── 配置 Claude Code Hooks / Configure Claude Code hooks in settings.local.json ──
+configure_hooks() {
+    local claude_dir="$HOME/.claude"
+    mkdir -p "$claude_dir"
+    local settings_file="$claude_dir/settings.local.json"
+
+    if [ -f "$settings_file" ] && grep -q "iclude-cli" "$settings_file" 2>/dev/null; then
+        info "Hooks already configured in settings.local.json, skipping"
+        return
+    fi
+
+    local hooks_json='{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "'"${BIN_DIR}"'/iclude-cli hook session-start",
+        "timeout": 10000
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "'"${BIN_DIR}"'/iclude-cli hook capture",
+        "timeout": 5000
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "'"${BIN_DIR}"'/iclude-cli hook session-stop",
+        "timeout": 12000
+      }
+    ]
+  }
+}'
+
+    if [ -f "$settings_file" ]; then
+        cp "$settings_file" "${settings_file}.bak"
+        # 合并 hooks 到现有 settings / Merge hooks into existing settings
+        if command -v python3 &>/dev/null; then
+            python3 -c "
+import json
+with open('${settings_file}.bak') as f:
+    data = json.load(f)
+hooks = json.loads('''${hooks_json}''')
+data.setdefault('hooks', {})
+for event, handlers in hooks['hooks'].items():
+    existing = data['hooks'].get(event, [])
+    # 避免重复添加 / Avoid duplicates
+    iclude_cmds = {h.get('command','') for h in existing if 'iclude-cli' in h.get('command','')}
+    for h in handlers:
+        if h['command'] not in iclude_cmds:
+            existing.append(h)
+    data['hooks'][event] = existing
+with open('${settings_file}', 'w') as f:
+    json.dump(data, f, indent=2)
+" && info "Hooks merged into ${settings_file}" && return
+            warn "Python3 merge failed, writing hooks separately"
+        fi
+    fi
+
+    echo "${hooks_json}" > "${settings_file}.hooks.json"
+    # 无 python3 且无现有文件时直接写入 / No python3 and no existing file: write directly
+    if [ ! -f "$settings_file" ]; then
+        echo "${hooks_json}" > "$settings_file"
+        info "Hooks config written to ${settings_file}"
+    else
+        warn "Cannot merge hooks automatically (no python3). Manual merge needed from ${settings_file}.hooks.json"
     fi
 }
 
@@ -198,6 +290,7 @@ main() {
     add_to_path
     generate_config
     configure_claude
+    configure_hooks
 
     echo ""
     info "Installation complete!"

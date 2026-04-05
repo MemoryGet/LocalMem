@@ -126,6 +126,8 @@ mcp:
 
 hooks:
   enabled: true
+  host_tool: "codex"
+  capture_mode: "auto"
 
 scheduler:
   enabled: true

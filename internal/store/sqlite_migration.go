@@ -11,7 +11,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 21
+const latestVersion = 25
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -227,6 +227,36 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 			return fmt.Errorf("V20→V21 migration failed: %w", err)
 		}
 		version = 21
+	}
+
+	// V21→V22: FK constraints on session tables + entities composite index
+	if version < 22 {
+		if err := migrateV21ToV22(db); err != nil {
+			return fmt.Errorf("V21→V22 migration failed: %w", err)
+		}
+		version = 22
+	}
+
+	if version < 23 {
+		if err := migrateV22ToV23(db); err != nil {
+			return fmt.Errorf("V22→V23 migration failed: %w", err)
+		}
+		version = 23
+	}
+
+	if version < 24 {
+		if err := migrateV23ToV24(db); err != nil {
+			return fmt.Errorf("V23→V24 migration failed: %w", err)
+		}
+		version = 24
+	}
+
+	// V24→V25: missing excerpt index for heartbeat ListMissingExcerpt
+	if version < 25 {
+		if err := migrateV24ToV25(db); err != nil {
+			return fmt.Errorf("V24→V25 migration failed: %w", err)
+		}
+		version = 25
 	}
 
 	return nil

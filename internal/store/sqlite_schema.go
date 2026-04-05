@@ -10,9 +10,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// createFreshSchema 为新数据库一步创建 V21 终态 schema / Create final V21 schema for new databases in one step
-// 等效于 V0→V21 全部迁移的最终结果，但跳过中间步骤
-// Equivalent to running all V0→V21 migrations, but skips intermediate steps
+// createFreshSchema 为新数据库一步创建 V25 终态 schema / Create final V25 schema for new databases in one step
+// 等效于 V0→V25 全部迁移的最终结果，但跳过中间步骤
+// Equivalent to running all V0→V25 migrations, but skips intermediate steps
 func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -64,7 +64,8 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		consolidated_into TEXT DEFAULT '',
 		owner_id         TEXT DEFAULT '',
 		visibility       TEXT DEFAULT 'private',
-		memory_class     TEXT NOT NULL DEFAULT 'episodic'
+		memory_class     TEXT NOT NULL DEFAULT 'episodic',
+		candidate_for    TEXT DEFAULT ''
 	)`); err != nil {
 		return fmt.Errorf("fresh schema: create memories: %w", err)
 	}
@@ -258,6 +259,10 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		// V17: source_ref + consolidated_into (B6/B7 high-frequency query paths)
 		`CREATE INDEX idx_memories_source_ref ON memories(source_ref) WHERE source_ref != '' AND deleted_at IS NULL`,
 		`CREATE INDEX idx_memories_consolidated_into ON memories(consolidated_into) WHERE consolidated_into != '' AND deleted_at IS NULL`,
+		// V23: candidate_for (ListCandidates query path)
+		`CREATE INDEX idx_memories_candidate_for ON memories(candidate_for) WHERE candidate_for != '' AND candidate_for IS NOT NULL`,
+		// V25: missing excerpt (heartbeat ListMissingExcerpt query path)
+		`CREATE INDEX idx_memories_missing_excerpt ON memories(created_at DESC) WHERE (excerpt = '' OR excerpt IS NULL) AND deleted_at IS NULL`,
 	}
 	for _, idx := range memIndexes {
 		if _, err := tx.Exec(idx); err != nil {
@@ -266,8 +271,9 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 	}
 
 	// contexts 表索引 / contexts table indexes
+	// 注意: idx_contexts_path 冗余——contexts.path 已有 UNIQUE 约束，SQLite 自动创建索引
+	// Note: idx_contexts_path is redundant — contexts.path has a UNIQUE constraint, SQLite creates an implicit index
 	ctxIndexes := []string{
-		`CREATE INDEX idx_contexts_path ON contexts(path)`,
 		`CREATE INDEX idx_contexts_parent_id ON contexts(parent_id)`,
 	}
 	for _, idx := range ctxIndexes {
@@ -277,8 +283,14 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 	}
 
 	// entities 表索引 / entities table indexes
-	if _, err := tx.Exec(`CREATE INDEX idx_entities_lower_name ON entities(name COLLATE NOCASE)`); err != nil {
-		return fmt.Errorf("fresh schema: entities name index: %w", err)
+	entityIndexes := []string{
+		`CREATE INDEX idx_entities_lower_name ON entities(name COLLATE NOCASE)`,
+		`CREATE INDEX idx_entities_scope_type_updated ON entities(scope, entity_type, updated_at DESC)`,
+	}
+	for _, idx := range entityIndexes {
+		if _, err := tx.Exec(idx); err != nil {
+			return fmt.Errorf("fresh schema: entities index %q: %w", idx, err)
+		}
 	}
 
 	// entity_relations 表索引 / entity_relations table indexes
@@ -425,12 +437,28 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		}
 	}
 
-	// --- 记录 schema 版本 = 21 / Record schema version = 21 ---
-	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (21)`); err != nil {
+	// --- V24: scope_policies 表 ---
+	if _, err := tx.Exec(`
+		CREATE TABLE scope_policies (
+			id               TEXT PRIMARY KEY,
+			scope            TEXT NOT NULL UNIQUE,
+			display_name     TEXT NOT NULL DEFAULT '',
+			team_id          TEXT NOT NULL DEFAULT '',
+			allowed_writers  TEXT NOT NULL DEFAULT '[]',
+			created_by       TEXT NOT NULL DEFAULT '',
+			created_at       DATETIME NOT NULL DEFAULT (datetime('now')),
+			updated_at       DATETIME NOT NULL DEFAULT (datetime('now'))
+		)
+	`); err != nil {
+		return fmt.Errorf("fresh schema: scope_policies table: %w", err)
+	}
+
+	// --- 记录 schema 版本 = 25 / Record schema version = 25 ---
+	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (25)`); err != nil {
 		return fmt.Errorf("fresh schema: record version: %w", err)
 	}
 
-	logger.Info("fresh schema V21 created successfully",
+	logger.Info("fresh schema V25 created successfully",
 		zap.String("tokenizer", tokName),
 	)
 

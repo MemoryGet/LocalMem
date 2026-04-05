@@ -3,12 +3,10 @@ package search
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"iclude/internal/config"
 	"iclude/internal/llm"
@@ -16,10 +14,12 @@ import (
 	"iclude/internal/model"
 	"iclude/pkg/scoring"
 	"iclude/internal/store"
-	"iclude/pkg/tokenutil"
 
 	"go.uber.org/zap"
 )
+
+// minVectorSimilarity 最小向量相似度阈值 / Minimum cosine similarity threshold
+const minVectorSimilarity = 0.3
 
 // AccessTracker 访问追踪接口 / Access tracker interface
 // 检索命中后异步记录访问，解耦 search 与 memory 包 / Decouples search from memory package
@@ -28,6 +28,11 @@ type AccessTracker interface {
 }
 
 // Retriever 单轮检索器 / Single-round retriever
+// CoreProvider 核心记忆提供者接口 / Core memory provider interface
+type CoreProvider interface {
+	GetCoreBlocksMultiScope(ctx context.Context, scopes []string, identity *model.Identity) ([]*model.Memory, error)
+}
+
 type Retriever struct {
 	memStore     store.MemoryStore
 	vecStore     store.VectorStore // 可为 nil / may be nil
@@ -37,6 +42,7 @@ type Retriever struct {
 	cfg          config.RetrievalConfig
 	preprocessor *Preprocessor // 可为 nil / may be nil
 	tracker      AccessTracker // 可为 nil / may be nil
+	coreProvider CoreProvider  // 可为 nil / may be nil
 }
 
 // NewRetriever 创建检索器 / Create a new retriever
@@ -51,6 +57,11 @@ func NewRetriever(memStore store.MemoryStore, vecStore store.VectorStore, embedd
 		preprocessor: preprocessor,
 		tracker:      tracker,
 	}
+}
+
+// SetCoreProvider 设置核心记忆提供者（可选）/ Set core memory provider (optional)
+func (r *Retriever) SetCoreProvider(cp CoreProvider) {
+	r.coreProvider = cp
 }
 
 // resolveIdentity 从请求中构建身份，优先使用请求中的 OwnerID / Build identity from request, prefer request OwnerID
@@ -123,6 +134,11 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if rv := recover(); rv != nil {
+					logger.Error("retrieval channel 1 (FTS+HyDE) panic recovered", zap.Any("panic", rv))
+				}
+			}()
 			// FTS5 检索 / FTS5 search
 			var textResults []*model.SearchResult
 			var err error
@@ -156,7 +172,7 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 				if hydeErr != nil {
 					logger.Debug("HyDE search failed", zap.Error(hydeErr))
 				} else if len(hydeResults) > 0 {
-					hydeWeight := 0.8
+					hydeWeight := r.cfg.Preprocess.ResolvedHyDEWeight()
 					if plan.Weights.FTS > 0 {
 						hydeWeight *= plan.Weights.FTS
 					}
@@ -171,6 +187,11 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if rv := recover(); rv != nil {
+					logger.Error("retrieval channel 2 (Qdrant) panic recovered", zap.Any("panic", rv))
+				}
+			}()
 			embedding, err := r.resolveEmbedding(ctx, req.Embedding, semanticQuery)
 			if err != nil {
 				logger.Warn("failed to resolve embedding for search", zap.Error(err))
@@ -188,6 +209,16 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 			if err != nil {
 				logger.Warn("vector search failed", zap.Error(err))
 				return
+			}
+			// 过滤低相似度结果 / Filter out low-similarity results
+			if len(vecResults) > 0 {
+				filtered := make([]*model.SearchResult, 0, len(vecResults))
+				for _, vr := range vecResults {
+					if vr.Score >= minVectorSimilarity {
+						filtered = append(filtered, vr)
+					}
+				}
+				vecResults = filtered
 			}
 			if len(vecResults) > 0 {
 				qdrantWeight := r.cfg.QdrantWeight
@@ -211,6 +242,11 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if rv := recover(); rv != nil {
+					logger.Error("retrieval channel 3 (Graph) panic recovered", zap.Any("panic", rv))
+				}
+			}()
 			scope := ""
 			if filters != nil {
 				scope = filters.Scope
@@ -239,6 +275,11 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if rv := recover(); rv != nil {
+					logger.Error("retrieval channel 4 (Temporal) panic recovered", zap.Any("panic", rv))
+				}
+			}()
 			temporalResults := r.temporalRetrieve(ctx, req, plan, limit)
 			if len(temporalResults) > 0 {
 				appendInput(RRFInput{Results: temporalResults, Weight: 1.2})
@@ -278,6 +319,9 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 
 	// 类型+层级权重（skill/决策类提权 + memory_class 加权）/ Kind + class weighting
 	results = ApplyKindAndClassWeights(results)
+
+	// Scope 优先级加权（session > project > user/core > other）/ Scope priority weighting
+	results = ApplyScopePriority(results)
 
 	// Filter by memory_class if specified / 按 memory_class 过滤
 	if req.MemoryClass != "" {
@@ -334,6 +378,12 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 		}
 	}
 
+	// Core memory 注入（默认开启，IncludeCore=false 时跳过）/ Core memory injection
+	includeCore := req.IncludeCore == nil || *req.IncludeCore
+	if includeCore && r.coreProvider != nil {
+		results = r.injectCoreMemories(ctx, req, results)
+	}
+
 	// 异步记录访问 / Async-track access hits
 	if r.tracker != nil {
 		for _, res := range results {
@@ -346,395 +396,8 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	return results, nil
 }
 
-// resolveReranker 解析当前请求应使用的 reranker / Resolve reranker for current request
-func (r *Retriever) resolveReranker(req *model.RetrieveRequest) Reranker {
-	rerankCfg := r.cfg.Rerank
-	if req != nil {
-		if req.RerankEnabled != nil {
-			rerankCfg.Enabled = *req.RerankEnabled
-		}
-		if strings.TrimSpace(req.RerankProvider) != "" {
-			rerankCfg.Provider = req.RerankProvider
-		}
-	}
-	return NewReranker(rerankCfg)
-}
-
 // Timeline 时间线查询 / Timeline query
 func (r *Retriever) Timeline(ctx context.Context, req *model.TimelineRequest) ([]*model.Memory, error) {
 	return r.memStore.ListTimeline(ctx, req)
 }
 
-// graphRetrieve 图谱关联检索 / Graph-based association retrieval
-// 通过 FTS5 反查实体，遍历图谱关系，获取关联记忆
-func (r *Retriever) graphRetrieve(ctx context.Context, query string, teamID string, scope string, limit int) []*model.SearchResult {
-	// 阶段 1: FTS5 反查实体 / Phase 1: Reverse entity lookup from FTS5 hits
-	ftsTop := r.cfg.GraphFTSTop
-	if ftsTop <= 0 {
-		ftsTop = 5
-	}
-
-	entityIDs := make(map[string]bool)
-	ftsResults, err := r.memStore.SearchText(ctx, query, &model.Identity{TeamID: teamID, OwnerID: model.SystemOwnerID}, ftsTop)
-	if err != nil {
-		logger.Warn("graph: FTS5 search failed", zap.Error(err))
-	} else {
-		for _, result := range ftsResults {
-			entities, err := r.graphStore.GetMemoryEntities(ctx, result.Memory.ID)
-			if err != nil {
-				logger.Warn("graph: GetMemoryEntities failed", zap.String("memory_id", result.Memory.ID), zap.Error(err))
-				continue
-			}
-			for _, ent := range entities {
-				entityIDs[ent.ID] = true
-			}
-		}
-	}
-
-	// 阶段 1.5: LLM fallback（FTS5 无实体命中时）/ LLM fallback when no entities found
-	if len(entityIDs) == 0 && r.llm != nil {
-		llmEntities := r.llmExtractEntities(ctx, query, scope)
-		for _, id := range llmEntities {
-			entityIDs[id] = true
-		}
-	}
-
-	if len(entityIDs) == 0 {
-		return nil
-	}
-
-	return r.graphTraverseAndCollect(ctx, entityIDs, limit)
-}
-
-// graphRetrieveByEntities 从预匹配的实体 ID 开始图谱检索 / Graph retrieval from pre-matched entity IDs
-func (r *Retriever) graphRetrieveByEntities(ctx context.Context, entityIDs []string, limit int) []*model.SearchResult {
-	if len(entityIDs) == 0 {
-		return nil
-	}
-	seedIDs := make(map[string]bool, len(entityIDs))
-	for _, id := range entityIDs {
-		seedIDs[id] = true
-	}
-	return r.graphTraverseAndCollect(ctx, seedIDs, limit)
-}
-
-// graphTraverseAndCollect 从已知实体 ID 遍历图谱并收集关联记忆 / Traverse graph from entity IDs and collect associated memories
-func (r *Retriever) graphTraverseAndCollect(ctx context.Context, seedEntityIDs map[string]bool, limit int) []*model.SearchResult {
-	depth := r.cfg.GraphDepth
-	if depth <= 0 {
-		depth = 1
-	}
-
-	visited := make(map[string]int) // entityID → depth level
-	currentEntities := make([]string, 0, len(seedEntityIDs))
-	for id := range seedEntityIDs {
-		visited[id] = 0
-		currentEntities = append(currentEntities, id)
-	}
-
-	for d := 1; d <= depth; d++ {
-		var nextEntities []string
-		for _, entityID := range currentEntities {
-			relations, err := r.graphStore.GetEntityRelations(ctx, entityID)
-			if err != nil {
-				logger.Warn("graph: GetEntityRelations failed", zap.String("entity_id", entityID), zap.Error(err))
-				continue
-			}
-			for _, rel := range relations {
-				for _, targetID := range []string{rel.SourceID, rel.TargetID} {
-					if targetID == entityID {
-						continue
-					}
-					if _, seen := visited[targetID]; !seen {
-						visited[targetID] = d
-						nextEntities = append(nextEntities, targetID)
-					}
-				}
-			}
-		}
-		currentEntities = nextEntities
-		if len(currentEntities) == 0 {
-			break
-		}
-	}
-
-	entityLimit := r.cfg.GraphEntityLimit
-	if entityLimit <= 0 {
-		entityLimit = 10
-	}
-
-	memoryMap := make(map[string]*model.Memory)
-	memoryDepth := make(map[string]int)
-	for entityID, d := range visited {
-		memories, err := r.graphStore.GetEntityMemories(ctx, entityID, entityLimit)
-		if err != nil {
-			logger.Warn("graph: GetEntityMemories failed", zap.String("entity_id", entityID), zap.Error(err))
-			continue
-		}
-		for _, mem := range memories {
-			if _, exists := memoryMap[mem.ID]; !exists {
-				memoryMap[mem.ID] = mem
-				memoryDepth[mem.ID] = d
-			} else if d < memoryDepth[mem.ID] {
-				memoryDepth[mem.ID] = d
-			}
-		}
-	}
-
-	type depthMem struct {
-		mem   *model.Memory
-		depth int
-	}
-	var sorted []depthMem
-	for id, mem := range memoryMap {
-		sorted = append(sorted, depthMem{mem: mem, depth: memoryDepth[id]})
-	}
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].depth < sorted[j].depth
-	})
-
-	results := make([]*model.SearchResult, 0, len(sorted))
-	for _, dm := range sorted {
-		// [fix] 深度衰减评分: depth 0 → 1.0, depth 1 → 0.5, depth 2 → 0.33 ...
-		depthScore := 1.0 / float64(dm.depth+1)
-		results = append(results, &model.SearchResult{
-			Memory: dm.mem,
-			Score:  depthScore,
-			Source: "graph",
-		})
-	}
-	if len(results) > limit {
-		results = results[:limit]
-	}
-	return results
-}
-
-// llmExtractEntities LLM 从查询中抽取实体名 / LLM extract entity names from query
-func (r *Retriever) llmExtractEntities(ctx context.Context, query string, scope string) []string {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	temp := 0.1
-	resp, err := r.llm.Chat(ctx, &llm.ChatRequest{
-		Messages: []llm.ChatMessage{
-			{Role: "system", Content: "Extract entity names from the query. Output JSON: {\"entities\": [\"name1\", \"name2\"]}"},
-			{Role: "user", Content: query},
-		},
-		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
-		Temperature:    &temp,
-	})
-	if err != nil {
-		logger.Warn("graph: LLM entity extraction failed", zap.Error(err))
-		return nil
-	}
-
-	var output struct {
-		Entities []string `json:"entities"`
-	}
-	if err := json.Unmarshal([]byte(resp.Content), &output); err != nil {
-		logger.Warn("graph: LLM entity parse failed", zap.String("raw", resp.Content))
-		return nil
-	}
-
-	// 在 GraphStore 中按名称精确匹配实体（索引查询，替代全量扫描）
-	// Match entity names via indexed query (replaces O(N) full scan)
-	var matchedIDs []string
-	for _, name := range output.Entities {
-		entities, err := r.graphStore.FindEntitiesByName(ctx, name, scope, 1)
-		if err != nil {
-			logger.Debug("graph: FindEntitiesByName failed", zap.String("name", name), zap.Error(err))
-			continue
-		}
-		if len(entities) > 0 {
-			matchedIDs = append(matchedIDs, entities[0].ID)
-		}
-	}
-	return matchedIDs
-}
-
-// kindWeights 记忆类型权重 / Memory kind weights
-var kindWeights = map[string]float64{
-	"skill":   1.5,
-	"profile": 1.2,
-	"fact":    1.0,
-	"note":    1.0,
-}
-
-// subKindWeights 子类型权重加成 / Sub-kind weight boost
-var subKindWeights = map[string]float64{
-	"pattern": 1.3,
-	"case":    1.3,
-}
-
-// classWeights 记忆层级权重 / Memory class weights
-var classWeights = map[string]float64{
-	"procedural": 1.5,
-	"semantic":   1.2,
-	"episodic":   1.0,
-}
-
-// weightCap 最大权重上限，防止叠乘过度放大 / Max weight cap to prevent over-amplification
-const weightCap = 2.0
-
-// ApplyKindAndClassWeights 按 kind + memory_class 加权 / Weight results by kind and memory class
-func ApplyKindAndClassWeights(results []*model.SearchResult) []*model.SearchResult {
-	for _, r := range results {
-		if r.Memory == nil {
-			continue
-		}
-		w := 1.0
-		if kw, ok := kindWeights[r.Memory.Kind]; ok {
-			w = kw
-		}
-		if sw, ok := subKindWeights[r.Memory.SubKind]; ok {
-			w *= sw
-		}
-		if cw, ok := classWeights[r.Memory.MemoryClass]; ok {
-			w *= cw
-		}
-		if w > weightCap {
-			w = weightCap
-		}
-		r.Score *= w
-	}
-	return results
-}
-
-// EstimateTokens 估算文本token数 / Estimate token count for text
-// 委托给 pkg/tokenutil 统一实现 / Delegates to shared tokenutil package
-func EstimateTokens(text string) int {
-	return tokenutil.EstimateTokens(text)
-}
-
-// TrimByTokenBudget 按token预算裁剪检索结果 / Trim search results by token budget
-// 至少返回 1 条结果（即使单条超出预算）
-func TrimByTokenBudget(results []*model.SearchResult, maxTokens int) ([]*model.SearchResult, int, bool) {
-	if maxTokens <= 0 || len(results) == 0 {
-		total := 0
-		for _, r := range results {
-			total += EstimateTokens(r.Memory.Content)
-		}
-		return results, total, false
-	}
-
-	var trimmed []*model.SearchResult
-	totalTokens := 0
-	for i, r := range results {
-		tokens := EstimateTokens(r.Memory.Content)
-		if totalTokens+tokens > maxTokens && i > 0 {
-			return trimmed, totalTokens, true
-		}
-		trimmed = append(trimmed, r)
-		totalTokens += tokens
-	}
-	return trimmed, totalTokens, false
-}
-
-// resolveEmbedding 解析 embedding
-func (r *Retriever) resolveEmbedding(ctx context.Context, provided []float32, query string) ([]float32, error) {
-	if len(provided) > 0 {
-		return provided, nil
-	}
-	if r.embedder == nil || query == "" {
-		return nil, nil
-	}
-	embedding, err := r.embedder.Embed(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("embedding generation failed: %w", err)
-	}
-	return embedding, nil
-}
-
-// temporalRetrieve 时间通道检索 / Temporal channel retrieval with distance-decay scoring
-func (r *Retriever) temporalRetrieve(ctx context.Context, req *model.RetrieveRequest, plan *QueryPlan, limit int) []*model.SearchResult {
-	center := *plan.TemporalCenter
-	rangeD := plan.TemporalRange
-	if rangeD <= 0 {
-		rangeD = 7 * 24 * time.Hour
-	}
-
-	expandedRange := rangeD * 3
-	after := center.Add(-expandedRange)
-	before := center.Add(expandedRange)
-
-	timelineReq := &model.TimelineRequest{
-		TeamID:  req.TeamID,
-		OwnerID: req.OwnerID,
-		After:   &after,
-		Before:  &before,
-		Limit:   limit * 2,
-	}
-
-	memories, err := r.memStore.ListTimeline(ctx, timelineReq)
-	if err != nil {
-		logger.Warn("temporal retrieve failed", zap.Error(err))
-		return nil
-	}
-
-	rangeDays := rangeD.Hours() / 24
-	if rangeDays < 1 {
-		rangeDays = 1
-	}
-
-	var results []*model.SearchResult
-	for _, mem := range memories {
-		var ts time.Time
-		if mem.HappenedAt != nil && !mem.HappenedAt.IsZero() {
-			ts = *mem.HappenedAt
-		} else {
-			ts = mem.CreatedAt
-		}
-		daysAway := center.Sub(ts).Hours() / 24
-		if daysAway < 0 {
-			daysAway = -daysAway
-		}
-
-		var score float64
-		if daysAway <= rangeDays {
-			score = 1.0
-		} else {
-			score = 1.0 / (1.0 + daysAway/rangeDays)
-		}
-
-		results = append(results, &model.SearchResult{
-			Memory: mem,
-			Score:  score,
-			Source: "temporal",
-		})
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Score > results[j].Score
-	})
-	if len(results) > limit {
-		results = results[:limit]
-	}
-	return results
-}
-
-// backfillMemories 回填空壳 Memory 对象 / Backfill incomplete Memory objects from MemoryStore
-// Qdrant 搜索结果仅含 ID，需从 SQLite 获取完整字段（Content/Strength/DecayRate 等）
-func (r *Retriever) backfillMemories(ctx context.Context, results []*model.SearchResult) []*model.SearchResult {
-	filled := make([]*model.SearchResult, 0, len(results))
-	for _, res := range results {
-		if res.Memory == nil {
-			continue
-		}
-		// 检测空壳：Content 为空说明是 Qdrant 返回的不完整对象
-		if res.Memory.Content == "" {
-			mem, err := r.memStore.Get(ctx, res.Memory.ID)
-			if err != nil {
-				logger.Debug("backfill: failed to get memory, skipping",
-					zap.String("id", res.Memory.ID), zap.Error(err))
-				continue
-			}
-			// 创建副本避免修改共享指针 / Create copy to avoid mutating shared pointer
-			newRes := *res
-			newRes.Memory = mem
-			filled = append(filled, &newRes)
-			continue
-		}
-		filled = append(filled, res)
-	}
-	return filled
-}

@@ -1,21 +1,20 @@
 package api
 
 import (
+	"iclude/internal/memory"
 	"iclude/internal/model"
-	"iclude/internal/store"
 
 	"github.com/gin-gonic/gin"
 )
 
 // TagHandler 标签处理器 / Tag handler
 type TagHandler struct {
-	tagStore  store.TagStore
-	memReader store.MemoryReader
+	tagMgr *memory.TagManager
 }
 
 // NewTagHandler 创建标签处理器 / Create tag handler
-func NewTagHandler(tagStore store.TagStore, memReader store.MemoryReader) *TagHandler {
-	return &TagHandler{tagStore: tagStore, memReader: memReader}
+func NewTagHandler(tagMgr *memory.TagManager) *TagHandler {
+	return &TagHandler{tagMgr: tagMgr}
 }
 
 // CreateTag 创建标签 / Create tag
@@ -29,7 +28,7 @@ func (h *TagHandler) CreateTag(c *gin.Context, identity *model.Identity) {
 	if !identity.IsSystem() {
 		tag.Scope = identity.OwnerID
 	}
-	if err := h.tagStore.CreateTag(c.Request.Context(), &tag); err != nil {
+	if err := h.tagMgr.CreateTag(c.Request.Context(), &tag); err != nil {
 		Error(c, err)
 		return
 	}
@@ -43,7 +42,7 @@ func (h *TagHandler) ListTags(c *gin.Context, identity *model.Identity) {
 	if !identity.IsSystem() {
 		scope = identity.OwnerID
 	}
-	tags, err := h.tagStore.ListTags(c.Request.Context(), scope)
+	tags, err := h.tagMgr.ListTags(c.Request.Context(), scope)
 	if err != nil {
 		Error(c, err)
 		return
@@ -55,7 +54,7 @@ func (h *TagHandler) ListTags(c *gin.Context, identity *model.Identity) {
 // DELETE /v1/tags/:id
 func (h *TagHandler) DeleteTag(c *gin.Context, identity *model.Identity) {
 	id := c.Param("id")
-	tag, err := h.tagStore.GetTag(c.Request.Context(), id)
+	tag, err := h.tagMgr.GetTag(c.Request.Context(), id)
 	if err != nil {
 		Error(c, err)
 		return
@@ -65,7 +64,7 @@ func (h *TagHandler) DeleteTag(c *gin.Context, identity *model.Identity) {
 		return
 	}
 
-	if err := h.tagStore.DeleteTag(c.Request.Context(), id); err != nil {
+	if err := h.tagMgr.DeleteTag(c.Request.Context(), id); err != nil {
 		Error(c, err)
 		return
 	}
@@ -78,7 +77,7 @@ func (h *TagHandler) TagMemory(c *gin.Context, identity *model.Identity) {
 	memoryID := c.Param("id")
 
 	// 授权检查：验证调用者拥有该记忆 / Authorization: verify caller owns the memory
-	mem, err := h.memReader.GetVisible(c.Request.Context(), memoryID, identity)
+	mem, err := h.tagMgr.GetVisible(c.Request.Context(), memoryID, identity)
 	if err != nil {
 		Error(c, err)
 		return
@@ -95,7 +94,7 @@ func (h *TagHandler) TagMemory(c *gin.Context, identity *model.Identity) {
 		Error(c, model.ErrInvalidInput)
 		return
 	}
-	if err := h.tagStore.TagMemory(c.Request.Context(), memoryID, body.TagID); err != nil {
+	if err := h.tagMgr.TagMemory(c.Request.Context(), memoryID, body.TagID); err != nil {
 		Error(c, err)
 		return
 	}
@@ -108,7 +107,7 @@ func (h *TagHandler) UntagMemory(c *gin.Context, identity *model.Identity) {
 	memoryID := c.Param("id")
 
 	// 授权检查：验证调用者拥有该记忆 / Authorization: verify caller owns the memory
-	mem, err := h.memReader.GetVisible(c.Request.Context(), memoryID, identity)
+	mem, err := h.tagMgr.GetVisible(c.Request.Context(), memoryID, identity)
 	if err != nil {
 		Error(c, err)
 		return
@@ -119,7 +118,7 @@ func (h *TagHandler) UntagMemory(c *gin.Context, identity *model.Identity) {
 	}
 
 	tagID := c.Param("tag_id")
-	if err := h.tagStore.UntagMemory(c.Request.Context(), memoryID, tagID); err != nil {
+	if err := h.tagMgr.UntagMemory(c.Request.Context(), memoryID, tagID); err != nil {
 		Error(c, err)
 		return
 	}
@@ -132,7 +131,7 @@ func (h *TagHandler) GetMemoryTags(c *gin.Context, identity *model.Identity) {
 	memoryID := c.Param("id")
 
 	// 授权检查：验证调用者可见该记忆 / Authorization: verify memory is visible to caller
-	mem, err := h.memReader.GetVisible(c.Request.Context(), memoryID, identity)
+	mem, err := h.tagMgr.GetVisible(c.Request.Context(), memoryID, identity)
 	if err != nil {
 		Error(c, err)
 		return
@@ -142,7 +141,7 @@ func (h *TagHandler) GetMemoryTags(c *gin.Context, identity *model.Identity) {
 		return
 	}
 
-	tags, err := h.tagStore.GetMemoryTags(c.Request.Context(), memoryID)
+	tags, err := h.tagMgr.GetMemoryTags(c.Request.Context(), memoryID)
 	if err != nil {
 		Error(c, err)
 		return

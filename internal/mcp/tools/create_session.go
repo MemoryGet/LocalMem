@@ -51,7 +51,7 @@ func (t *CreateSessionTool) Definition() mcp.ToolDefinition {
 func (t *CreateSessionTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp.ToolResult, error) {
 	var args createSessionArgs
 	if err := json.Unmarshal(arguments, &args); err != nil {
-		return mcp.ErrorResult("invalid arguments: " + err.Error()), nil
+		return toolInputError("invalid arguments")
 	}
 	if args.SessionID == "" {
 		return mcp.ErrorResult("session_id is required"), nil
@@ -74,14 +74,21 @@ func (t *CreateSessionTool) Execute(ctx context.Context, arguments json.RawMessa
 
 	created, err := t.creator.Create(ctx, req)
 	if err != nil {
-		return mcp.ErrorResult("failed to create session context: " + err.Error()), nil
+		return toolError("create_session", err)
+	}
+
+	// 将 project scope 写入当前 MCP session / Write project scope to current MCP session
+	if args.Scope != "" {
+		if sess := mcp.SessionFromContext(ctx); sess != nil {
+			sess.SetProjectScope(args.Scope)
+		}
 	}
 
 	out, _ := json.Marshal(map[string]any{
-		"context_id": created.ID,
-		"session_id": args.SessionID,
+		"context_id":   created.ID,
+		"session_id":   args.SessionID,
 		"context_type": created.ContextType,
-		"scope":      created.Scope,
+		"scope":        created.Scope,
 	})
 	return mcp.TextResult(string(out)), nil
 }

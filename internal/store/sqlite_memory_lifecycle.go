@@ -453,7 +453,7 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 		JOIN memories_fts f ON m.rowid = f.rowid
 		WHERE memories_fts MATCH ? AND m.deleted_at IS NULL AND ` + visCond + `
 	)
-	SELECT * FROM ranked ORDER BY rank LIMIT ?`
+	SELECT ` + memoryColumns + `, rank FROM ranked ORDER BY rank LIMIT ?`
 
 	args := []interface{}{w[0], w[1], w[2], tokenizedQuery}
 	args = append(args, visArgs...)
@@ -548,7 +548,7 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 		JOIN memories_fts f ON m.rowid = f.rowid
 		WHERE %s
 	)
-	SELECT * FROM ranked ORDER BY rank LIMIT ?`, memoryColumnsAliased, whereClause)
+	SELECT %s, rank FROM ranked ORDER BY rank LIMIT ?`, memoryColumnsAliased, whereClause, memoryColumns)
 
 	finalArgs := make([]interface{}, 0, len(whereArgs)+4)
 	finalArgs = append(finalArgs, w[0], w[1], w[2])

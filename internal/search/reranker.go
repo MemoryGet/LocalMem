@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strings"
 
@@ -9,6 +10,9 @@ import (
 	"iclude/internal/logger"
 	"iclude/internal/model"
 )
+
+// rerankerEpsilon 精排分数比较容差 / Epsilon for reranker float comparison
+const rerankerEpsilon = 1e-12
 
 // Reranker 精排接口 / Re-ranking interface
 type Reranker interface {
@@ -109,10 +113,10 @@ func (r *OverlapReranker) Rerank(ctx context.Context, query string, results []*m
 	}
 
 	sort.SliceStable(scored, func(i, j int) bool {
-		if scored[i].final != scored[j].final {
+		if math.Abs(scored[i].final-scored[j].final) > rerankerEpsilon {
 			return scored[i].final > scored[j].final
 		}
-		if scored[i].baseScore != scored[j].baseScore {
+		if math.Abs(scored[i].baseScore-scored[j].baseScore) > rerankerEpsilon {
 			return scored[i].baseScore > scored[j].baseScore
 		}
 		return scored[i].index < scored[j].index
@@ -120,8 +124,10 @@ func (r *OverlapReranker) Rerank(ctx context.Context, query string, results []*m
 
 	reranked := append([]*model.SearchResult(nil), results...)
 	for i, item := range scored {
-		item.res.Score = item.final
-		reranked[i] = item.res
+		// 创建副本避免修改传入的 results / Create copy to avoid mutating input results
+		resCopy := *item.res
+		resCopy.Score = item.final
+		reranked[i] = &resCopy
 	}
 	return reranked
 }

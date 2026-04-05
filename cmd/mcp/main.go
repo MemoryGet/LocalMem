@@ -122,7 +122,7 @@ func main() {
 	reg := mcp.NewRegistry()
 
 	// 注册工具 / Register tools
-	reg.RegisterTool(tools.NewRetainTool(creatorAdapter))
+	reg.RegisterTool(tools.NewRetainTool(creatorAdapter, deps.Stores.ScopePolicyStore))
 	reg.RegisterTool(tools.NewRecallTool(retrieverAdapter))
 	if deps.ReflectEngine != nil {
 		reg.RegisterTool(tools.NewReflectTool(deps.ReflectEngine))
@@ -161,10 +161,12 @@ func main() {
 	srv := mcp.NewServer(cfg.MCP, reg)
 	addr := fmt.Sprintf(":%d", cfg.MCP.Port)
 	httpSrv := &http.Server{
-		Addr:         addr,
-		Handler:      srv.Handler(),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		Addr:              addr,
+		Handler:           srv.Handler(),
+		ReadTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	srvErr := make(chan error, 1)

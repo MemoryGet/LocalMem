@@ -63,7 +63,7 @@ func (s *SQLiteMemoryStore) Create(ctx context.Context, mem *model.Memory) error
 	defer tx.Rollback()
 
 	query := `INSERT INTO memories (` + memoryColumns + `)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = tx.ExecContext(ctx, query,
 		mem.ID, mem.Content, metadataJSON, mem.TeamID,
@@ -75,7 +75,7 @@ func (s *SQLiteMemoryStore) Create(ctx context.Context, mem *model.Memory) error
 		mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
 		mem.RetentionTier, mem.MessageRole, mem.TurnNumber, mem.ContentHash, mem.ConsolidatedInto,
 		mem.OwnerID, mem.Visibility,
-		mem.MemoryClass,
+		mem.MemoryClass, mem.CandidateFor,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert memory: %w", err)
@@ -106,7 +106,7 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 	defer tx.Rollback()
 
 	insertQuery := `INSERT INTO memories (` + memoryColumns + `)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	insertStmt, err := tx.PrepareContext(ctx, insertQuery)
 	if err != nil {
 		return fmt.Errorf("failed to prepare insert statement: %w", err)
@@ -158,7 +158,7 @@ func (s *SQLiteMemoryStore) CreateBatch(ctx context.Context, memories []*model.M
 			mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
 			mem.RetentionTier, mem.MessageRole, mem.TurnNumber, mem.ContentHash, mem.ConsolidatedInto,
 			mem.OwnerID, mem.Visibility,
-			mem.MemoryClass,
+			mem.MemoryClass, mem.CandidateFor,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to insert memory %s: %w", mem.ID, err)
@@ -221,7 +221,7 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 		happened_at = ?, source_type = ?, source_ref = ?, document_id = ?, chunk_index = ?,
 		strength = ?, decay_rate = ?, last_accessed_at = ?, reinforced_count = ?, expires_at = ?,
 		retention_tier = ?, message_role = ?, turn_number = ?, owner_id = ?, visibility = ?,
-		memory_class = ?
+		memory_class = ?, candidate_for = ?
 		WHERE id = ?`
 
 	result, err := tx.ExecContext(ctx, query,
@@ -231,7 +231,7 @@ func (s *SQLiteMemoryStore) Update(ctx context.Context, mem *model.Memory) error
 		timeToNull(mem.HappenedAt), mem.SourceType, mem.SourceRef, mem.DocumentID, mem.ChunkIndex,
 		mem.Strength, mem.DecayRate, timeToNull(mem.LastAccessedAt), mem.ReinforcedCount, timeToNull(mem.ExpiresAt),
 		mem.RetentionTier, mem.MessageRole, mem.TurnNumber, mem.OwnerID, mem.Visibility,
-		mem.MemoryClass,
+		mem.MemoryClass, mem.CandidateFor,
 		mem.ID,
 	)
 	if err != nil {

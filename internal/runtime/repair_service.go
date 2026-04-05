@@ -105,33 +105,76 @@ func (r *RepairService) repair(ctx context.Context) (*RepairResult, error) {
 // repairSession 修复单个会话 / Repair a single session
 // 返回 true=成功 finalize, false=已标记 abandoned
 func (r *RepairService) repairSession(ctx context.Context, sess *model.Session) (bool, error) {
-	// 构建幂等键（repair 用 v+时间戳去重）/ Build idempotency key for repair
-	idemKey := fmt.Sprintf("finalize:%s:%s:repair_%d", sess.ToolName, sess.ID, time.Now().Unix())
+	// 1. 读取当前修复尝试次数 / Read current repair attempt count
+	attempts := getRepairAttempts(sess)
 
+	// 2. 超限检查 → abandoned / Max attempts exceeded → abandoned
+	if attempts >= r.cfg.MaxAttempts {
+		if err := r.sessions.UpdateState(ctx, sess.ID, model.SessionStateAbandoned); err != nil {
+			return false, fmt.Errorf("mark abandoned: %w", err)
+		}
+		logger.Warn("runtime.repair_abandoned",
+			zap.String("session_id", sess.ID),
+			zap.Int("attempts", attempts),
+			zap.Int("max_attempts", r.cfg.MaxAttempts),
+		)
+		return false, nil
+	}
+
+	// 3. 递增尝试次数 / Increment attempt count
+	if err := r.sessions.UpdateMetadata(ctx, sess.ID, map[string]any{
+		"repair_attempts": attempts + 1,
+	}); err != nil {
+		logger.Warn("runtime.repair_update_attempts_failed", zap.Error(err))
+	}
+
+	// 4. 尝试 finalize / Try finalize
+	idemKey := fmt.Sprintf("finalize:%s:%s:repair_%d", sess.ToolName, sess.ID, time.Now().Unix())
 	req := &FinalizeRequest{
 		SessionID:      sess.ID,
 		ContextID:      sess.ContextID,
 		ToolName:       sess.ToolName,
 		IdempotencyKey: idemKey,
 	}
-
-	// 构建 identity / Build identity from session
 	identity := &model.Identity{
 		OwnerID: sess.UserID,
 	}
 
 	resp, err := r.finalize.Finalize(ctx, req, identity)
 	if err != nil {
+		// finalize 失败 → 标记 pending_repair 等下一轮 / Failed → mark pending_repair for next cycle
+		if sess.State != model.SessionStatePendingRepair {
+			_ = r.sessions.UpdateState(ctx, sess.ID, model.SessionStatePendingRepair)
+		}
 		return false, fmt.Errorf("repair finalize: %w", err)
 	}
 
 	if resp.Finalized {
-		logger.Info("runtime.repair_replayed",
+		logger.Info("runtime.repair_succeeded",
 			zap.String("session_id", sess.ID),
-			zap.String("action", "finalized"),
+			zap.Int("attempts", attempts+1),
 		)
 		return true, nil
 	}
 
 	return false, nil
+}
+
+// getRepairAttempts 从 session metadata 读取修复尝试次数 / Read repair attempts from session metadata
+func getRepairAttempts(sess *model.Session) int {
+	if sess.Metadata == nil {
+		return 0
+	}
+	v, ok := sess.Metadata["repair_attempts"]
+	if !ok {
+		return 0
+	}
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	default:
+		return 0
+	}
 }

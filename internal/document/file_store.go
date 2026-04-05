@@ -35,18 +35,20 @@ func (s *LocalFileStore) Save(ctx context.Context, docID string, filename string
 	if err := s.validatePath(dir); err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create upload dir: %w", err)
 	}
 
 	destPath := filepath.Join(dir, filepath.Base(filename))
-	f, err := os.Create(destPath)
+	f, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0640)
 	if err != nil {
 		return "", fmt.Errorf("failed to create file: %w", err)
 	}
 	defer f.Close()
 
-	if _, err := io.Copy(f, reader); err != nil {
+	// 限制写入大小，防止客户端伪造 Content-Length / Limit write size to prevent spoofed Content-Length
+	const maxUploadSize = 100 * 1024 * 1024 // 100MB
+	if _, err := io.Copy(f, io.LimitReader(reader, maxUploadSize)); err != nil {
 		return "", fmt.Errorf("failed to write file: %w", err)
 	}
 

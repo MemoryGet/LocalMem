@@ -41,7 +41,8 @@ func ContentHash(content string) string {
 // dedupCheck 执行完整去重检查（哈希 + 向量）/ Run full dedup check (hash + vector)
 // Returns (existingMemory, contentHash, embedding, error).
 // If existingMemory != nil, caller should return it instead of creating new.
-func (m *Manager) dedupCheck(ctx context.Context, content string, reqEmbedding []float32) (existing *model.Memory, contentHash string, embedding []float32, err error) {
+// identity 用于向量去重的可见性隔离 / identity for vector dedup visibility isolation
+func (m *Manager) dedupCheck(ctx context.Context, content string, reqEmbedding []float32, identity *model.Identity) (existing *model.Memory, contentHash string, embedding []float32, err error) {
 	contentHash = ContentHash(content)
 
 	// 哈希去重 / Hash dedup
@@ -64,7 +65,7 @@ func (m *Manager) dedupCheck(ctx context.Context, content string, reqEmbedding [
 
 	// 余弦相似度去重 / Cosine similarity dedup
 	if embedding != nil {
-		vecResult, vecErr := checkVectorDedup(ctx, embedding, m.vecStore, m.cfg.Dedup)
+		vecResult, vecErr := checkVectorDedup(ctx, embedding, m.vecStore, m.cfg.Dedup, identity)
 		if vecErr != nil {
 			logger.Warn("vector dedup check failed, proceeding", zap.Error(vecErr))
 		} else if vecResult.IsDuplicate && vecResult.ExistingMemory != nil {
@@ -76,17 +77,17 @@ func (m *Manager) dedupCheck(ctx context.Context, content string, reqEmbedding [
 	return nil, contentHash, embedding, nil
 }
 
-// checkVectorDedup 余弦相似度去重 / Check for semantic duplicate using vector similarity
+// checkVectorDedup 余弦相似度去重（带可见性隔离）/ Check for semantic duplicate using vector similarity with visibility isolation
 // 双阈值：>=skipThreshold 直接跳过，>=mergeThreshold 视为候选
 // 需要 vecStore 和 embedder 非 nil，否则跳过
-func checkVectorDedup(ctx context.Context, embedding []float32, vecStore store.VectorStore, cfg config.DedupConfig) (*DedupResult, error) {
+func checkVectorDedup(ctx context.Context, embedding []float32, vecStore store.VectorStore, cfg config.DedupConfig, identity *model.Identity) (*DedupResult, error) {
 	if !cfg.VectorEnabled || vecStore == nil || len(embedding) == 0 {
 		return &DedupResult{IsDuplicate: false}, nil
 	}
 
-	// 搜索最相似的 1 条（系统内部操作，使用 nil identity 跳过可见性过滤）
-	// System-internal search: nil identity bypasses visibility filtering
-	results, err := vecStore.Search(ctx, embedding, nil, 1)
+	// 搜索最相似的 1 条（使用 identity 做可见性过滤，确保数据隔离）
+	// Search with identity for visibility filtering to ensure data isolation
+	results, err := vecStore.Search(ctx, embedding, identity, 1)
 	if err != nil {
 		return nil, fmt.Errorf("vector dedup search failed: %w", err)
 	}

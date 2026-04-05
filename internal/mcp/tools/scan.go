@@ -73,7 +73,7 @@ func (t *ScanTool) Definition() mcp.ToolDefinition {
 func (t *ScanTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp.ToolResult, error) {
 	var args scanArgs
 	if err := json.Unmarshal(arguments, &args); err != nil {
-		return mcp.ErrorResult("invalid arguments: " + err.Error()), nil
+		return toolInputError("invalid arguments")
 	}
 	if args.Query == "" {
 		return mcp.ErrorResult("query is required"), nil
@@ -112,7 +112,7 @@ func (t *ScanTool) Execute(ctx context.Context, arguments json.RawMessage) (*mcp
 
 	results, err := t.retriever.Retrieve(ctx, req)
 	if err != nil {
-		return mcp.ErrorResult("retrieval failed: " + err.Error()), nil
+		return toolError("scan", err)
 	}
 
 	items := make([]ScanResultItem, 0, len(results))

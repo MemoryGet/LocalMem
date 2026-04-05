@@ -94,7 +94,7 @@ func NewRunner(dbPath string, mode string, opts ...RunnerOption) (*Runner, func(
 	}
 
 	// Manager：hybrid 模式注入 LLM（丰富摘要生成）/ Inject LLM for rich abstract generation
-	mgr := memory.NewManager(memStore, nil, nil, nil, nil, nil, llmProvider, memory.ManagerConfig{})
+	mgr := memory.NewManager(memory.ManagerDeps{MemStore: memStore, LLMProvider: llmProvider})
 
 	cfg := buildRetrievalConfig(mode)
 	var retriever *search.Retriever

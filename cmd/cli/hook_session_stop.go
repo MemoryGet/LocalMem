@@ -10,6 +10,7 @@ import (
 
 	"iclude/internal/config"
 	"iclude/internal/mcp/client"
+	"iclude/pkg/identity"
 )
 
 // sessionStopInput Claude Code Stop hook stdin JSON
@@ -59,25 +60,26 @@ func runSessionStop() error {
 	defer c.Close()
 
 	// 5. 构建幂等键 / Build idempotency key
-	idemKey := fmt.Sprintf("finalize:claude-code:%s:v1", hookInput.SessionID)
+	hostTool := cfg.Hooks.ResolvedHostTool()
+	idemKey := fmt.Sprintf("finalize:%s:%s:v1", hostTool, hookInput.SessionID)
 
 	// 6. 调用 finalize_session / Call finalize_session
 	err = c.CallTool(ctx, "iclude_finalize_session", map[string]any{
 		"session_id":      hookInput.SessionID,
-		"tool_name":       "claude-code",
+		"tool_name":       hostTool,
 		"idempotency_key": idemKey,
 	})
 	if err != nil {
 		// finalize 失败时降级为 retain summary / Fallback to retain summary on finalize failure
 		fmt.Fprintf(os.Stderr, "iclude: finalize_session failed, falling back to retain: %v\n", err)
-		return fallbackRetainSummary(ctx, c, hookInput)
+		return fallbackRetainSummary(ctx, c, hookInput, cfg)
 	}
 
 	return nil
 }
 
 // fallbackRetainSummary finalize 失败时降级为旧的 retain 行为 / Fallback to legacy retain behavior when finalize fails
-func fallbackRetainSummary(ctx context.Context, c *client.Client, hookInput sessionStopInput) error {
+func fallbackRetainSummary(ctx context.Context, c *client.Client, hookInput sessionStopInput, cfg config.Config) error {
 	sessionShort := hookInput.SessionID
 	if len(sessionShort) > 8 {
 		sessionShort = sessionShort[:8]
@@ -88,17 +90,28 @@ func fallbackRetainSummary(ctx context.Context, c *client.Client, hookInput sess
 		hookInput.CWD,
 	)
 
-	if err := c.CallTool(ctx, "iclude_retain", map[string]any{
+	// 会话摘要用 session/ scope / Session summary uses session/ scope
+	sessionScope := "session/" + hookInput.SessionID
+	projectID := identity.ResolveProjectID(hookInput.CWD)
+	projectScope := ""
+	if projectID != "" {
+		projectScope = "project/" + projectID
+	}
+
+	retainArgs := map[string]any{
 		"content":      summary,
 		"kind":         "session_summary",
+		"scope":        sessionScope,
 		"source_type":  "hook",
 		"message_role": "system",
 		"metadata": map[string]string{
-			"session_id":   hookInput.SessionID,
-			"host_tool":    "claude-code",
-			"capture_mode": "auto",
+			"session_id":    hookInput.SessionID,
+			"host_tool":     cfg.Hooks.ResolvedHostTool(),
+			"capture_mode":  cfg.Hooks.ResolvedCaptureMode(),
+			"project_scope": projectScope,
 		},
-	}); err != nil {
+	}
+	if err := c.CallTool(ctx, "iclude_retain", retainArgs); err != nil {
 		fmt.Fprintf(os.Stderr, "iclude: session stop retain failed: %v\n", err)
 	}
 	return nil

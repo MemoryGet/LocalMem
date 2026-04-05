@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -40,7 +41,11 @@ func NewServer(cfg config.MCPConfig, registry *Registry) *Server {
 		limiter:  rate.NewLimiter(rate.Limit(10), 20), // 10 rps, burst 20
 	}
 	if s.cfg.APIToken == "" {
-		logger.Warn("MCP server running without authentication — set mcp.api_token in config for production use")
+		if os.Getenv("ICLUDE_MCP_ALLOW_NO_AUTH") == "true" {
+			logger.Warn("MCP server running without authentication — ICLUDE_MCP_ALLOW_NO_AUTH=true is set, skipping auth")
+		} else {
+			logger.Error("MCP api_token is empty and ICLUDE_MCP_ALLOW_NO_AUTH is not set — all requests will be rejected until configured")
+		}
 	}
 	s.mux.HandleFunc("/sse", s.rateLimitWrap(s.handleSSE))
 	s.mux.HandleFunc("/messages", s.rateLimitWrap(s.handleMessages))
@@ -61,10 +66,11 @@ func (s *Server) rateLimitWrap(next http.HandlerFunc) http.HandlerFunc {
 // Handler 返回 HTTP handler / Return HTTP handler
 func (s *Server) Handler() http.Handler { return s.mux }
 
-// checkAuth 验证 Bearer token（token 为空时跳过验证）/ Verify Bearer token; skip if token is empty
+// checkAuth 验证 Bearer token / Verify Bearer token; require explicit env var to skip auth
 func (s *Server) checkAuth(r *http.Request) bool {
 	if s.cfg.APIToken == "" {
-		return true // token 未配置时不鉴权（本地开发模式）
+		// token 未配置时，仅在显式设置环境变量时跳过鉴权 / Only skip auth when env var is explicitly set
+		return os.Getenv("ICLUDE_MCP_ALLOW_NO_AUTH") == "true"
 	}
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {

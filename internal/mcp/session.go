@@ -33,16 +33,55 @@ func IdentityFromContext(ctx context.Context) *model.Identity {
 	return id
 }
 
+// projectScopeCtxKey context key for project scope / project scope 的 context key
+type projectScopeCtxKey struct{}
+
+// WithProjectScope 将 project scope 注入 context / Inject project scope into context
+func WithProjectScope(ctx context.Context, scope string) context.Context {
+	return context.WithValue(ctx, projectScopeCtxKey{}, scope)
+}
+
+// ProjectScopeFromContext 从 context 读取 project scope / Read project scope from context
+func ProjectScopeFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(projectScopeCtxKey{}).(string)
+	return v
+}
+
+// sessionCtxKey context key for session reference / session 引用的 context key
+type sessionCtxKey struct{}
+
+// WithSession 将 session 注入 context / Inject session into context
+func WithSession(ctx context.Context, s *Session) context.Context {
+	return context.WithValue(ctx, sessionCtxKey{}, s)
+}
+
+// SessionFromContext 从 context 获取 session / Get session from context
+func SessionFromContext(ctx context.Context) *Session {
+	s, _ := ctx.Value(sessionCtxKey{}).(*Session)
+	return s
+}
+
 // Session 单个 MCP 客户端会话 / Single MCP client session with identity and JSON-RPC dispatch
 type Session struct {
-	id          string
-	registry    *Registry
-	identity    *model.Identity
-	outCh       chan []byte   // SSE 输出 channel（未导出） / SSE output channel (unexported)
-	once        sync.Once     // 保证 outCh 只关闭一次 / Ensures outCh is closed exactly once
-	toolCalls   atomic.Int64  // tool 调用计数 / Tool call counter for star reminder
-	starred     atomic.Bool   // 是否已提醒过 Star / Whether star reminder has been shown
-	initialized atomic.Bool   // 是否已完成 MCP 握手 / Whether MCP handshake is complete
+	id           string
+	registry     *Registry
+	identity     *model.Identity
+	projectScope string         // 当前会话关联的项目 scope / Project scope for this session
+	outCh        chan []byte    // SSE 输出 channel（未导出） / SSE output channel (unexported)
+	once         sync.Once      // 保证 outCh 只关闭一次 / Ensures outCh is closed exactly once
+	toolCalls    atomic.Int64   // tool 调用计数 / Tool call counter for star reminder
+	starred      atomic.Bool    // 是否已提醒过 Star / Whether star reminder has been shown
+	initialized  atomic.Bool    // 是否已完成 MCP 握手 / Whether MCP handshake is complete
+}
+
+// SetProjectScope 设置项目 scope / Set project scope for this session
+func (s *Session) SetProjectScope(scope string) {
+	s.projectScope = scope
+}
+
+// ProjectScope 获取项目 scope / Get project scope
+func (s *Session) ProjectScope() string {
+	return s.projectScope
 }
 
 // NewSession 创建新的客户端会话 / Create a new client session
@@ -69,6 +108,10 @@ func (s *Session) Close() {
 // Dispatch 处理单个原始 JSON-RPC 请求字节 / Handle a single raw JSON-RPC request and send response to Out()
 func (s *Session) Dispatch(ctx context.Context, raw []byte) {
 	ctx = WithIdentity(ctx, s.identity)
+	ctx = WithSession(ctx, s)
+	if s.projectScope != "" {
+		ctx = WithProjectScope(ctx, s.projectScope)
+	}
 
 	var req JSONRPCRequest
 	if err := json.Unmarshal(raw, &req); err != nil {
@@ -84,8 +127,12 @@ func (s *Session) Dispatch(ctx context.Context, raw []byte) {
 
 // HandleRequest 处理 JSON-RPC 请求，返回响应 / Handle a JSON-RPC request and return response
 func (s *Session) HandleRequest(ctx context.Context, req *JSONRPCRequest) *JSONRPCResponse {
-	// 注入当前会话身份 / Inject session identity into context
+	// 注入当前会话身份 + session 引用 + project scope / Inject identity, session ref, and project scope
 	ctx = WithIdentity(ctx, s.identity)
+	ctx = WithSession(ctx, s)
+	if s.projectScope != "" {
+		ctx = WithProjectScope(ctx, s.projectScope)
+	}
 
 	// 握手阶段：只允许 initialize、notifications/initialized 和 ping / Before handshake only allow init methods and ping
 	if !s.initialized.Load() {
@@ -156,7 +203,8 @@ func (s *Session) handleToolsCall(ctx context.Context, req *JSONRPCRequest) *JSO
 	}
 	result, err := h.Execute(ctx, params.Arguments)
 	if err != nil {
-		return errResponse(req.ID, -32603, "tool execution error: "+err.Error())
+		logger.Error("mcp: tool execution failed", zap.String("tool", params.Name), zap.Error(err))
+		return errResponse(req.ID, -32603, "tool execution error")
 	}
 	// Star 提醒：达到阈值后追加一次 / Append star reminder once after threshold tool calls
 	if n := s.toolCalls.Add(1); n == starReminderThreshold && !s.starred.Swap(true) {
@@ -181,7 +229,8 @@ func (s *Session) handleResourcesRead(ctx context.Context, req *JSONRPCRequest) 
 	}
 	content, err := h.Read(ctx, params.URI)
 	if err != nil {
-		return errResponse(req.ID, -32603, err.Error())
+		logger.Error("mcp: resource read failed", zap.String("uri", params.URI), zap.Error(err))
+		return errResponse(req.ID, -32603, "resource read error")
 	}
 	return okResponse(req.ID, map[string]any{
 		"contents": []map[string]any{
@@ -201,7 +250,8 @@ func (s *Session) handlePromptsGet(ctx context.Context, req *JSONRPCRequest) *JS
 	}
 	result, err := h.Get(ctx, params.Arguments)
 	if err != nil {
-		return errResponse(req.ID, -32603, err.Error())
+		logger.Error("mcp: prompt get failed", zap.String("prompt", params.Name), zap.Error(err))
+		return errResponse(req.ID, -32603, "prompt get error")
 	}
 	return okResponse(req.ID, result)
 }

@@ -44,6 +44,11 @@ func (h *GraphHandler) GetEntity(c *gin.Context, identity *model.Identity) {
 		Error(c, err)
 		return
 	}
+	// 所有权校验 / Ownership check
+	if entity.Scope != "" && entity.Scope != identity.OwnerID && !identity.IsSystem() {
+		Error(c, model.ErrForbidden)
+		return
+	}
 	Success(c, entity)
 }
 

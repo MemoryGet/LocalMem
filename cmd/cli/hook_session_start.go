@@ -77,11 +77,18 @@ func runSessionStart() error {
 		sessionShort = sessionShort[:8]
 	}
 
+	projectID := identity.ResolveProjectID(hookInput.CWD)
+	projectScope := ""
+	if projectID != "" {
+		projectScope = "project/" + projectID
+	}
+
 	var contextID string
 	createResult, err := c.CallToolSync(ctx, "iclude_create_session", map[string]any{
 		"session_id":  hookInput.SessionID,
 		"project_dir": hookInput.CWD,
-		"project_id":  identity.ResolveProjectID(hookInput.CWD),
+		"project_id":  projectID,
+		"scope":       projectScope,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "iclude: create session failed: %v\n", err)
@@ -103,6 +110,9 @@ func runSessionStart() error {
 	if contextID != "" {
 		scanArgs["context_id"] = contextID
 	}
+	if projectScope != "" {
+		scanArgs["scope"] = projectScope
+	}
 
 	scanRaw, err := c.CallToolSync(ctx, "iclude_scan", scanArgs)
 	if err != nil {
@@ -116,6 +126,10 @@ func runSessionStart() error {
 	if contextID != "" {
 		fmt.Printf("Context ID: %s\n", contextID)
 	}
+	if projectScope != "" {
+		fmt.Printf("Project scope: %s\n", projectScope)
+	}
+	fmt.Printf("User scope: user/%s\n", cfg.MCP.DefaultOwnerID)
 	fmt.Println("---")
 
 	if scanRaw != nil {

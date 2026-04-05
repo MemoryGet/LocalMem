@@ -111,7 +111,7 @@ func runSingleQuestion(ctx context.Context, entry LongMemEvalEntry, tmpDir strin
 		return CaseResult{}, fmt.Errorf("init store: %w", err)
 	}
 
-	mgr := memory.NewManager(memStore, nil, nil, nil, nil, nil, nil, memory.ManagerConfig{})
+	mgr := memory.NewManager(memory.ManagerDeps{MemStore: memStore})
 
 	// Seed
 	for _, sm := range entry.SeedMemories {

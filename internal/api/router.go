@@ -18,14 +18,14 @@ type RouterDeps struct {
 	GraphManager       *memory.GraphManager
 	Retriever          *search.Retriever
 	DocProcessor       *document.Processor
-	TagStore           store.TagStore
-	MemStore           store.MemoryReader // 用于标签操作的记忆归属校验 / For memory ownership checks in tag operations
+	TagManager         *memory.TagManager // 可为 nil / may be nil
 	ReflectEngine      *reflectpkg.ReflectEngine
 	Extractor          *memory.Extractor          // 可为 nil / may be nil
 	Summarizer         *memory.SessionSummarizer  // B7: 可为 nil / may be nil
 	LineageTracer      *memory.LineageTracer      // B7: 可为 nil / may be nil
 	ExperienceRecaller *search.ExperienceRecaller // B7: 可为 nil / may be nil
 	FileStore          document.FileStore         // nil if document disabled
+	ScopePolicyStore   store.ScopePolicyStore    // nil if SQLite disabled
 	DocumentConfig     config.DocumentConfig
 	AuthConfig         config.AuthConfig
 	ReflectConfig      config.ReflectConfig
@@ -53,6 +53,7 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 	{
 		// 速率限制 / Rate limiting
 		writeRateLimit := RateLimitMiddleware(20, 40) // 20 rps, burst 40
+		apiRateLimit := RateLimitMiddleware(10, 20)   // 10 rps, burst 20
 		llmRateLimit := RateLimitMiddleware(2, 5)     // 2 rps, burst 5
 
 		// Session collaboration (B6 + B7) — 静态前缀路由需在参数路由前注册 / Static prefix routes before param routes
@@ -79,10 +80,10 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 
 		// Batch operations
 		batchHandler := NewBatchHandler(deps.MemManager)
-		v1.POST("/memories/batch", withIdentity(batchHandler.BatchGet))
+		v1.POST("/memories/batch", apiRateLimit, withIdentity(batchHandler.BatchGet))
 
 		// Maintenance
-		v1.POST("/maintenance/cleanup", withIdentity(memHandler.Cleanup))
+		v1.POST("/maintenance/cleanup", writeRateLimit, withIdentity(memHandler.Cleanup))
 
 		// Conversations
 		convHandler := NewConversationHandler(deps.MemManager)
@@ -91,7 +92,6 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 
 		// Search（带速率限制）/ Search with rate limiting
 		searchHandler := NewSearchHandler(deps.Retriever)
-		apiRateLimit := RateLimitMiddleware(10, 20) // 10 rps, burst 20
 		v1.POST("/retrieve", apiRateLimit, withIdentity(searchHandler.Retrieve))
 		v1.GET("/timeline", withIdentity(searchHandler.Timeline))
 
@@ -108,8 +108,8 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 		}
 
 		// Tags
-		if deps.TagStore != nil {
-			tagHandler := NewTagHandler(deps.TagStore, deps.MemStore)
+		if deps.TagManager != nil {
+			tagHandler := NewTagHandler(deps.TagManager)
 			v1.POST("/tags", withIdentity(tagHandler.CreateTag))
 			v1.GET("/tags", withIdentity(tagHandler.ListTags))
 			v1.DELETE("/tags/:id", withIdentity(tagHandler.DeleteTag))
@@ -158,6 +158,19 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 		if deps.ReflectEngine != nil {
 			reflectHandler := NewReflectHandler(deps.ReflectEngine, deps.ReflectConfig)
 			v1.POST("/reflect", llmRateLimit, withIdentity(reflectHandler.Reflect))
+		}
+
+		// Scope Policies 权限策略 / Scope policy management
+		if deps.ScopePolicyStore != nil {
+			sph := NewScopePolicyHandler(deps.ScopePolicyStore)
+			sp := v1.Group("/scope-policies")
+			{
+				sp.GET("", withIdentity(sph.List))
+				sp.POST("", withIdentity(sph.Create))
+				sp.GET("/:scope", withIdentity(sph.Get))
+				sp.PUT("/:scope", withIdentity(sph.Update))
+				sp.DELETE("/:scope", withIdentity(sph.Delete))
+			}
 		}
 	}
 
