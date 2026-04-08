@@ -20,12 +20,12 @@ var llmTemperature = func() *float64 { v := 0.1; return &v }()
 
 // validPipelineSet 有效管线集合 / Valid pipeline names
 var validPipelineSet = map[string]bool{
-	"precision":   true,
-	"exploration": true,
-	"semantic":    true,
-	"association": true,
-	"fast":        true,
-	"full":        true,
+	pipeline.PipelinePrecision:   true,
+	pipeline.PipelineExploration: true,
+	pipeline.PipelineSemantic:    true,
+	pipeline.PipelineAssociation: true,
+	pipeline.PipelineFast:        true,
+	pipeline.PipelineFull:        true,
 }
 
 // systemPrompt 策略选择器系统提示 / Strategy selector system prompt

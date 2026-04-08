@@ -54,7 +54,7 @@ func (s *VectorStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	// nil searcher → 跳过 / nil searcher → skip
 	if s.searcher == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "vector",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "searcher is nil",
 		})
@@ -65,7 +65,7 @@ func (s *VectorStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	embedding := s.resolveEmbedding(ctx, state)
 	if len(embedding) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "vector",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "no embedding available",
 		})
@@ -77,7 +77,7 @@ func (s *VectorStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	if err != nil {
 		logger.Warn("vector stage search failed", zap.Error(err))
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "vector",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: 0,
@@ -98,7 +98,7 @@ func (s *VectorStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	state.Candidates = append(state.Candidates, filtered...)
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "vector",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(filtered),
@@ -109,9 +109,9 @@ func (s *VectorStage) Execute(ctx context.Context, state *pipeline.PipelineState
 
 // resolveEmbedding 从 Metadata 或 embedder 获取向量 / Resolve embedding from metadata or generate via embedder
 func (s *VectorStage) resolveEmbedding(ctx context.Context, state *pipeline.PipelineState) []float32 {
-	// 优先使用 metadata 中预置的 embedding / Prefer pre-set embedding from metadata
-	if emb, ok := state.Metadata["embedding"].([]float32); ok && len(emb) > 0 {
-		return emb
+	// 优先使用 state 中预置的 embedding / Prefer pre-set embedding from state
+	if len(state.Embedding) > 0 {
+		return state.Embedding
 	}
 
 	// 通过 embedder 生成 / Generate via embedder
@@ -135,8 +135,8 @@ func (s *VectorStage) resolveEmbedding(ctx context.Context, state *pipeline.Pipe
 
 // search 根据是否有过滤条件选择检索方法 / Choose search method based on filters presence
 func (s *VectorStage) search(ctx context.Context, embedding []float32, state *pipeline.PipelineState) ([]*model.SearchResult, error) {
-	if filters, ok := state.Metadata["filters"].(*model.SearchFilters); ok && filters != nil {
-		return s.searcher.SearchFiltered(ctx, embedding, filters, s.limit)
+	if state.Filters != nil {
+		return s.searcher.SearchFiltered(ctx, embedding, state.Filters, s.limit)
 	}
 	return s.searcher.Search(ctx, embedding, state.Identity, s.limit)
 }

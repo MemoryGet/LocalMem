@@ -39,7 +39,7 @@ func (s *CoreStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 	// nil provider → 跳过 / nil provider → skip
 	if s.provider == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "core",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "provider is nil",
 		})
@@ -50,7 +50,7 @@ func (s *CoreStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 	scopes := s.resolveScopes(state)
 	if len(scopes) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "core",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -63,7 +63,7 @@ func (s *CoreStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 	if err != nil {
 		logger.Debug("core injection failed, skipping", zap.Error(err))
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "core",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -73,7 +73,7 @@ func (s *CoreStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 	}
 	if len(coreBlocks) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "core",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -113,7 +113,7 @@ func (s *CoreStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 	state.Candidates = append(injected, state.Candidates...)
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "core",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(state.Candidates),
@@ -127,8 +127,8 @@ func (s *CoreStage) resolveScopes(state *pipeline.PipelineState) []string {
 	var scopes []string
 
 	// 从 filters 提取 scope / Extract scope from filters
-	if filters, ok := state.Metadata["filters"].(*model.SearchFilters); ok && filters != nil && filters.Scope != "" {
-		scopes = append(scopes, filters.Scope)
+	if state.Filters != nil && state.Filters.Scope != "" {
+		scopes = append(scopes, state.Filters.Scope)
 	}
 
 	// 始终包含 user/ scope / Always include user scope

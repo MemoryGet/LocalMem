@@ -111,7 +111,7 @@ func TestFTSStage_Execute(t *testing.T) {
 
 			// 设置 Metadata 中的过滤器 / Set filters in metadata
 			if tt.filters != nil {
-				state.Metadata["filters"] = tt.filters
+				state.Filters = tt.filters
 			}
 
 			got, err := s.Execute(context.Background(), state)
@@ -307,7 +307,7 @@ func TestFTSStage_Execute_FilteredSearchError(t *testing.T) {
 	mock := &ftsSearcherSpy{err: errors.New("filtered db error")}
 	s := stage.NewFTSStage(mock, 30)
 	state := pipeline.NewState("test", &model.Identity{TeamID: "t", OwnerID: "o"})
-	state.Metadata["filters"] = &model.SearchFilters{Scope: "proj/x"}
+	state.Filters = &model.SearchFilters{Scope: "proj/x"}
 
 	got, err := s.Execute(context.Background(), state)
 	if err != nil {

@@ -56,8 +56,22 @@ func NewExecutor(registry *Registry, opts ...ExecutorOption) *Executor {
 }
 
 // Execute 执行指定管线 / Execute a named pipeline
+// 后处理 stage 仅在此处执行一次，不在降级递归中重复 / Post-stages run once here, not inside fallback recursion
 func (e *Executor) Execute(ctx context.Context, name string, state *PipelineState) (*PipelineState, error) {
-	return e.executeWithDepth(ctx, name, state, 0)
+	state, err := e.executeWithDepth(ctx, name, state, 0)
+	if err != nil {
+		return state, err
+	}
+
+	// 后处理 stage（所有管线共享，仅执行一次）/ Post-processing stages (shared, run exactly once)
+	for _, ps := range e.postStages {
+		state, err = e.executeWithTrace(ctx, ps, state)
+		if err != nil {
+			return state, fmt.Errorf("post-stage %q: %w", ps.Name(), err)
+		}
+	}
+
+	return state, nil
 }
 
 // executeWithDepth 带深度限制的管线执行 / Pipeline execution with depth limit
@@ -97,14 +111,6 @@ func (e *Executor) executeWithDepth(ctx context.Context, name string, state *Pip
 		// 合并降级结果和 trace / Merge fallback results and traces
 		state.Candidates = append(state.Candidates, fallbackState.Candidates...)
 		state.Traces = append(state.Traces, fallbackState.Traces...)
-	}
-
-	// 后处理 stage / Post-processing stages
-	for _, ps := range e.postStages {
-		state, err = e.executeWithTrace(ctx, ps, state)
-		if err != nil {
-			return state, fmt.Errorf("post-stage %q: %w", ps.Name(), err)
-		}
 	}
 
 	return state, nil

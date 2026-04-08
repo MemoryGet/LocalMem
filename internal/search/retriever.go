@@ -52,7 +52,6 @@ type Retriever struct {
 	executor       *pipeline.Executor
 	strategyAgent  *strategy.Agent
 	ruleClassifier *strategy.RuleClassifier
-	pipelineReady  bool // true after InitPipeline() called
 }
 
 // NewRetriever 创建检索器 / Create a new retriever
@@ -92,10 +91,9 @@ func (r *Retriever) InitPipeline() {
 
 	r.executor = pipeline.NewExecutor(registry, pipeline.WithPostStages(postStages...))
 
-	rc := strategy.NewRuleClassifier("exploration")
+	rc := strategy.NewRuleClassifier(pipeline.PipelineExploration)
 	r.ruleClassifier = rc
 	r.strategyAgent = strategy.NewAgent(r.llm, rc, 5*time.Second)
-	r.pipelineReady = true
 }
 
 // selectPipelineWithPlan 选择管线并返回查询计划 / Select pipeline and return query plan
@@ -105,7 +103,7 @@ func (r *Retriever) selectPipelineWithPlan(ctx context.Context, req *model.Retri
 		name, plan, _ := r.strategyAgent.Select(ctx, req.Query)
 		return name, plan
 	}
-	return "exploration", nil // 最终 fallback / ultimate fallback
+	return pipeline.PipelineExploration, nil // 最终 fallback / ultimate fallback
 }
 
 // RetrieveResult 检索结果（含可选调试信息）/ Retrieve result with optional debug info
@@ -133,11 +131,9 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 	state := pipeline.NewState(req.Query, r.resolveIdentity(req))
 	state.Plan = plan
 	state.Metadata["request"] = req
-	if req.Filters != nil {
-		state.Metadata["filters"] = req.Filters
-	}
+	state.Filters = req.Filters
 	if len(req.Embedding) > 0 {
-		state.Metadata["embedding"] = req.Embedding
+		state.Embedding = req.Embedding
 	}
 
 	// 3. 执行管线 / Execute pipeline
@@ -184,7 +180,7 @@ func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([
 	}
 
 	// 管线模式 / Pipeline mode
-	if r.pipelineReady {
+	if r.executor != nil {
 		result, err := r.retrieveViaPipeline(ctx, req)
 		if err != nil {
 			return nil, err
@@ -203,7 +199,7 @@ func (r *Retriever) RetrieveWithDebug(ctx context.Context, req *model.RetrieveRe
 		return nil, fmt.Errorf("query or embedding is required: %w", model.ErrInvalidInput)
 	}
 
-	if r.pipelineReady {
+	if r.executor != nil {
 		return r.retrieveViaPipeline(ctx, req)
 	}
 

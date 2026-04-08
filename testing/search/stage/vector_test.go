@@ -148,7 +148,7 @@ func TestVectorStage_Execute(t *testing.T) {
 			identity := &model.Identity{TeamID: "team-1", OwnerID: "owner-1"}
 			state := pipeline.NewState(tt.query, identity)
 			if tt.embedding != nil {
-				state.Metadata["embedding"] = tt.embedding
+				state.Embedding = tt.embedding
 			}
 
 			got, err := s.Execute(context.Background(), state)
@@ -198,8 +198,8 @@ func TestVectorStage_Execute_UsesFilters(t *testing.T) {
 	}}
 	s := stage.NewVectorStage(mock, nil, 30, 0.3)
 	state := pipeline.NewState("test", &model.Identity{TeamID: "t", OwnerID: "o"})
-	state.Metadata["embedding"] = []float32{0.1, 0.2}
-	state.Metadata["filters"] = &model.SearchFilters{Scope: "project/x"}
+	state.Embedding = []float32{0.1, 0.2}
+	state.Filters = &model.SearchFilters{Scope: "project/x"}
 
 	_, err := s.Execute(context.Background(), state)
 	if err != nil {
@@ -220,7 +220,7 @@ func TestVectorStage_Execute_AppendsToCandidates(t *testing.T) {
 	s := stage.NewVectorStage(mock, nil, 30, 0.3)
 	state := pipeline.NewState("test", &model.Identity{TeamID: "t", OwnerID: "o"})
 	state.Candidates = existing
-	state.Metadata["embedding"] = []float32{0.1}
+	state.Embedding = []float32{0.1}
 
 	got, err := s.Execute(context.Background(), state)
 	if err != nil {

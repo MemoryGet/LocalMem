@@ -21,6 +21,15 @@ type QueryPlan struct {
 	HyDEDoc        string
 }
 
+// Confidence 检索置信度等级 / Retrieval confidence level
+type Confidence string
+
+const (
+	ConfidenceHigh Confidence = "high"
+	ConfidenceLow  Confidence = "low"
+	ConfidenceNone Confidence = "none"
+)
+
 // Stage 检索管线阶段接口 / Pipeline stage interface
 type Stage interface {
 	Name() string
@@ -33,7 +42,9 @@ type PipelineState struct {
 	Identity     *model.Identity
 	Plan         *QueryPlan
 	Candidates   []*model.SearchResult
-	Confidence   string                 // "high" | "low" | "none" | ""
+	Confidence   Confidence
+	Filters      *model.SearchFilters // 检索过滤条件 / Search filters
+	Embedding    []float32            // 预计算的向量 / Pre-computed embedding
 	Metadata     map[string]interface{}
 	Traces       []StageTrace
 	PipelineName string

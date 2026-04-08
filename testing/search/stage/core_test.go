@@ -95,7 +95,7 @@ func TestCoreStage_Execute(t *testing.T) {
 			state := pipeline.NewState("test", tt.identity)
 			state.Candidates = tt.existing
 			if tt.filters != nil {
-				state.Metadata["filters"] = tt.filters
+				state.Filters = tt.filters
 			}
 
 			got, err := s.Execute(context.Background(), state)
@@ -155,7 +155,7 @@ func TestCoreStage_Execute_UsesFilterScope(t *testing.T) {
 	coreMem := &model.Memory{ID: "core-1", Content: "core"}
 	s := stage.NewCoreStage(&coreProviderMock{memories: []*model.Memory{coreMem}})
 	state := pipeline.NewState("test", &model.Identity{TeamID: "t", OwnerID: "alice"})
-	state.Metadata["filters"] = &model.SearchFilters{Scope: "project/x"}
+	state.Filters = &model.SearchFilters{Scope: "project/x"}
 
 	got, err := s.Execute(context.Background(), state)
 	if err != nil {

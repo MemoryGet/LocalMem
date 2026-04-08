@@ -99,7 +99,7 @@ func (s *GraphStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	// nil graphStore → 跳过 / nil graphStore → skip
 	if s.graphStore == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "graph",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "graphStore is nil",
 		})
@@ -110,7 +110,7 @@ func (s *GraphStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	seedEntities := s.resolveSeedEntities(ctx, state)
 	if len(seedEntities) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "graph",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: 0,
@@ -134,7 +134,7 @@ func (s *GraphStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	state.Candidates = append(state.Candidates, results...)
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "graph",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(results),
@@ -196,8 +196,8 @@ func (s *GraphStage) resolveSeedEntities(ctx context.Context, state *pipeline.Pi
 
 // resolveScope 从 Identity 或 Metadata 解析 scope / Resolve scope from Identity or Metadata
 func (s *GraphStage) resolveScope(state *pipeline.PipelineState) string {
-	if filters, ok := state.Metadata["filters"].(*model.SearchFilters); ok && filters != nil && filters.Scope != "" {
-		return filters.Scope
+	if state.Filters != nil && state.Filters.Scope != "" {
+		return state.Filters.Scope
 	}
 	if state.Identity != nil {
 		return state.Identity.TeamID

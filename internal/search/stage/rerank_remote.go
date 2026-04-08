@@ -91,7 +91,7 @@ func (s *RemoteRerankStage) Execute(ctx context.Context, state *pipeline.Pipelin
 
 	if s.cfg.BaseURL == "" {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "rerank_remote",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "base_url is empty",
 		})
@@ -100,7 +100,7 @@ func (s *RemoteRerankStage) Execute(ctx context.Context, state *pipeline.Pipelin
 
 	if len(state.Candidates) <= 1 || state.Query == "" {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_remote",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -112,7 +112,7 @@ func (s *RemoteRerankStage) Execute(ctx context.Context, state *pipeline.Pipelin
 	if !s.breaker.allow() {
 		logger.Debug("rerank_remote: circuit breaker open, skipping")
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_remote",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -148,7 +148,7 @@ func (s *RemoteRerankStage) Execute(ctx context.Context, state *pipeline.Pipelin
 		s.breaker.recordFailure()
 		logger.Warn("rerank_remote: request failed, using original order", zap.Error(err))
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_remote",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -161,7 +161,7 @@ func (s *RemoteRerankStage) Execute(ctx context.Context, state *pipeline.Pipelin
 
 	if len(ranked) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_remote",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -180,7 +180,7 @@ func (s *RemoteRerankStage) Execute(ctx context.Context, state *pipeline.Pipelin
 	state.Candidates = reranked
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "rerank_remote",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(reranked),

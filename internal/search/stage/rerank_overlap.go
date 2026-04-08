@@ -57,7 +57,7 @@ func (s *OverlapRerankStage) Execute(ctx context.Context, state *pipeline.Pipeli
 
 	if len(state.Candidates) <= 1 || state.Query == "" {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_overlap",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -142,7 +142,7 @@ func (s *OverlapRerankStage) Execute(ctx context.Context, state *pipeline.Pipeli
 	state.Candidates = reranked
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "rerank_overlap",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(reranked),

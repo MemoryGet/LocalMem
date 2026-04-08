@@ -80,7 +80,7 @@ func (s *WeightStage) Execute(ctx context.Context, state *pipeline.PipelineState
 
 	if len(state.Candidates) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "weight",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  0,
 			OutputCount: 0,
@@ -124,7 +124,7 @@ func (s *WeightStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	state.Candidates = weighted
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "weight",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(weighted),

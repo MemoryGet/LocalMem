@@ -43,7 +43,7 @@ func TestRerankLLMStage_Execute(t *testing.T) {
 		llmErr         error
 		candidates     []*model.SearchResult
 		wantTop        string
-		wantConfidence string
+		wantConfidence pipeline.Confidence
 		wantCount      int
 		wantSkipped    bool
 	}{
@@ -56,7 +56,7 @@ func TestRerankLLMStage_Execute(t *testing.T) {
 				{Memory: &model.Memory{ID: "m3", Content: "somewhat"}, Score: 0.3},
 			},
 			wantTop:        "m1",
-			wantConfidence: "high",
+			wantConfidence: pipeline.ConfidenceHigh,
 			wantCount:      2,
 		},
 		{
@@ -66,7 +66,7 @@ func TestRerankLLMStage_Execute(t *testing.T) {
 				{Memory: &model.Memory{ID: "m1", Content: "a"}, Score: 0.5},
 			},
 			wantTop:        "m1",
-			wantConfidence: "low",
+			wantConfidence: pipeline.ConfidenceLow,
 			wantCount:      1,
 		},
 		{
@@ -76,7 +76,7 @@ func TestRerankLLMStage_Execute(t *testing.T) {
 				{Memory: &model.Memory{ID: "m1", Content: "a"}, Score: 0.5},
 				{Memory: &model.Memory{ID: "m2", Content: "b"}, Score: 0.3},
 			},
-			wantConfidence: "none",
+			wantConfidence: pipeline.ConfidenceNone,
 			wantCount:      0,
 		},
 		{
@@ -183,8 +183,8 @@ func TestRerankLLMStage_Execute_RegexFallback(t *testing.T) {
 	if len(got.Candidates) != 2 {
 		t.Errorf("Candidates count = %d, want 2", len(got.Candidates))
 	}
-	if got.Confidence != "high" {
-		t.Errorf("Confidence = %q, want %q", got.Confidence, "high")
+	if got.Confidence != pipeline.ConfidenceHigh {
+		t.Errorf("Confidence = %q, want %q", got.Confidence, pipeline.ConfidenceHigh)
 	}
 }
 

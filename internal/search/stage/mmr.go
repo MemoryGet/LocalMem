@@ -54,7 +54,7 @@ func (s *MMRStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 	// nil vecSearcher → 跳过 / nil vecSearcher → skip
 	if s.vecSearcher == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "mmr",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "vecSearcher is nil",
 		})
@@ -63,7 +63,7 @@ func (s *MMRStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 
 	if len(state.Candidates) <= 1 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "mmr",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -85,7 +85,7 @@ func (s *MMRStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 	if err != nil {
 		logger.Warn("mmr: failed to get vectors, skipping", zap.Error(err))
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "mmr",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -95,7 +95,7 @@ func (s *MMRStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 	}
 	if len(vectors) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "mmr",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -173,7 +173,7 @@ func (s *MMRStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 	state.Candidates = selected
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "mmr",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(selected),

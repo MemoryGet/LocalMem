@@ -42,7 +42,7 @@ func RegisterBuiltins(registry *pipeline.Registry, deps Deps) []pipeline.Stage {
 // Precision pipeline: graph + FTS parallel → graph-aware merge → filter → graph rerank
 func buildPrecision(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
-		Name: "precision",
+		Name: pipeline.PipelinePrecision,
 		Stages: []pipeline.StageGroup{
 			{Parallel: true, Stages: []pipeline.Stage{
 				stage.NewGraphStage(deps.GraphStore, deps.FTSSearcher,
@@ -55,7 +55,7 @@ func buildPrecision(deps Deps) *pipeline.Pipeline {
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
 			{Stages: []pipeline.Stage{stage.NewRerankGraphStage(deps.GraphStore, 0.6, 0.2)}},
 		},
-		Fallback: "exploration",
+		Fallback: pipeline.PipelineExploration,
 	}
 }
 
@@ -63,7 +63,7 @@ func buildPrecision(deps Deps) *pipeline.Pipeline {
 // Exploration pipeline: FTS + temporal parallel → RRF merge → filter → overlap rerank
 func buildExploration(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
-		Name: "exploration",
+		Name: pipeline.PipelineExploration,
 		Stages: []pipeline.StageGroup{
 			{Parallel: true, Stages: []pipeline.Stage{
 				stage.NewFTSStage(deps.FTSSearcher, 30),
@@ -81,7 +81,7 @@ func buildExploration(deps Deps) *pipeline.Pipeline {
 // Semantic pipeline: vector + FTS parallel → RRF merge → filter → overlap rerank
 func buildSemantic(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
-		Name: "semantic",
+		Name: pipeline.PipelineSemantic,
 		Stages: []pipeline.StageGroup{
 			{Parallel: true, Stages: []pipeline.Stage{
 				stage.NewVectorStage(deps.VectorStore, deps.Embedder, 30, 0.3),
@@ -91,7 +91,7 @@ func buildSemantic(deps Deps) *pipeline.Pipeline {
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
 			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(20, 0.7)}},
 		},
-		Fallback: "exploration",
+		Fallback: pipeline.PipelineExploration,
 	}
 }
 
@@ -99,7 +99,7 @@ func buildSemantic(deps Deps) *pipeline.Pipeline {
 // Association pipeline: deep graph traversal → graph rerank → filter
 func buildAssociation(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
-		Name: "association",
+		Name: pipeline.PipelineAssociation,
 		Stages: []pipeline.StageGroup{
 			{Stages: []pipeline.Stage{
 				stage.NewGraphStage(deps.GraphStore, deps.FTSSearcher,
@@ -110,7 +110,7 @@ func buildAssociation(deps Deps) *pipeline.Pipeline {
 			{Stages: []pipeline.Stage{stage.NewRerankGraphStage(deps.GraphStore, 0.6, 0.2)}},
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.2)}},
 		},
-		Fallback: "precision",
+		Fallback: pipeline.PipelinePrecision,
 	}
 }
 
@@ -118,7 +118,7 @@ func buildAssociation(deps Deps) *pipeline.Pipeline {
 // Fast pipeline: FTS only with low limit → filter
 func buildFast(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
-		Name: "fast",
+		Name: pipeline.PipelineFast,
 		Stages: []pipeline.StageGroup{
 			{Stages: []pipeline.Stage{stage.NewFTSStage(deps.FTSSearcher, 10)}},
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
@@ -131,7 +131,7 @@ func buildFast(deps Deps) *pipeline.Pipeline {
 // Full pipeline: graph + FTS + vector parallel → graph-aware merge → filter → LLM rerank
 func buildFull(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
-		Name: "full",
+		Name: pipeline.PipelineFull,
 		Stages: []pipeline.StageGroup{
 			{Parallel: true, Stages: []pipeline.Stage{
 				stage.NewGraphStage(deps.GraphStore, deps.FTSSearcher,
@@ -145,7 +145,7 @@ func buildFull(deps Deps) *pipeline.Pipeline {
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
 			{Stages: []pipeline.Stage{stage.NewRerankLLMStage(deps.LLM, 20, 0.7, 0.3, 0)}},
 		},
-		Fallback: "precision",
+		Fallback: pipeline.PipelinePrecision,
 	}
 }
 

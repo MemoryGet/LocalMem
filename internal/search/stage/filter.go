@@ -38,7 +38,7 @@ func (s *FilterStage) Execute(ctx context.Context, state *pipeline.PipelineState
 
 	if len(state.Candidates) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "filter",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  0,
 			OutputCount: 0,
@@ -51,7 +51,7 @@ func (s *FilterStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	topScore := state.Candidates[0].Score
 	if topScore <= 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "filter",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -71,7 +71,7 @@ func (s *FilterStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	state.Candidates = filtered
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "filter",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(filtered),

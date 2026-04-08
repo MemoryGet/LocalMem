@@ -62,7 +62,7 @@ func (s *RerankGraphStage) Execute(ctx context.Context, state *pipeline.Pipeline
 	// graphStore nil → 跳过 / nil graphStore → skip
 	if s.graphStore == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_graph",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -76,7 +76,7 @@ func (s *RerankGraphStage) Execute(ctx context.Context, state *pipeline.Pipeline
 	queryEntities := extractQueryEntities(state)
 	if len(queryEntities) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_graph",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: inputCount,
@@ -89,7 +89,7 @@ func (s *RerankGraphStage) Execute(ctx context.Context, state *pipeline.Pipeline
 	// 无候选 → 直接返回 / No candidates → return as-is
 	if len(state.Candidates) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_graph",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  0,
 			OutputCount: 0,
@@ -165,7 +165,7 @@ func (s *RerankGraphStage) Execute(ctx context.Context, state *pipeline.Pipeline
 	state.Candidates = result
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "rerank_graph",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(result),

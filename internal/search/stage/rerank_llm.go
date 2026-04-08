@@ -95,7 +95,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 	// nil LLM provider → 跳过 / nil LLM provider → skip
 	if s.llm == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "rerank_llm",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "LLM provider not available",
 		})
@@ -105,7 +105,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 	// 空候选列表 → 直接返回 / Empty candidates → return directly
 	if len(state.Candidates) == 0 {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_llm",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  0,
 			OutputCount: 0,
@@ -117,7 +117,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 	// 熔断器检查 / Circuit breaker check
 	if !s.breaker.allow() {
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_llm",
+			Name:        s.Name(),
 			Skipped:     true,
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
@@ -141,7 +141,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 		s.breaker.recordFailure()
 		logger.Warn("rerank_llm: LLM call failed, using original order", zap.Error(err))
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_llm",
+			Name:        s.Name(),
 			Skipped:     true,
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
@@ -156,7 +156,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 		s.breaker.recordFailure()
 		logger.Warn("rerank_llm: failed to parse LLM response")
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "rerank_llm",
+			Name:        s.Name(),
 			Skipped:     true,
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
@@ -216,13 +216,13 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 
 	// 设置置信度 / Set confidence
 	if len(kept) == 0 {
-		state.Confidence = "none"
+		state.Confidence = pipeline.ConfidenceNone
 	} else if topLLMScore >= confidenceHighThreshold {
-		state.Confidence = "high"
+		state.Confidence = pipeline.ConfidenceHigh
 	} else if topLLMScore >= confidenceLowThreshold {
-		state.Confidence = "low"
+		state.Confidence = pipeline.ConfidenceLow
 	} else {
-		state.Confidence = "none"
+		state.Confidence = pipeline.ConfidenceNone
 	}
 
 	// 按混合分数排序 / Sort by blended score
@@ -244,7 +244,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 	state.Candidates = out
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "rerank_llm",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(out),

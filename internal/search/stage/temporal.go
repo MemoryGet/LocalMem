@@ -51,7 +51,7 @@ func (s *TemporalStage) Execute(ctx context.Context, state *pipeline.PipelineSta
 	// nil searcher → 跳过 / nil searcher → skip
 	if s.searcher == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "temporal",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "searcher is nil",
 		})
@@ -61,7 +61,7 @@ func (s *TemporalStage) Execute(ctx context.Context, state *pipeline.PipelineSta
 	// Plan 必须含时间信号 / Plan must contain temporal signal
 	if state.Plan == nil || !state.Plan.Temporal || state.Plan.TemporalCenter == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "temporal",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "no temporal signal in plan",
 		})
@@ -95,7 +95,7 @@ func (s *TemporalStage) Execute(ctx context.Context, state *pipeline.PipelineSta
 	if err != nil {
 		logger.Warn("temporal stage search failed", zap.Error(err))
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "temporal",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: 0,
@@ -149,7 +149,7 @@ func (s *TemporalStage) Execute(ctx context.Context, state *pipeline.PipelineSta
 	state.Candidates = append(state.Candidates, results...)
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "temporal",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(results),

@@ -46,7 +46,7 @@ func (s *FTSStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 	// nil searcher → 跳过 / nil searcher → skip
 	if s.searcher == nil {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "fts",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "searcher is nil",
 		})
@@ -57,7 +57,7 @@ func (s *FTSStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 	query := s.resolveQuery(state)
 	if query == "" {
 		state.AddTrace(pipeline.StageTrace{
-			Name:    "fts",
+			Name:    s.Name(),
 			Skipped: true,
 			Note:    "empty query",
 		})
@@ -72,7 +72,7 @@ func (s *FTSStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 			zap.Error(err),
 		)
 		state.AddTrace(pipeline.StageTrace{
-			Name:        "fts",
+			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: 0,
@@ -85,7 +85,7 @@ func (s *FTSStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 	state.Candidates = append(state.Candidates, results...)
 
 	state.AddTrace(pipeline.StageTrace{
-		Name:        "fts",
+		Name:        s.Name(),
 		Duration:    time.Since(start),
 		InputCount:  inputCount,
 		OutputCount: len(results),
@@ -104,8 +104,8 @@ func (s *FTSStage) resolveQuery(state *pipeline.PipelineState) string {
 
 // search 根据是否有过滤条件选择检索方法 / Choose search method based on filters presence
 func (s *FTSStage) search(ctx context.Context, query string, state *pipeline.PipelineState) ([]*model.SearchResult, error) {
-	if filters, ok := state.Metadata["filters"].(*model.SearchFilters); ok && filters != nil {
-		return s.searcher.SearchTextFiltered(ctx, query, filters, s.limit)
+	if state.Filters != nil {
+		return s.searcher.SearchTextFiltered(ctx, query, state.Filters, s.limit)
 	}
 	return s.searcher.SearchText(ctx, query, state.Identity, s.limit)
 }
