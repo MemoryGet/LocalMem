@@ -15,9 +15,9 @@ import (
 // mockGraphRetriever 图检索 mock / Mock graph retriever
 type mockGraphRetriever struct {
 	entitiesByName map[string][]*model.Entity         // name → entities
-	relations      map[string][]*model.EntityRelation  // entityID → relations
-	entityMemories map[string][]*model.Memory          // entityID → memories
-	memoryEntities map[string][]*model.Entity          // memoryID → entities
+	relations      map[string][]*model.EntityRelation // entityID → relations
+	entityMemories map[string][]*model.Memory         // entityID → memories
+	memoryEntities map[string][]*model.Entity         // memoryID → entities
 }
 
 func (m *mockGraphRetriever) FindEntitiesByName(_ context.Context, name, _ string, limit int) ([]*model.Entity, error) {

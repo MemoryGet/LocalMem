@@ -42,16 +42,16 @@ func TestFTSStage_Execute(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		searcher       stage.FTSSearcher
-		query          string
-		keywords       []string
-		filters        *model.SearchFilters
-		wantCount      int
-		wantSource     string
-		wantQuery      string
-		wantFiltered   bool
-		wantSkipTrace  bool
+		name          string
+		searcher      stage.FTSSearcher
+		query         string
+		keywords      []string
+		filters       *model.SearchFilters
+		wantCount     int
+		wantSource    string
+		wantQuery     string
+		wantFiltered  bool
+		wantSkipTrace bool
 	}{
 		{
 			name:       "basic search",
