@@ -12,6 +12,7 @@ const defaultRRFK = 60
 // rrfScoreEpsilon 浮点比较容差 / Float64 equality tolerance for RRF score comparison
 const rrfScoreEpsilon = 1e-12
 
+// Deprecated: MergeRRF is used by retrieveLegacy() only. Use stage.MergeStage instead.
 // MergeRRF 使用 Reciprocal Rank Fusion 融合多路检索结果 / Merge results using RRF algorithm
 func MergeRRF(resultSets [][]*model.SearchResult, limit int) []*model.SearchResult {
 	return MergeRRFWithK(resultSets, limit, defaultRRFK)
@@ -67,6 +68,7 @@ type RRFInput struct {
 	Weight  float64
 }
 
+// Deprecated: MergeWeightedRRF is used by retrieveLegacy() only. Use stage.MergeStage instead.
 // MergeWeightedRRF 加权RRF融合 / Weighted RRF fusion
 // score(id) = Σ weight × 1/(k + rank + 1)
 func MergeWeightedRRF(inputs []RRFInput, k int, limit int) []*model.SearchResult {

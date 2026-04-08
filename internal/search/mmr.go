@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Deprecated: MMRRerank is used by retrieveLegacy() only. Use stage.MMRStage instead.
 // MMRRerank 最大边际相关性重排 / Maximal Marginal Relevance re-ranking
 // 在 RRF 融合结果中选择既相关又多样的子集
 // lambda: 相关性权重（0~1），推荐 0.7; topK: 最终返回数量
