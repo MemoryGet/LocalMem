@@ -45,10 +45,24 @@ func (h *SearchHandler) Retrieve(c *gin.Context, identity *model.Identity) {
 	req.Filters.TeamID = identity.TeamID
 	req.Filters.OwnerID = identity.OwnerID
 
-	results, err := h.retriever.Retrieve(c.Request.Context(), &req)
-	if err != nil {
-		Error(c, err)
-		return
+	// Debug 模式走 RetrieveWithDebug，否则走 Retrieve / Debug mode uses RetrieveWithDebug
+	var results []*model.SearchResult
+	var debugInfo *search.PipelineDebugInfo
+	if req.Debug {
+		rr, err := h.retriever.RetrieveWithDebug(c.Request.Context(), &req)
+		if err != nil {
+			Error(c, err)
+			return
+		}
+		results = rr.Results
+		debugInfo = rr.PipelineInfo
+	} else {
+		var err error
+		results, err = h.retriever.Retrieve(c.Request.Context(), &req)
+		if err != nil {
+			Error(c, err)
+			return
+		}
 	}
 
 	// Token 裁剪（handler 层，不影响 Retrieve 签名）/ Token trimming at handler level
@@ -59,6 +73,11 @@ func (h *SearchHandler) Retrieve(c *gin.Context, identity *model.Identity) {
 
 	// detail_level 字段裁剪 / Field trimming by detail level
 	applyDetailLevel(resp.Results, req.DetailLevel)
+
+	// 调试信息（仅 debug=true 时填充）/ Debug info (only when debug=true)
+	if debugInfo != nil {
+		resp.Debug = debugInfo
+	}
 
 	Success(c, resp)
 }

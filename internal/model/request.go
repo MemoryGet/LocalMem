@@ -100,6 +100,10 @@ type RetrieveRequest struct {
 
 	// V23: Core memory injection / 核心记忆注入
 	IncludeCore *bool `json:"include_core,omitempty"` // 默认 true，自动注入 core memory / Default true, auto-inject core memories
+
+	// Pipeline retrieval / 管线检索
+	Pipeline string `json:"pipeline,omitempty"` // 可选管线 override / Optional pipeline override
+	Debug    bool   `json:"debug,omitempty"`    // 返回 trace / Return debug trace
 }
 
 // ListRequest 分页列表请求 / Paginated list request DTO
@@ -317,4 +321,5 @@ type RetrieveResponse struct {
 	Results     []*SearchResult `json:"results"`
 	TotalTokens int             `json:"total_tokens"`
 	Truncated   bool            `json:"truncated"`
+	Debug       any             `json:"debug,omitempty"` // 管线 trace（仅 debug=true 时返回）/ Pipeline trace (only when debug=true)
 }

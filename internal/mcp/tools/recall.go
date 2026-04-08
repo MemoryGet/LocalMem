@@ -29,6 +29,7 @@ type recallArgs struct {
 	Limit      int            `json:"limit,omitempty"`
 	Filters    map[string]any `json:"filters,omitempty"`
 	MmrEnabled *bool          `json:"mmr_enabled,omitempty"`
+	Pipeline   string         `json:"pipeline,omitempty"`
 }
 
 // Definition 返回工具元数据定义 / Return tool metadata definition
@@ -43,7 +44,8 @@ func (t *RecallTool) Definition() mcp.ToolDefinition {
                 "scope":{"type":"string","description":"Namespace scope filter"},
                 "limit":{"type":"integer","minimum":1,"maximum":50,"default":10},
                 "filters":{"type":"object","description":"Structured filters: kind, tags, min_strength, happened_after, include_expired"},
-                "mmr_enabled":{"type":"boolean","description":"Enable MMR diversity re-ranking"}
+                "mmr_enabled":{"type":"boolean","description":"Enable MMR diversity re-ranking"},
+                "pipeline":{"type":"string","description":"Pipeline override (e.g. exploration, precision, graph_deep, temporal)"}
             },
             "required":["query"]
         }`),
@@ -70,6 +72,7 @@ func (t *RecallTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 		Query:      args.Query,
 		Limit:      limit,
 		MmrEnabled: args.MmrEnabled,
+		Pipeline:   args.Pipeline,
 	}
 	if id != nil {
 		req.TeamID = id.TeamID
