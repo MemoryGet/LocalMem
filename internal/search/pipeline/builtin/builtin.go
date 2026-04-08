@@ -70,7 +70,7 @@ func buildExploration(deps Deps) *pipeline.Pipeline {
 				stage.NewTemporalStage(deps.Timeline, 30),
 			}},
 			{Stages: []pipeline.Stage{stage.NewMergeStage("rrf", 60, 100)}},
-			{Stages: []pipeline.Stage{stage.NewFilterStage(0.2)}},
+			{Stages: []pipeline.Stage{stage.NewFilterStage(0.05)}},
 			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(20, 0.7)}},
 		},
 		// 无 fallback — 终端降级管线 / No fallback — terminal fallback pipeline
@@ -121,7 +121,7 @@ func buildFast(deps Deps) *pipeline.Pipeline {
 		Name: pipeline.PipelineFast,
 		Stages: []pipeline.StageGroup{
 			{Stages: []pipeline.Stage{stage.NewFTSStage(deps.FTSSearcher, 10)}},
-			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
+			{Stages: []pipeline.Stage{stage.NewFilterStage(0.05)}},
 		},
 		// 无 fallback / No fallback
 	}

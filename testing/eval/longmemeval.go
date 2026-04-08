@@ -93,6 +93,117 @@ func RunLongMemEval(ctx context.Context, entries []LongMemEvalEntry, tmpDir stri
 	return report, nil
 }
 
+// RunLongMemEvalPipeline 管线模式逐问题评测 / Pipeline-mode per-question evaluation
+func RunLongMemEvalPipeline(ctx context.Context, entries []LongMemEvalEntry, tmpDir string) (*EvalReport, error) {
+	start := time.Now()
+	cases := make([]CaseResult, 0, len(entries))
+
+	for i, entry := range entries {
+		if i > 0 && i%50 == 0 {
+			hits := 0
+			for _, c := range cases {
+				if c.Hit {
+					hits++
+				}
+			}
+			fmt.Printf("  [pipeline %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
+		}
+
+		cr, err := runSingleQuestionPipeline(ctx, entry, tmpDir, i)
+		if err != nil {
+			cases = append(cases, CaseResult{
+				Query:      entry.Case.Query,
+				Expected:   entry.Case.GoldAnswer,
+				Category:   entry.Case.Category,
+				Difficulty: entry.Case.Difficulty,
+				Hit:        false,
+				Rank:       -1,
+			})
+			continue
+		}
+		cases = append(cases, cr)
+	}
+
+	metrics := Aggregate(cases)
+	report := &EvalReport{
+		Mode:         "pipeline (rule classifier) — LongMemEval oracle",
+		Dataset:      "longmemeval-oracle",
+		Timestamp:    time.Now(),
+		Metrics:      metrics,
+		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
+		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
+		Cases:        cases,
+		Duration:     time.Since(start),
+		GitCommit:    resolveGitCommit(),
+	}
+	return report, nil
+}
+
+// runSingleQuestionPipeline 管线模式单问题评测 / Pipeline-mode single question evaluation
+func runSingleQuestionPipeline(ctx context.Context, entry LongMemEvalEntry, tmpDir string, idx int) (CaseResult, error) {
+	dbPath := filepath.Join(tmpDir, fmt.Sprintf("pq%d.db", idx))
+
+	tok := tokenizer.NewSimpleTokenizer()
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
+	if err != nil {
+		return CaseResult{}, fmt.Errorf("create store: %w", err)
+	}
+	defer func() {
+		_ = memStore.Close()
+		_ = os.Remove(dbPath)
+	}()
+
+	if err := memStore.Init(ctx); err != nil {
+		return CaseResult{}, fmt.Errorf("init store: %w", err)
+	}
+
+	mgr := memory.NewManager(memory.ManagerDeps{MemStore: memStore})
+
+	for _, sm := range entry.SeedMemories {
+		kind := sm.Kind
+		if kind == "" {
+			kind = "conversation"
+		}
+		_, err := mgr.Create(ctx, &model.CreateMemoryRequest{
+			Content: sm.Content,
+			Kind:    kind,
+			SubKind: sm.SubKind,
+			Scope:   "eval/longmemeval",
+		})
+		if err != nil {
+			return CaseResult{}, fmt.Errorf("seed: %w", err)
+		}
+	}
+
+	cfg := buildRetrievalConfig("fts")
+	retriever := search.NewRetriever(memStore, nil, nil, nil, nil, cfg, nil, nil)
+	retriever.InitPipeline() // 关键区别：启用管线模式 / Key difference: enable pipeline mode
+
+	results, err := retriever.Retrieve(ctx, &model.RetrieveRequest{
+		Query: entry.Case.Query,
+		Limit: 10,
+	})
+	if err != nil {
+		return CaseResult{}, fmt.Errorf("retrieve: %w", err)
+	}
+
+	hit, rank, score := checkHit(results, entry.Case.Expected)
+	if !hit && entry.Case.GoldAnswer != "" {
+		hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
+	}
+
+	return CaseResult{
+		Query:       entry.Case.Query,
+		Expected:    entry.Case.GoldAnswer,
+		Category:    entry.Case.Category,
+		Difficulty:  entry.Case.Difficulty,
+		Hit:         hit,
+		Rank:        rank,
+		Score:       score,
+		ResultCount: len(results),
+	}, nil
+}
+
 // runSingleQuestion 为单个问题创建独立 DB，seed 后查询 / Create isolated DB for one question
 func runSingleQuestion(ctx context.Context, entry LongMemEvalEntry, tmpDir string, idx int) (CaseResult, error) {
 	dbPath := filepath.Join(tmpDir, fmt.Sprintf("q%d.db", idx))

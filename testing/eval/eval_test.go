@@ -243,6 +243,33 @@ func TestLongMemEvalOracle(t *testing.T) {
 	t.Logf("LongMemEval baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
 }
 
+// TestLongMemEvalOraclePipeline 管线模式 LongMemEval oracle（对比 legacy FTS baseline）
+func TestLongMemEvalOraclePipeline(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval questions", len(entries))
+
+	tmpDir := t.TempDir()
+	report, err := eval.RunLongMemEvalPipeline(context.Background(), entries, tmpDir)
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	// 加载 legacy baseline 对比 / Compare with legacy baseline
+	baseline, err := eval.LoadBaseline("longmemeval-oracle-fts-v1", "baselines")
+	if err == nil {
+		regressions := eval.CompareBaseline(report, baseline, eval.DefaultThresholds)
+		eval.PrintComparison(report, baseline, regressions)
+	}
+
+	require.NoError(t, eval.SaveBaseline(report, "longmemeval-oracle-pipeline-v1", "baselines"))
+	t.Logf("Pipeline baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
 func TestRegressionCheck(t *testing.T) {
 	baseDir := "baselines"
 	names, err := eval.ListBaselines(baseDir)
