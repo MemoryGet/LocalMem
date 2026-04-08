@@ -7,11 +7,15 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"iclude/internal/config"
 	"iclude/internal/llm"
 	"iclude/internal/logger"
 	"iclude/internal/model"
+	"iclude/internal/search/pipeline"
+	"iclude/internal/search/pipeline/builtin"
+	"iclude/internal/search/strategy"
 	"iclude/pkg/scoring"
 	"iclude/internal/store"
 
@@ -43,6 +47,12 @@ type Retriever struct {
 	preprocessor *Preprocessor // 可为 nil / may be nil
 	tracker      AccessTracker // 可为 nil / may be nil
 	coreProvider CoreProvider  // 可为 nil / may be nil
+
+	// 管线系统 / Pipeline system
+	executor       *pipeline.Executor
+	strategyAgent  *strategy.Agent
+	ruleClassifier *strategy.RuleClassifier
+	pipelineReady  bool // true after InitPipeline() called
 }
 
 // NewRetriever 创建检索器 / Create a new retriever
@@ -64,6 +74,74 @@ func (r *Retriever) SetCoreProvider(cp CoreProvider) {
 	r.coreProvider = cp
 }
 
+// InitPipeline 初始化管线系统 / Initialize pipeline system
+// 在 NewRetriever 后、首次 Retrieve 前调用 / Call after NewRetriever, before first Retrieve
+func (r *Retriever) InitPipeline() {
+	registry := pipeline.NewRegistry()
+	deps := builtin.Deps{
+		FTSSearcher:  r.memStore,
+		GraphStore:   r.graphStore,
+		VectorStore:  r.vecStore,
+		Embedder:     r.embedder,
+		Timeline:     r.memStore,
+		CoreProvider: r.coreProvider,
+		LLM:          r.llm,
+		Cfg:          r.cfg,
+	}
+	postStages := builtin.RegisterBuiltins(registry, deps)
+
+	r.executor = pipeline.NewExecutor(registry, pipeline.WithPostStages(postStages...))
+
+	rc := strategy.NewRuleClassifier("exploration")
+	r.ruleClassifier = rc
+	r.strategyAgent = strategy.NewAgent(r.llm, rc, 5*time.Second)
+	r.pipelineReady = true
+}
+
+// selectPipelineWithPlan 选择管线并返回查询计划 / Select pipeline and return query plan
+func (r *Retriever) selectPipelineWithPlan(ctx context.Context, req *model.RetrieveRequest) (string, *pipeline.QueryPlan) {
+	// 策略 Agent（LLM + 规则 fallback）/ Strategy agent (LLM + rule fallback)
+	if r.strategyAgent != nil {
+		name, plan, _ := r.strategyAgent.Select(ctx, req.Query)
+		return name, plan
+	}
+	return "exploration", nil // 最终 fallback / ultimate fallback
+}
+
+// retrieveViaPipeline 通过管线执行检索 / Execute retrieval via pipeline
+func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
+	// 1. 选择管线 + 获取预处理计划 / Select pipeline + get preprocessing plan
+	pipelineName, plan := r.selectPipelineWithPlan(ctx, req)
+
+	// 2. 构建初始状态 / Build initial state
+	state := pipeline.NewState(req.Query, r.resolveIdentity(req))
+	state.Plan = plan
+	state.Metadata["request"] = req
+	if req.Filters != nil {
+		state.Metadata["filters"] = req.Filters
+	}
+	if len(req.Embedding) > 0 {
+		state.Metadata["embedding"] = req.Embedding
+	}
+
+	// 3. 执行管线 / Execute pipeline
+	result, err := r.executor.Execute(ctx, pipelineName, state)
+	if err != nil {
+		return nil, fmt.Errorf("pipeline %q execution failed: %w", pipelineName, err)
+	}
+
+	// 4. 异步记录访问（与旧逻辑一致）/ Async access tracking (same as legacy)
+	if r.tracker != nil {
+		for _, res := range result.Candidates {
+			if res.Memory != nil {
+				r.tracker.Track(res.Memory.ID)
+			}
+		}
+	}
+
+	return result.Candidates, nil
+}
+
 // resolveIdentity 从请求中构建身份，优先使用请求中的 OwnerID / Build identity from request, prefer request OwnerID
 func (r *Retriever) resolveIdentity(req *model.RetrieveRequest) *model.Identity {
 	ownerID := req.OwnerID
@@ -74,12 +152,24 @@ func (r *Retriever) resolveIdentity(req *model.RetrieveRequest) *model.Identity 
 }
 
 // Retrieve 执行检索 / Execute retrieval
-// 根据配置自动选择：仅 SQLite、仅 Qdrant、或双后端 RRF 融合
+// 管线模式优先，未初始化时走旧逻辑 / Pipeline mode preferred, falls back to legacy if not initialized
 func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	if req.Query == "" && len(req.Embedding) == 0 {
 		return nil, fmt.Errorf("query or embedding is required: %w", model.ErrInvalidInput)
 	}
 
+	// 管线模式 / Pipeline mode
+	if r.pipelineReady {
+		return r.retrieveViaPipeline(ctx, req)
+	}
+
+	// 兼容模式：管线未初始化时走旧逻辑 / Legacy mode: fall back to old logic if pipeline not initialized
+	return r.retrieveLegacy(ctx, req)
+}
+
+// retrieveLegacy 旧检索逻辑（管线未初始化时的 fallback）/ Legacy retrieval logic (fallback when pipeline not initialized)
+// 根据配置自动选择：仅 SQLite、仅 Qdrant、或双后端 RRF 融合
+func (r *Retriever) retrieveLegacy(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	limit := req.Limit
 	if limit <= 0 {
 		limit = 10
