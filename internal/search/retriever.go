@@ -143,10 +143,6 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 	if len(req.Embedding) > 0 {
 		state.Embedding = req.Embedding
 	}
-	// full 管线无条件触发 LLM rerank / full pipeline forces LLM rerank
-	if pipelineName == pipeline.PipelineFull {
-		state.Metadata[pipeline.MetaForceRerank] = true
-	}
 
 	// 3. 执行管线 / Execute pipeline
 	result, err := r.executor.Execute(ctx, pipelineName, state)

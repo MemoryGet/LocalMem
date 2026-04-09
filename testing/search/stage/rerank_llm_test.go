@@ -73,8 +73,8 @@ func TestRerankLLMStage_Execute(t *testing.T) {
 			name:        "all filtered produces confidence none",
 			llmResponse: `[{"index":0,"score":0.1},{"index":1,"score":0.05}]`,
 			candidates: []*model.SearchResult{
-				{Memory: &model.Memory{ID: "m1", Content: "a"}, Score: 0.50},
-				{Memory: &model.Memory{ID: "m2", Content: "b"}, Score: 0.45}, // 分差 < 20% → 不触发条件跳过 / Gap < 20% → won't skip
+				{Memory: &model.Memory{ID: "m1", Content: "a"}, Score: 0.5},
+				{Memory: &model.Memory{ID: "m2", Content: "b"}, Score: 0.3},
 			},
 			wantConfidence: pipeline.ConfidenceNone,
 			wantCount:      0,

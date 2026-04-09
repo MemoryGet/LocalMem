@@ -194,39 +194,7 @@ func (s *SQLiteMemoryStore) Close() error {
 	return nil
 }
 
-// fts5StopWords 英文停用词（高频无意义词，在大数据量 FTS5 OR 查询中导致性能暴跌）
-// English stop words that cause FTS5 performance degradation on large datasets
-var fts5StopWords = func() map[string]bool {
-	words := []string{
-		"a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-		"have", "has", "had", "do", "does", "did", "will", "would", "could",
-		"should", "may", "might", "shall", "can", "need", "dare", "ought",
-		"i", "me", "my", "we", "our", "you", "your", "he", "him", "his",
-		"she", "her", "it", "its", "they", "them", "their",
-		"what", "which", "who", "whom", "this", "that", "these", "those",
-		"am", "to", "of", "in", "for", "on", "with", "at", "by", "from",
-		"as", "into", "through", "during", "before", "after", "above", "below",
-		"between", "out", "off", "over", "under", "again", "further", "then",
-		"once", "here", "there", "when", "where", "why", "how", "all", "both",
-		"each", "few", "more", "most", "other", "some", "such", "no", "nor",
-		"not", "only", "own", "same", "so", "than", "too", "very",
-		"just", "about", "also", "any", "but", "if", "or",
-	}
-	m := make(map[string]bool, len(words))
-	for _, w := range words {
-		m[w] = true
-	}
-	return m
-}()
-
-// sanitizeFTS5Query 清除 FTS5 操作符 + 过滤停用词 / Strip FTS5 operators + filter stopwords
-// maxFTS5QueryTerms OR 子句中最大词数，防止长查询导致 FTS5 性能暴跌
-// Max terms in FTS5 OR query to prevent performance degradation on long queries
-const maxFTS5QueryTerms = 8
-
-// maxFTS5Bigrams 最大二元组数量 / Max bigram phrases to append
-const maxFTS5Bigrams = 3
-
+// sanitizeFTS5Query 清除 FTS5 操作符，每个词独立包裹为短语 / Strip FTS5 operators, wrap each token as phrase
 func sanitizeFTS5Query(query string) string {
 	if query == "" {
 		return query
@@ -243,26 +211,12 @@ func sanitizeFTS5Query(query string) string {
 			continue
 		}
 		upper := strings.ToUpper(w)
-		// 跳过 FTS5 保留操作符 / Skip FTS5 reserved operators
 		if upper == "AND" || upper == "OR" || upper == "NOT" || upper == "NEAR" {
 			filtered = append(filtered, `"`+w+`"`)
-			continue
+		} else {
+			filtered = append(filtered, w)
 		}
-		// 过滤英文停用词（高频词在大数据量 FTS5 上导致性能暴跌）/ Filter English stopwords
-		if fts5StopWords[strings.ToLower(w)] {
-			continue
-		}
-		filtered = append(filtered, w)
 	}
-	if len(filtered) == 0 {
-		return cleaned
-	}
-
-	// 限制词数 / Cap terms
-	if len(filtered) > maxFTS5QueryTerms {
-		filtered = filtered[:maxFTS5QueryTerms]
-	}
-
 	if len(filtered) == 0 {
 		return cleaned
 	}
@@ -270,12 +224,10 @@ func sanitizeFTS5Query(query string) string {
 	parts := make([]string, len(filtered))
 	copy(parts, filtered)
 
-	// 二元组增强（限制数量）/ Bigram boost with cap
+	// 二元组增强：3+ 词时追加相邻词对短语 / Bigram boost for 3+ word queries
 	if len(filtered) >= 3 {
-		bigramCount := 0
-		for i := 0; i < len(filtered)-1 && bigramCount < maxFTS5Bigrams; i++ {
+		for i := 0; i < len(filtered)-1; i++ {
 			parts = append(parts, `"`+filtered[i]+" "+filtered[i+1]+`"`)
-			bigramCount++
 		}
 	}
 

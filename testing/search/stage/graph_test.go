@@ -169,8 +169,8 @@ func TestGraphStage_WithFTSReverseLookup(t *testing.T) {
 	}
 }
 
-func TestGraphStage_NoEntities_FTSFallback(t *testing.T) {
-	// No entities found → FTS multi-hop fallback returns results
+func TestGraphStage_NoEntitiesFound(t *testing.T) {
+	// Neither plan nor FTS finds entities → 0 candidates
 	graph := &mockGraphRetriever{
 		entitiesByName: map[string][]*model.Entity{},
 		relations:      map[string][]*model.EntityRelation{},
@@ -178,40 +178,15 @@ func TestGraphStage_NoEntities_FTSFallback(t *testing.T) {
 		memoryEntities: map[string][]*model.Entity{},
 	}
 
+	// FTS returns results but no entities linked to them
 	fts := &ftsSearcherSpy{
 		results: []*model.SearchResult{
-			{Memory: newMemory("orphan", "No entities linked"), Score: 0.5},
+			{Memory: newMemory("orphan", "No entities"), Score: 0.5},
 		},
 	}
 
 	s := stage.NewGraphStage(graph, fts)
 	state := newState("orphan query")
-
-	result, err := s.Execute(context.Background(), state)
-	if err != nil {
-		t.Fatalf("Execute() unexpected error: %v", err)
-	}
-	if len(result.Candidates) == 0 {
-		t.Error("expected FTS multi-hop fallback to return candidates")
-	}
-	for _, c := range result.Candidates {
-		if c.Source != "graph_fts_fallback" {
-			t.Errorf("expected source 'graph_fts_fallback', got %q", c.Source)
-		}
-	}
-}
-
-func TestGraphStage_NoEntities_NoFTS(t *testing.T) {
-	// No entities, no FTS searcher → 0 candidates
-	graph := &mockGraphRetriever{
-		entitiesByName: map[string][]*model.Entity{},
-		relations:      map[string][]*model.EntityRelation{},
-		entityMemories: map[string][]*model.Memory{},
-		memoryEntities: map[string][]*model.Entity{},
-	}
-
-	s := stage.NewGraphStage(graph, nil)
-	state := newState("query")
 
 	result, err := s.Execute(context.Background(), state)
 	if err != nil {
