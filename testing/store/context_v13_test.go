@@ -59,7 +59,7 @@ func TestMigrateV12ToV13_AddsColumns(t *testing.T) {
 	var version int
 	err = db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 21, version)
+	assert.Equal(t, 25, version)
 }
 
 // TestMigrateV12ToV13_Idempotent 验证 V13 迁移可安全重跑
@@ -84,7 +84,7 @@ func TestMigrateV12ToV13_Idempotent(t *testing.T) {
 	var version int
 	err = db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 21, version)
+	assert.Equal(t, 25, version)
 }
 
 // TestContextV13_CreateGetRoundTrip 验证 Create/Get 端到端带行为字段

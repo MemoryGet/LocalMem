@@ -24,12 +24,13 @@ func TestMigrate_FreshDB(t *testing.T) {
 	err = s.Init(context.Background())
 	require.NoError(t, err)
 
-	// 验证 schema_version 为 21（V17→V21 session/runtime 表）
+	// 验证 schema_version 为 25（V21→V25 FK/candidate_for/scope_policies/excerpt 索引）
+	// Verify schema_version is 25 (V21→V25 adds FK constraints, candidate_for, scope_policies, excerpt index)
 	db := s.DB().(*sql.DB)
 	var version int
 	err = db.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 21, version)
+	assert.Equal(t, 25, version)
 
 	// 验证新表存在
 	tables := []string{"memories", "contexts", "tags", "memory_tags", "entities", "entity_relations", "memory_entities", "documents", "async_tasks", "sessions", "session_finalize_state", "transcript_cursors", "idempotency_keys"}
@@ -71,11 +72,11 @@ func TestFreshSchema_MatchesIncremental(t *testing.T) {
 	require.NoError(t, err)
 	freshDB := freshStore.DB().(*sql.DB)
 
-	// 验证 schema_version = 17
+	// 验证 schema_version = 25 / Verify schema_version equals latest version
 	var freshVersion int
 	err = freshDB.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&freshVersion)
 	require.NoError(t, err)
-	assert.Equal(t, 21, freshVersion)
+	assert.Equal(t, 25, freshVersion)
 
 	// 验证所有表存在 / Verify all tables exist
 	expectedTables := []string{
@@ -92,11 +93,11 @@ func TestFreshSchema_MatchesIncremental(t *testing.T) {
 		assert.Equal(t, 1, cnt, "fresh schema missing table: %s", tbl)
 	}
 
-	// 验证 memories 表有 35 列 / Verify memories table has 35 columns
+	// 验证 memories 表有 36 列（V22→V23 新增 candidate_for）/ Verify memories table has 36 columns (V22→V23 adds candidate_for)
 	var colCount int
 	err = freshDB.QueryRow("SELECT count(*) FROM pragma_table_info('memories')").Scan(&colCount)
 	require.NoError(t, err)
-	assert.Equal(t, 35, colCount, "memories table should have 35 columns")
+	assert.Equal(t, 36, colCount, "memories table should have 36 columns")
 
 	// 验证关键列存在 / Verify key columns exist
 	keyColumns := []struct {
@@ -109,6 +110,7 @@ func TestFreshSchema_MatchesIncremental(t *testing.T) {
 		{"memories", "owner_id"},
 		{"memories", "visibility"},
 		{"memories", "consolidated_into"},
+		{"memories", "candidate_for"},
 		{"contexts", "context_type"},
 		{"contexts", "mission"},
 		{"contexts", "directives"},
@@ -143,9 +145,11 @@ func TestFreshSchema_MatchesIncremental(t *testing.T) {
 		"SELECT count(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
 	).Scan(&indexCount)
 	require.NoError(t, err)
-	// 预期索引：memories(22) + contexts(2) + entities(1) + entity_relations(2)
-	//          + memory_entities(2) + memory_tags(1) + documents(4) + async_tasks(2) + memory_derivations(1) = 37
-	assert.Equal(t, 47, indexCount, "fresh schema should have 47 named indexes")
+	// 预期索引：memories(26) + contexts(1) + entities(2) + entity_relations(2)
+	//          + memory_entities(2) + memory_tags(1) + documents(4) + async_tasks(2)
+	//          + memory_derivations(1) + idempotency(2) + sessions(4) + session_finalize_state(1)
+	//          + transcript_cursors(1) = 49
+	assert.Equal(t, 49, indexCount, "fresh schema should have 49 named indexes")
 
 	// 验证 meta 表 tokenizer 记录 / Verify meta table has tokenizer record
 	var tokName string
@@ -252,11 +256,12 @@ func TestMigrate_V2ToV3(t *testing.T) {
 
 	rawDB := s.DB().(*sql.DB)
 
-	// 验证 schema_version 为 21（V17→V21 session/runtime 表）
+	// 验证 schema_version 为 25（V21→V25 FK/candidate_for/scope_policies/excerpt 索引）
+	// Verify schema_version is 25 (latest)
 	var version int
 	err = rawDB.QueryRow("SELECT MAX(version) FROM schema_version").Scan(&version)
 	require.NoError(t, err)
-	assert.Equal(t, 21, version)
+	assert.Equal(t, 25, version)
 
 	// 验证 V3 新增列存在
 	v3Columns := []string{"retention_tier", "message_role", "turn_number"}

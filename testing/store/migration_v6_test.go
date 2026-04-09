@@ -56,11 +56,11 @@ func TestMigrateV5ToV6_AddsOwnershipFields(t *testing.T) {
 		t.Errorf("default visibility = %q, want 'private'", visibility)
 	}
 
-	// 验证版本号
+	// 验证版本号 / Verify final schema version
 	var version int
 	db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version)
-	if version != 21 {
-		t.Errorf("schema version = %d, want 21", version)
+	if version != 25 {
+		t.Errorf("schema version = %d, want 25", version)
 	}
 
 	// 验证索引存在
