@@ -288,4 +288,3 @@ func (s *RemoteRerankStage) request(ctx context.Context, query string, docs []st
 	}
 	return out, nil
 }
-

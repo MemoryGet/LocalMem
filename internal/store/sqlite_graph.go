@@ -380,6 +380,52 @@ func (s *SQLiteGraphStore) GetMemoryEntities(ctx context.Context, memoryID strin
 	return entities, nil
 }
 
+// GetMemoriesEntities 批量获取记忆关联的实体 / Batch get entities for multiple memories
+func (s *SQLiteGraphStore) GetMemoriesEntities(ctx context.Context, memoryIDs []string) (map[string][]*model.Entity, error) {
+	result := make(map[string][]*model.Entity, len(memoryIDs))
+	if len(memoryIDs) == 0 {
+		return result, nil
+	}
+
+	placeholders := make([]string, len(memoryIDs))
+	args := make([]interface{}, len(memoryIDs))
+	for i, id := range memoryIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := `SELECT me.memory_id, e.id, e.name, e.entity_type, e.scope, e.description, e.metadata, e.created_at, e.updated_at
+		FROM entities e
+		JOIN memory_entities me ON e.id = me.entity_id
+		WHERE me.memory_id IN (` + strings.Join(placeholders, ",") + `)
+		ORDER BY me.memory_id, e.name`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get memory entities: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var memoryID string
+		var d entityScanDest
+		dest := append([]any{&memoryID}, d.scanFields()...)
+		if err := rows.Scan(dest...); err != nil {
+			return nil, fmt.Errorf("failed to scan batch entity row: %w", err)
+		}
+		entity, err := d.toEntity()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert batch entity: %w", err)
+		}
+		result[memoryID] = append(result[memoryID], entity)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate batch entity rows: %w", err)
+	}
+
+	return result, nil
+}
+
 // ---- 扫描辅助结构体 / Scan helper structs ----
 
 // entityScanDest Entity 扫描目标（8列）/ Entity scan destination (8 columns)

@@ -254,7 +254,7 @@ func TestFTSStage_Execute_EmptyKeywordsUsesOriginalQuery(t *testing.T) {
 }
 
 // TestFTSStage_Execute_TraceRecorded 验证非跳过时记录 trace / Verify trace recorded on non-skip execution
-func TestFTSStage_Execute_TraceRecorded(t *testing.T) {
+func TestFTSStage_Execute_NoNormalPathTrace(t *testing.T) {
 	mock := &ftsSearcherSpy{results: []*model.SearchResult{
 		{Memory: &model.Memory{ID: "m1"}, Score: 0.5, Source: "fts"},
 	}}
@@ -266,18 +266,11 @@ func TestFTSStage_Execute_TraceRecorded(t *testing.T) {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
 
-	found := false
+	// Normal-path trace is now added by pipeline.executeWithTrace, not by the stage itself
 	for _, tr := range got.Traces {
-		if tr.Name == "fts" && !tr.Skipped {
-			found = true
-			if tr.OutputCount != 1 {
-				t.Errorf("trace OutputCount = %d, want 1", tr.OutputCount)
-			}
-			break
+		if tr.Name == "fts" && !tr.Skipped && tr.Note == "" {
+			t.Error("stage should not emit its own normal-path trace (pipeline handles it)")
 		}
-	}
-	if !found {
-		t.Error("expected non-skipped trace for fts stage")
 	}
 }
 

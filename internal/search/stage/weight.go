@@ -106,7 +106,10 @@ func (s *WeightStage) Execute(ctx context.Context, state *pipeline.PipelineState
 		if r.Memory.ExpiresAt != nil && r.Memory.ExpiresAt.Before(now) {
 			continue
 		}
-		effective := s.calculateEffectiveStrength(r.Memory)
+		effective := scoring.CalculateEffectiveStrength(
+			r.Memory.Strength, r.Memory.DecayRate, r.Memory.LastAccessedAt,
+			r.Memory.RetentionTier, r.Memory.AccessCount, s.accessAlpha,
+		)
 		if effective < minEffectiveStrength {
 			effective = minEffectiveStrength
 		}

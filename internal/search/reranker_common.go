@@ -8,6 +8,7 @@ import (
 
 var rerankSplitPattern = regexp.MustCompile(`[^\p{L}\p{N}\p{Han}]+`)
 
+// Deprecated: splitRerankTerms is the legacy term splitter; use stage.overlapExpandTerms in new pipeline code.
 func splitRerankTerms(text string) []string {
 	normalized := normalizeRerankText(text)
 	if normalized == "" {
@@ -16,6 +17,7 @@ func splitRerankTerms(text string) []string {
 	return strings.Fields(normalized)
 }
 
+// Deprecated: normalizeRerankText is the legacy normalizer; use stage.overlapNormalizeText in new pipeline code.
 func normalizeRerankText(text string) string {
 	text = strings.ToLower(strings.TrimSpace(text))
 	if text == "" {
@@ -25,6 +27,7 @@ func normalizeRerankText(text string) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
+// Deprecated: isHanOnly is the legacy CJK check; use stage.overlapIsHanOnly in new pipeline code.
 func isHanOnly(runes []rune) bool {
 	if len(runes) == 0 {
 		return false

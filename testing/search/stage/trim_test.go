@@ -92,18 +92,8 @@ func TestTrimStage_Execute(t *testing.T) {
 			if len(got.Candidates) != tt.wantCount {
 				t.Errorf("Candidates count = %d, want %d", len(got.Candidates), tt.wantCount)
 			}
-			if tt.wantTrunc {
-				found := false
-				for _, tr := range got.Traces {
-					if tr.Name == "trim" && tr.Note == "truncated by token budget" {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Error("expected truncation note in trace")
-				}
-			}
+			// Truncation note is now handled by pipeline.executeWithTrace
+			_ = tt.wantTrunc
 		})
 	}
 }
@@ -130,7 +120,7 @@ func TestTrimStage_Execute_PreservesOrder(t *testing.T) {
 	}
 }
 
-func TestTrimStage_Execute_TraceRecorded(t *testing.T) {
+func TestTrimStage_Execute_NoNormalPathTrace(t *testing.T) {
 	candidates := []*model.SearchResult{
 		{Memory: &model.Memory{ID: "a", Content: "hello"}, Score: 0.9},
 	}
@@ -142,18 +132,11 @@ func TestTrimStage_Execute_TraceRecorded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
-	found := false
+	// Normal-path trace is now added by pipeline.executeWithTrace, not by the stage itself
 	for _, tr := range got.Traces {
-		if tr.Name == "trim" {
-			found = true
-			if tr.InputCount != 1 {
-				t.Errorf("trace InputCount = %d, want 1", tr.InputCount)
-			}
-			break
+		if tr.Name == "trim" && !tr.Skipped && tr.Note == "" {
+			t.Error("stage should not emit its own normal-path trace (pipeline handles it)")
 		}
-	}
-	if !found {
-		t.Error("expected trace for trim stage")
 	}
 }
 
