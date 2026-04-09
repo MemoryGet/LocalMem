@@ -70,12 +70,5 @@ func (s *FilterStage) Execute(ctx context.Context, state *pipeline.PipelineState
 
 	state.Candidates = filtered
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(filtered),
-	})
-
 	return state, nil
 }

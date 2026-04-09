@@ -34,7 +34,6 @@ func (s *TrimStage) Name() string {
 // Execute 执行 token 预算裁剪 / Execute token budget trimming
 func (s *TrimStage) Execute(ctx context.Context, state *pipeline.PipelineState) (*pipeline.PipelineState, error) {
 	start := time.Now()
-	inputCount := len(state.Candidates)
 
 	if len(state.Candidates) == 0 {
 		state.AddTrace(pipeline.StageTrace{
@@ -48,7 +47,6 @@ func (s *TrimStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 
 	totalTokens := 0
 	trimIdx := len(state.Candidates)
-	truncated := false
 
 	for i, r := range state.Candidates {
 		tokens := 0
@@ -57,26 +55,12 @@ func (s *TrimStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 		}
 		if totalTokens+tokens > s.maxTokens && i > 0 {
 			trimIdx = i
-			truncated = true
 			break
 		}
 		totalTokens += tokens
 	}
 
 	state.Candidates = state.Candidates[:trimIdx]
-
-	note := ""
-	if truncated {
-		note = "truncated by token budget"
-	}
-
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(state.Candidates),
-		Note:        note,
-	})
 
 	return state, nil
 }

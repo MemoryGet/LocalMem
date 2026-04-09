@@ -2,13 +2,13 @@ package stage
 
 import (
 	"context"
-	"math"
 	"sort"
 	"strings"
 	"time"
 
 	"iclude/internal/model"
 	"iclude/internal/search/pipeline"
+	"iclude/pkg/scoring"
 )
 
 // defaultAccessAlpha 默认访问频率阻尼系数 / Default access frequency damping coefficient
@@ -76,7 +76,6 @@ func (s *WeightStage) Name() string {
 // Execute 执行综合加权 / Execute combined weighting
 func (s *WeightStage) Execute(ctx context.Context, state *pipeline.PipelineState) (*pipeline.PipelineState, error) {
 	start := time.Now()
-	inputCount := len(state.Candidates)
 
 	if len(state.Candidates) == 0 {
 		state.AddTrace(pipeline.StageTrace{
@@ -123,13 +122,6 @@ func (s *WeightStage) Execute(ctx context.Context, state *pipeline.PipelineState
 
 	state.Candidates = weighted
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(weighted),
-	})
-
 	return state, nil
 }
 
@@ -170,22 +162,3 @@ func (s *WeightStage) applyScopePriority(r *model.SearchResult) float64 {
 	return boost
 }
 
-// calculateEffectiveStrength 计算有效记忆强度 / Calculate effective memory strength
-func (s *WeightStage) calculateEffectiveStrength(mem *model.Memory) float64 {
-	if mem.RetentionTier == model.TierPermanent {
-		return mem.Strength
-	}
-	if mem.LastAccessedAt == nil {
-		return mem.Strength
-	}
-	hours := time.Since(*mem.LastAccessedAt).Hours()
-	if hours < 0 {
-		hours = 0
-	}
-	decay := mem.Strength * math.Exp(-mem.DecayRate*hours)
-	accessBoost := 1.0 + s.accessAlpha*math.Log2(float64(mem.AccessCount)+1.0)
-	if accessBoost > 3.0 {
-		accessBoost = 3.0
-	}
-	return decay * accessBoost
-}

@@ -172,12 +172,5 @@ func (s *MMRStage) Execute(ctx context.Context, state *pipeline.PipelineState) (
 
 	state.Candidates = selected
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(selected),
-	})
-
 	return state, nil
 }

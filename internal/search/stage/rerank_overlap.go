@@ -2,9 +2,7 @@ package stage
 
 import (
 	"context"
-	"math"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -12,9 +10,6 @@ import (
 	"iclude/internal/model"
 	"iclude/internal/search/pipeline"
 )
-
-// overlapRerankerEpsilon 精排分数比较容差 / Epsilon for reranker float comparison
-const overlapRerankerEpsilon = 1e-12
 
 // defaultOverlapTopK 默认精排数量 / Default top-K for overlap reranking
 const defaultOverlapTopK = 20
@@ -85,68 +80,29 @@ func (s *OverlapRerankStage) Execute(ctx context.Context, state *pipeline.Pipeli
 	subset := make([]*model.SearchResult, topK)
 	copy(subset, state.Candidates[:topK])
 
-	maxBaseScore := 0.0
-	for _, res := range subset {
-		if res != nil && res.Score > maxBaseScore {
-			maxBaseScore = res.Score
-		}
-	}
-	if maxBaseScore <= 0 {
-		maxBaseScore = 1
-	}
-
-	type scoredResult struct {
-		res       *model.SearchResult
-		index     int
-		final     float64
-		baseScore float64
-	}
-	scored := make([]scoredResult, 0, len(subset))
+	// 构建外部分数映射 / Build external score map
+	externalScores := make(map[int]float64, topK)
 	for i, res := range subset {
 		if res == nil || res.Memory == nil {
 			continue
 		}
-		baseNorm := res.Score / maxBaseScore
-		overlap := overlapScore(queryNorm, terms, res.Memory)
-		final := (1-s.scoreWeight)*baseNorm + s.scoreWeight*overlap
-		scored = append(scored, scoredResult{
-			res:       res,
-			index:     i,
-			final:     final,
-			baseScore: res.Score,
-		})
+		externalScores[i] = overlapScore(queryNorm, terms, res.Memory)
 	}
-	if len(scored) <= 1 {
+	if len(externalScores) <= 1 {
 		return state, nil
 	}
 
-	sort.SliceStable(scored, func(i, j int) bool {
-		if math.Abs(scored[i].final-scored[j].final) > overlapRerankerEpsilon {
-			return scored[i].final > scored[j].final
-		}
-		if math.Abs(scored[i].baseScore-scored[j].baseScore) > overlapRerankerEpsilon {
-			return scored[i].baseScore > scored[j].baseScore
-		}
-		return scored[i].index < scored[j].index
-	})
+	// 使用共享 blendScores 混合分数 / Use shared blendScores for score blending
+	blended := blendScores(subset, externalScores, s.scoreWeight)
 
-	// 创建副本避免修改输入 / Create copies to avoid mutating input
+	// 创建完整候选列表副本，替换前 topK 项 / Create full candidate copy, replace top-K items
 	reranked := make([]*model.SearchResult, len(state.Candidates))
 	copy(reranked, state.Candidates)
-	for i, item := range scored {
-		resCopy := *item.res
-		resCopy.Score = item.final
-		reranked[i] = &resCopy
+	for i, res := range blended {
+		reranked[i] = res
 	}
 
 	state.Candidates = reranked
-
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(reranked),
-	})
 
 	return state, nil
 }

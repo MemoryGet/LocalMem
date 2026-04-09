@@ -133,7 +133,7 @@ func (s *TemporalStage) Execute(ctx context.Context, state *pipeline.PipelineSta
 		results = append(results, &model.SearchResult{
 			Memory: mem,
 			Score:  score,
-			Source: "temporal",
+			Source: SourceTemporal,
 		})
 	}
 
@@ -147,13 +147,6 @@ func (s *TemporalStage) Execute(ctx context.Context, state *pipeline.PipelineSta
 
 	// 追加结果 / Append results
 	state.Candidates = append(state.Candidates, results...)
-
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(results),
-	})
 
 	return state, nil
 }
