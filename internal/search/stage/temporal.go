@@ -133,7 +133,7 @@ func (s *TemporalStage) Execute(ctx context.Context, state *pipeline.PipelineSta
 		results = append(results, &model.SearchResult{
 			Memory: mem,
 			Score:  score,
-			Source: "temporal",
+			Source: SourceTemporal,
 		})
 	}
 

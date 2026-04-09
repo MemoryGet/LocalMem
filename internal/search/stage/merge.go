@@ -16,6 +16,12 @@ const defaultRRFK = 60
 // rrfScoreEpsilon 浮点比较容差 / Float64 equality tolerance for RRF score comparison
 const rrfScoreEpsilon = 1e-12
 
+// MergeStrategy 融合策略常量 / Merge strategy constants
+const (
+	MergeStrategyRRF        = "rrf"
+	MergeStrategyGraphAware = "graph_aware"
+)
+
 // MergeStage RRF 融合阶段 / RRF merge pipeline stage
 type MergeStage struct {
 	strategy string
@@ -26,7 +32,7 @@ type MergeStage struct {
 // NewMergeStage 创建 RRF 融合阶段 / Create a new RRF merge stage
 func NewMergeStage(strategy string, k int, limit int) *MergeStage {
 	if strategy == "" {
-		strategy = "rrf"
+		strategy = MergeStrategyRRF
 	}
 	if k <= 0 {
 		k = defaultRRFK
@@ -88,9 +94,9 @@ func (s *MergeStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	// 按策略分支融合 / Branch by merge strategy
 	var merged []*model.SearchResult
 	switch s.strategy {
-	case "graph_aware":
+	case MergeStrategyGraphAware:
 		merged = s.mergeGraphAware(groups)
-	default: // "rrf"
+	default: // MergeStrategyRRF
 		merged = s.mergeRRF(groups)
 	}
 
@@ -139,7 +145,7 @@ func (s *MergeStage) mergeRRF(groups map[string][]*model.SearchResult) []*model.
 		merged = append(merged, &model.SearchResult{
 			Memory: memMap[id],
 			Score:  score,
-			Source: "hybrid",
+			Source: SourceHybrid,
 		})
 	}
 
@@ -213,7 +219,7 @@ func (s *MergeStage) mergeGraphAware(groups map[string][]*model.SearchResult) []
 		merged = append(merged, &model.SearchResult{
 			Memory: memMap[id],
 			Score:  score,
-			Source: "hybrid",
+			Source: SourceHybrid,
 		})
 	}
 
@@ -230,10 +236,10 @@ func (s *MergeStage) mergeGraphAware(groups map[string][]*model.SearchResult) []
 // computeTrustFactor 根据候选出现的源集合计算信任因子
 // Compute trust factor based on which sources a candidate appeared in
 func computeTrustFactor(sources map[string]bool) float64 {
-	hasGraph := sources["graph"]
+	hasGraph := sources[SourceGraph]
 	hasOtherThanGraph := false
 	for src := range sources {
-		if src != "graph" {
+		if src != SourceGraph {
 			hasOtherThanGraph = true
 			break
 		}
@@ -246,7 +252,7 @@ func computeTrustFactor(sources map[string]bool) float64 {
 
 	// 仅出现在 graph 或 vector → 标准信任 / Only in graph or vector → standard trust
 	for src := range sources {
-		if src == "graph" || src == "vector" {
+		if src == SourceGraph || src == SourceVector {
 			return trustFactorGraphOrVector
 		}
 	}

@@ -98,7 +98,7 @@ func (s *CoreStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 		injected = append(injected, &model.SearchResult{
 			Memory: m,
 			Score:  coreFixedScore,
-			Source: "core",
+			Source: SourceCore,
 		})
 	}
 

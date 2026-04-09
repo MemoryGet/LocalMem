@@ -304,7 +304,7 @@ func (s *GraphStage) collectMemories(ctx context.Context, visited map[string]int
 		results = append(results, &model.SearchResult{
 			Memory: dm.mem,
 			Score:  score,
-			Source: "graph",
+			Source: SourceGraph,
 		})
 	}
 
