@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"iclude/internal/llm"
 )
@@ -88,8 +89,41 @@ func (t *LLMTracker) PrintUsage() {
 	fmt.Println()
 }
 
-// stageProvider 固定阶段名的 Provider（构造时绑定 stage，线程安全）
-// Provider with fixed stage name (bound at construction, goroutine-safe)
+// TrackedProvider 包装 llm.Provider 自动追踪用量 / Wraps llm.Provider for automatic usage tracking
+type TrackedProvider struct {
+	inner   llm.Provider
+	tracker *LLMTracker
+	stage   atomic.Value // current stage name (string)
+}
+
+// NewTrackedProvider 创建追踪包装 / Create tracked provider
+func NewTrackedProvider(inner llm.Provider, tracker *LLMTracker) *TrackedProvider {
+	tp := &TrackedProvider{inner: inner, tracker: tracker}
+	tp.stage.Store("unknown")
+	return tp
+}
+
+// SetStage 设置当前阶段名（后续调用都归入此阶段）/ Set current stage name
+func (p *TrackedProvider) SetStage(name string) {
+	p.stage.Store(name)
+}
+
+// Chat 转发并追踪 / Forward and track
+func (p *TrackedProvider) Chat(ctx context.Context, req *llm.ChatRequest) (*llm.ChatResponse, error) {
+	resp, err := p.inner.Chat(ctx, req)
+	if err == nil && resp != nil {
+		stage := p.stage.Load().(string)
+		p.tracker.Record(stage, resp)
+	}
+	return resp, err
+}
+
+// StageProvider 创建固定阶段名的子 Provider / Create a sub-provider pinned to a stage name
+func (p *TrackedProvider) StageProvider(stage string) llm.Provider {
+	return &stageProvider{inner: p.inner, tracker: p.tracker, stage: stage}
+}
+
+// stageProvider 固定阶段名的 Provider / Provider with fixed stage name
 type stageProvider struct {
 	inner   llm.Provider
 	tracker *LLMTracker

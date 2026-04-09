@@ -1,119 +1,119 @@
 {
   "mode": "pipeline (rule classifier) — LongMemEval oracle",
   "dataset": "longmemeval-oracle",
-  "timestamp": "2026-04-09T00:18:24.365108151+08:00",
+  "timestamp": "2026-04-09T18:00:18.539585625+08:00",
   "metrics": {
     "total": 500,
-    "hit_rate": 84.39999999999999,
-    "mrr": 0.5846320790320789,
-    "ndcg@5": 0.6248036503689677,
-    "ndcg@10": 0.6414091982236524,
-    "recall@1": 0.454,
-    "recall@3": 0.688,
-    "recall@5": 0.772,
-    "recall@10": 0.822
+    "hit_rate": 83.6,
+    "mrr": 0.591061877011877,
+    "ndcg@5": 0.6322824633096625,
+    "ndcg@10": 0.6476310910807556,
+    "recall@1": 0.46,
+    "recall@3": 0.704,
+    "recall@5": 0.778,
+    "recall@10": 0.824
   },
   "by_category": {
     "knowledge-update": {
       "total": 78,
-      "hit_rate": 94.87179487179486,
-      "mrr": 0.6564158064158067,
-      "ndcg@5": 0.7209495354462001,
-      "ndcg@10": 0.7252230397197044,
-      "recall@1": 0.48717948717948717,
+      "hit_rate": 93.58974358974359,
+      "mrr": 0.663797313797314,
+      "ndcg@5": 0.7273597918564565,
+      "ndcg@10": 0.7316332961299609,
+      "recall@1": 0.5,
       "recall@3": 0.8205128205128205,
       "recall@5": 0.9230769230769231,
       "recall@10": 0.9358974358974359
     },
     "multi-session": {
       "total": 133,
-      "hit_rate": 65.41353383458647,
-      "mrr": 0.3944932678015385,
-      "ndcg@5": 0.42378355519979805,
-      "ndcg@10": 0.44607561833862724,
-      "recall@1": 0.2706766917293233,
-      "recall@3": 0.48120300751879697,
-      "recall@5": 0.5488721804511278,
-      "recall@10": 0.6165413533834586
+      "hit_rate": 66.16541353383458,
+      "mrr": 0.41044285705939854,
+      "ndcg@5": 0.4455338503931392,
+      "ndcg@10": 0.4629100969353809,
+      "recall@1": 0.2781954887218045,
+      "recall@3": 0.5112781954887218,
+      "recall@5": 0.5789473684210527,
+      "recall@10": 0.631578947368421
     },
     "single-session-assistant": {
       "total": 56,
       "hit_rate": 98.21428571428571,
-      "mrr": 0.8719093406593407,
-      "ndcg@5": 0.8943808093916193,
-      "ndcg@10": 0.8943808093916193,
+      "mrr": 0.8794642857142857,
+      "ndcg@5": 0.9056474121339668,
+      "ndcg@10": 0.9056474121339668,
       "recall@1": 0.8035714285714286,
-      "recall@3": 0.9464285714285714,
-      "recall@5": 0.9642857142857143,
-      "recall@10": 0.9642857142857143
+      "recall@3": 0.9642857142857143,
+      "recall@5": 0.9821428571428571,
+      "recall@10": 0.9821428571428571
     },
     "single-session-preference": {
       "total": 30,
-      "hit_rate": 66.66666666666666,
-      "mrr": 0.29130748880748875,
+      "hit_rate": 63.33333333333333,
+      "mrr": 0.28760378510378504,
       "ndcg@5": 0.327784374977067,
-      "ndcg@10": 0.3713188880734359,
+      "ndcg@10": 0.3612845548846365,
       "recall@1": 0.13333333333333333,
       "recall@3": 0.36666666666666664,
       "recall@5": 0.5,
-      "recall@10": 0.6333333333333333
+      "recall@10": 0.6
     },
     "single-session-user": {
       "total": 70,
-      "hit_rate": 97.14285714285714,
-      "mrr": 0.8401360544217689,
-      "ndcg@5": 0.8626438875776088,
-      "ndcg@10": 0.8724944664410568,
+      "hit_rate": 94.28571428571428,
+      "mrr": 0.8345238095238096,
+      "ndcg@5": 0.8564913653194175,
+      "ndcg@10": 0.8615800394209607,
       "recall@1": 0.7714285714285715,
       "recall@3": 0.9142857142857143,
-      "recall@5": 0.9428571428571428,
-      "recall@10": 0.9714285714285714
+      "recall@5": 0.9285714285714286,
+      "recall@10": 0.9428571428571428
     },
     "temporal-reasoning": {
       "total": 133,
-      "hit_rate": 88.7218045112782,
-      "mrr": 0.5434009808069961,
-      "ndcg@5": 0.5977490215972289,
-      "ndcg@10": 0.6203732342529616,
-      "recall@1": 0.37593984962406013,
-      "recall@3": 0.6616541353383458,
-      "recall@5": 0.7969924812030075,
-      "recall@10": 0.8646616541353384
+      "hit_rate": 87.96992481203007,
+      "mrr": 0.5479027655719386,
+      "ndcg@5": 0.5988495029065144,
+      "ndcg@10": 0.6264339177768912,
+      "recall@1": 0.38345864661654133,
+      "recall@3": 0.6842105263157895,
+      "recall@5": 0.7894736842105263,
+      "recall@10": 0.8721804511278195
     }
   },
   "by_difficulty": {
     "easy": {
       "total": 150,
-      "hit_rate": 92.66666666666666,
-      "mrr": 0.7643298738298737,
-      "ndcg@5": 0.7891550143173459,
-      "ndcg@10": 0.8002366315173398,
+      "hit_rate": 91.33333333333333,
+      "mrr": 0.7647429792429791,
+      "ndcg@5": 0.7904900356206663,
+      "ndcg@10": 0.7995647861829005,
       "recall@1": 0.68,
-      "recall@3": 0.84,
+      "recall@3": 0.8466666666666667,
       "recall@5": 0.88,
-      "recall@10": 0.9133333333333333
+      "recall@10": 0.9066666666666666
     },
     "hard": {
       "total": 151,
       "hit_rate": 67.54966887417218,
-      "mrr": 0.41739820150416196,
-      "ndcg@5": 0.4482561500686152,
-      "ndcg@10": 0.470098386696414,
-      "recall@1": 0.2913907284768212,
-      "recall@3": 0.5099337748344371,
-      "recall@5": 0.5761589403973509,
-      "recall@10": 0.6423841059602649
+      "mrr": 0.4305004414275939,
+      "ndcg@5": 0.4674136948415579,
+      "ndcg@10": 0.48271860073638007,
+      "recall@1": 0.2980132450331126,
+      "recall@3": 0.5364238410596026,
+      "recall@5": 0.6026490066225165,
+      "recall@10": 0.6490066225165563
     },
     "medium": {
       "total": 199,
-      "hit_rate": 90.95477386934674,
-      "mrr": 0.5760775377609546,
-      "ndcg@5": 0.6348838913392992,
-      "ndcg@10": 0.6516796381561122,
-      "recall@1": 0.40703517587939697,
-      "recall@3": 0.7085427135678392,
-      "recall@5": 0.8391959798994975,
-      "recall@10": 0.8894472361809045
+      "hit_rate": 89.9497487437186,
+      "mrr": 0.5819795224317834,
+      "ndcg@5": 0.6381319517118369,
+      "ndcg@10": 0.6582428085515025,
+      "recall@1": 0.41708542713567837,
+      "recall@3": 0.7236180904522613,
+      "recall@5": 0.8341708542713567,
+      "recall@10": 0.8944723618090452
     }
   },
   "cases": [
@@ -123,9 +123,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 4,
-      "score": 0.9124909189167081,
-      "result_count": 15
+      "rank": 5,
+      "score": 0.5924997642406876,
+      "result_count": 9
     },
     {
       "query": "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?",
@@ -134,7 +134,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.48709247635440345,
+      "score": 0.48709247153955926,
       "result_count": 8
     },
     {
@@ -143,8 +143,8 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 1,
-      "score": 0.5600928995914523,
+      "rank": 2,
+      "score": 0.5274998212613413,
       "result_count": 13
     },
     {
@@ -154,7 +154,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6574998077560651,
+      "score": 0.6574997789287957,
       "result_count": 14
     },
     {
@@ -164,7 +164,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.5266804184703792,
+      "score": 0.526680395491768,
       "result_count": 10
     },
     {
@@ -184,7 +184,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5873681722285721,
+      "score": 0.5873681824482726,
       "result_count": 9
     },
     {
@@ -194,8 +194,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5469436066282992,
-      "result_count": 13
+      "score": 0.5469436040837125,
+      "result_count": 12
     },
     {
       "query": "How many days had passed between the Hindu festival of Holi and the Sunday mass at St. Mary's Church?",
@@ -214,7 +214,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.5259395808422866,
+      "score": 0.5259395332487115,
       "result_count": 12
     },
     {
@@ -224,7 +224,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 3.184530788107071,
+      "score": 3.1845305415837677,
       "result_count": 8
     },
     {
@@ -234,7 +234,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6149998032136759,
+      "score": 0.614999769580243,
       "result_count": 11
     },
     {
@@ -244,7 +244,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5347019896670444,
+      "score": 0.5347019768931537,
       "result_count": 11
     },
     {
@@ -254,7 +254,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5426664549528812,
+      "score": 0.5426664520724439,
       "result_count": 9
     },
     {
@@ -264,7 +264,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5449998322423238,
+      "score": 0.5449997930927558,
       "result_count": 9
     },
     {
@@ -274,7 +274,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 3.518821544805434,
+      "score": 3.5188166608361415,
       "result_count": 13
     },
     {
@@ -284,7 +284,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5799998168381444,
+      "score": 0.579999759167607,
       "result_count": 12
     },
     {
@@ -294,7 +294,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6499997988525767,
+      "score": 0.6499998053873931,
       "result_count": 9
     },
     {
@@ -304,7 +304,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5599997983613528,
+      "score": 0.5599997759205887,
       "result_count": 10
     },
     {
@@ -314,8 +314,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6033331878724931,
-      "result_count": 12
+      "score": 0.6033331446144352,
+      "result_count": 13
     },
     {
       "query": "How long did I take to finish 'The Seven Husbands of Evelyn Hugo' and 'The Nightingale' combined?",
@@ -324,7 +324,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.6056548427402685,
+      "score": 0.6056548393199639,
       "result_count": 14
     },
     {
@@ -334,7 +334,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5449998287108128,
+      "score": 0.5449998192515945,
       "result_count": 12
     },
     {
@@ -344,7 +344,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.486886589336352,
+      "score": 0.4868865868076686,
       "result_count": 12
     },
     {
@@ -354,7 +354,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6149997700330144,
+      "score": 0.6149997891045437,
       "result_count": 10
     },
     {
@@ -364,7 +364,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 8,
-      "score": 0.38269863307138546,
+      "score": 0.38269863196171144,
       "result_count": 12
     },
     {
@@ -374,7 +374,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.5069372383366068,
+      "score": 0.5069372432829201,
       "result_count": 9
     },
     {
@@ -384,7 +384,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.48457710224809186,
+      "score": 0.4845770623550736,
       "result_count": 9
     },
     {
@@ -393,9 +393,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 11,
-      "score": 0.19669071834306565,
-      "result_count": 15
+      "rank": 8,
+      "score": 0.19669071381303913,
+      "result_count": 10
     },
     {
       "query": "Which event happened first, the road trip to the coast or the arrival of the new prime lens?",
@@ -404,7 +404,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5123331395093133,
+      "score": 0.5123331400362864,
       "result_count": 11
     },
     {
@@ -414,7 +414,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.5521766346883641,
+      "score": 0.5521766505320835,
       "result_count": 10
     },
     {
@@ -424,7 +424,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.39379994655094414,
+      "score": 0.39379994052315886,
       "result_count": 9
     },
     {
@@ -434,7 +434,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6639997095305467,
+      "score": 0.6639997054597969,
       "result_count": 8
     },
     {
@@ -444,7 +444,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.5348183894929367,
+      "score": 0.5348183901409642,
       "result_count": 9
     },
     {
@@ -454,8 +454,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.4763951262916146,
-      "result_count": 14
+      "score": 0.47639512478210505,
+      "result_count": 12
     },
     {
       "query": "How old was I when I moved to the United States?",
@@ -474,8 +474,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.39112159870277263,
-      "result_count": 16
+      "score": 0.39112160543455343,
+      "result_count": 14
     },
     {
       "query": "How many days before my best friend's birthday party did I order her gift?",
@@ -484,7 +484,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 9,
-      "score": 0.2492135149458123,
+      "score": 0.24921351674624562,
       "result_count": 14
     },
     {
@@ -494,7 +494,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5559372961345889,
+      "score": 0.55593726162031,
       "result_count": 9
     },
     {
@@ -504,8 +504,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 0.28545130844808947,
-      "result_count": 9
+      "score": 0.2854512990259889,
+      "result_count": 8
     },
     {
       "query": "Who did I meet first, Mark and Sarah or Tom?",
@@ -514,7 +514,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5274998572808649,
+      "score": 0.527499836884695,
       "result_count": 16
     },
     {
@@ -524,7 +524,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5780552732770323,
+      "score": 0.578055282365378,
       "result_count": 7
     },
     {
@@ -534,7 +534,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.500298764881934,
+      "score": 0.500298750465161,
       "result_count": 8
     },
     {
@@ -544,8 +544,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.5206180377535987,
-      "result_count": 11
+      "score": 0.5206180670294023,
+      "result_count": 12
     },
     {
       "query": "Which streaming service did I start using most recently?",
@@ -554,7 +554,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 7,
-      "score": 0.22907308650633282,
+      "score": 0.2290730875362791,
       "result_count": 11
     },
     {
@@ -564,7 +564,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 2.3014594692495156,
+      "score": 2.3014594024024118,
       "result_count": 14
     },
     {
@@ -574,7 +574,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.4949999006517225,
+      "score": 0.49499989552348916,
       "result_count": 11
     },
     {
@@ -583,9 +583,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 2,
-      "score": 0.5141174525402079,
-      "result_count": 9
+      "rank": 1,
+      "score": 0.5141174369601815,
+      "result_count": 8
     },
     {
       "query": "Which event happened first, the meeting with Rachel or the pride parade?",
@@ -594,7 +594,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5068181068705158,
+      "score": 0.5068181022729956,
       "result_count": 10
     },
     {
@@ -604,8 +604,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6033331068514395,
-      "result_count": 16
+      "score": 0.6033331016875483,
+      "result_count": 20
     },
     {
       "query": "Which event did I participate in first, the volleyball league or the charity 5K run to raise money for a local children's hospital?",
@@ -613,9 +613,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 1,
-      "score": 1.1064971337445373,
-      "result_count": 9
+      "rank": 10,
+      "score": 0.2681553082535177,
+      "result_count": 10
     },
     {
       "query": "Which event happened first, my attendance at a cultural festival or the start of my Spanish classes?",
@@ -624,7 +624,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.38281688032232986,
+      "score": 0.38281687874463194,
       "result_count": 12
     },
     {
@@ -634,7 +634,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6292566658981729,
+      "score": 0.6292566721954765,
       "result_count": 10
     },
     {
@@ -644,7 +644,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.38413664358244126,
+      "score": 0.38413662698121154,
       "result_count": 12
     },
     {
@@ -654,7 +654,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5274998438464693,
+      "score": 0.5274998420435716,
       "result_count": 15
     },
     {
@@ -664,7 +664,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5123331512117195,
+      "score": 0.5123331688064343,
       "result_count": 9
     },
     {
@@ -674,7 +674,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.4430490888682329,
+      "score": 0.44304907529101223,
       "result_count": 15
     },
     {
@@ -684,8 +684,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6412498680957187,
-      "result_count": 12
+      "score": 0.6412498797133888,
+      "result_count": 7
     },
     {
       "query": "How many days before I bought my iPad did I attend the Holiday Market?",
@@ -694,7 +694,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5449998717150569,
+      "score": 0.5449998718372201,
       "result_count": 12
     },
     {
@@ -714,7 +714,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5274999074508717,
+      "score": 0.5274998439893017,
       "result_count": 11
     },
     {
@@ -724,8 +724,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 2.494327458955344,
-      "result_count": 15
+      "score": 2.4943274468562486,
+      "result_count": 12
     },
     {
       "query": "How many projects have I led or am currently leading?",
@@ -734,7 +734,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6639996039381231,
+      "score": 0.6639995732609842,
       "result_count": 5
     },
     {
@@ -744,7 +744,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 0.4369361208180452,
+      "score": 0.43693610029126373,
       "result_count": 8
     },
     {
@@ -754,8 +754,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 0.38859566948102897,
-      "result_count": 12
+      "score": 0.38859566858078987,
+      "result_count": 8
     },
     {
       "query": "How many weeks did it take me to watch all the Marvel Cinematic Universe movies and the main Star Wars films?",
@@ -763,9 +763,9 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 6,
-      "score": 0.45906652236296913,
-      "result_count": 14
+      "rank": 5,
+      "score": 0.4590665197642611,
+      "result_count": 13
     },
     {
       "query": "How many plants did I acquire in the last month?",
@@ -774,7 +774,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.38041907532400376,
+      "score": 0.3804190691424728,
       "result_count": 8
     },
     {
@@ -794,7 +794,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 1.132959109190867,
+      "score": 1.1329590805255323,
       "result_count": 12
     },
     {
@@ -804,7 +804,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.4299999560392473,
+      "score": 0.4299999471186033,
       "result_count": 14
     },
     {
@@ -814,7 +814,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 7,
-      "score": 0.2889530276485468,
+      "score": 0.2889530340711556,
       "result_count": 11
     },
     {
@@ -824,7 +824,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 3.7690374706131333,
+      "score": 3.7690370421973785,
       "result_count": 13
     },
     {
@@ -834,7 +834,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.4959386315360402,
+      "score": 0.4959385815995039,
       "result_count": 14
     },
     {
@@ -844,7 +844,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6257160764123831,
+      "score": 0.6257160001622878,
       "result_count": 6
     },
     {
@@ -854,7 +854,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 3.390717456787234,
+      "score": 3.390717454931202,
       "result_count": 8
     },
     {
@@ -863,9 +863,9 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 11,
-      "score": 0.4838726518733968,
-      "result_count": 11
+      "rank": 4,
+      "score": 0.48387265275680036,
+      "result_count": 7
     },
     {
       "query": "How many hours have I spent playing games in total?",
@@ -874,7 +874,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 1.6112450994835903,
+      "score": 1.6112449317136028,
       "result_count": 8
     },
     {
@@ -884,7 +884,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.5902885347855559,
+      "score": 0.5902885220289747,
       "result_count": 6
     },
     {
@@ -894,7 +894,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 6,
-      "score": 2.4844703436176765,
+      "score": 2.484470372110763,
       "result_count": 15
     },
     {
@@ -904,7 +904,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 1.4472622980145193,
+      "score": 1.4472621335898128,
       "result_count": 11
     },
     {
@@ -914,7 +914,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 8,
-      "score": 0.527499824102448,
+      "score": 0.5274998213029405,
       "result_count": 15
     },
     {
@@ -924,7 +924,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 1.987777736320166,
+      "score": 1.9877776929477509,
       "result_count": 9
     },
     {
@@ -934,7 +934,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 3.8275500329288397,
+      "score": 3.827550014924406,
       "result_count": 12
     },
     {
@@ -944,7 +944,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 6,
-      "score": 3.9982869045547718,
+      "score": 3.9982864013121215,
       "result_count": 6
     },
     {
@@ -954,7 +954,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 1.8032888111186127,
+      "score": 1.8032887538293754,
       "result_count": 9
     },
     {
@@ -963,9 +963,9 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 2,
-      "score": 0.6412498421199144,
-      "result_count": 12
+      "rank": 1,
+      "score": 0.6412498390514929,
+      "result_count": 9
     },
     {
       "query": "Which social media platform did I gain the most followers on over the past month?",
@@ -973,9 +973,9 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 5,
-      "score": 0.5758821497861689,
-      "result_count": 9
+      "rank": 2,
+      "score": 0.5758821661073906,
+      "result_count": 8
     },
     {
       "query": "Which grocery store did I spend the most money at in the past month?",
@@ -984,7 +984,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 5,
-      "score": 1.6461286154717565,
+      "score": 1.646128570465078,
       "result_count": 12
     },
     {
@@ -1004,7 +1004,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 5,
-      "score": 0.8530010692468638,
+      "score": 0.8530011095114509,
       "result_count": 8
     },
     {
@@ -1024,7 +1024,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.8205649229368986,
+      "score": 0.8205649316862018,
       "result_count": 7
     },
     {
@@ -1034,7 +1034,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.578055333008137,
+      "score": 0.5780552971162587,
       "result_count": 13
     },
     {
@@ -1044,7 +1044,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 3.3436942557359473,
+      "score": 3.3436936431990616,
       "result_count": 8
     },
     {
@@ -1064,8 +1064,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.6590098873317792,
-      "result_count": 17
+      "score": 0.6590098712754446,
+      "result_count": 14
     },
     {
       "query": "How many days did it take for my laptop backpack to arrive after I bought it?",
@@ -1074,8 +1074,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5426664925349871,
-      "result_count": 15
+      "score": 0.542666492171185,
+      "result_count": 12
     },
     {
       "query": "How many pieces of jewelry did I acquire in the last two months?",
@@ -1083,9 +1083,9 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 8,
-      "score": 0.6149997916893263,
-      "result_count": 14
+      "rank": 3,
+      "score": 0.6149997767482499,
+      "result_count": 9
     },
     {
       "query": "How much money did I raise in total through all the charity events I participated in?",
@@ -1104,8 +1104,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 2.5918843795299282,
-      "result_count": 9
+      "score": 2.591884318402381,
+      "result_count": 11
     },
     {
       "query": "How many musical instruments do I currently own?",
@@ -1113,9 +1113,9 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 11,
-      "score": 0.4652542294481437,
-      "result_count": 15
+      "rank": 2,
+      "score": 0.4652541982305811,
+      "result_count": 7
     },
     {
       "query": "How many bikes did I service or plan to service in March?",
@@ -1124,7 +1124,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5481816641569164,
+      "score": 0.5481816575166397,
       "result_count": 15
     },
     {
@@ -1144,7 +1144,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 1.3917420553987687,
+      "score": 1.3917420538235024,
       "result_count": 7
     },
     {
@@ -1154,7 +1154,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 1.5809244231239226,
+      "score": 1.5809243434846019,
       "result_count": 12
     },
     {
@@ -1164,7 +1164,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 11,
-      "score": 0.5559369628437767,
+      "score": 0.5559369189280523,
       "result_count": 12
     },
     {
@@ -1175,7 +1175,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 16
+      "result_count": 11
     },
     {
       "query": "How many days did I spend in total traveling in Hawaii and in New York City?",
@@ -1184,7 +1184,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.5500456116347969,
+      "score": 0.5500456026842699,
       "result_count": 7
     },
     {
@@ -1194,7 +1194,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.47499991398256786,
+      "score": 0.47499989570591344,
       "result_count": 7
     },
     {
@@ -1215,7 +1215,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 14
+      "result_count": 8
     },
     {
       "query": "How many magazine subscriptions do I currently have?",
@@ -1224,7 +1224,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.7377267546857784,
+      "score": 0.7377267406564165,
       "result_count": 14
     },
     {
@@ -1234,7 +1234,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5527776563616432,
+      "score": 0.5527776542098272,
       "result_count": 7
     },
     {
@@ -1244,8 +1244,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.447538211456914,
-      "result_count": 15
+      "score": 0.44753820551277984,
+      "result_count": 9
     },
     {
       "query": "How many years in total did I spend in formal education from high school to the completion of my Bachelor's degree?",
@@ -1254,7 +1254,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.4949998082078666,
+      "score": 0.4949997950479613,
       "result_count": 9
     },
     {
@@ -1274,7 +1274,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 1.2699971947734527,
+      "score": 1.269997015054794,
       "result_count": 12
     },
     {
@@ -1284,7 +1284,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 1.446324855375001,
+      "score": 1.4463248599458978,
       "result_count": 13
     },
     {
@@ -1294,7 +1294,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6309089336882037,
+      "score": 0.6309089363542549,
       "result_count": 14
     },
     {
@@ -1304,8 +1304,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5274998937018828,
-      "result_count": 13
+      "score": 0.527499893173681,
+      "result_count": 12
     },
     {
       "query": "How many days did it take for my iPad case to arrive after I bought it?",
@@ -1314,8 +1314,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 9,
-      "score": 0.20756221110176545,
-      "result_count": 13
+      "score": 0.2075621992301321,
+      "result_count": 14
     },
     {
       "query": "How many days did I spend in total traveling in Hawaii and in Seattle?",
@@ -1324,7 +1324,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5442291741419077,
+      "score": 0.5442291653123563,
       "result_count": 7
     },
     {
@@ -1334,7 +1334,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.4246288514402971,
+      "score": 0.4246288328450157,
       "result_count": 9
     },
     {
@@ -1344,8 +1344,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.7132001434201528,
-      "result_count": 9
+      "score": 0.7132001546515297,
+      "result_count": 11
     },
     {
       "query": "How many Korean restaurants have I tried in my city?",
@@ -1354,8 +1354,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6639998553769572,
-      "result_count": 18
+      "score": 0.6639998706785795,
+      "result_count": 12
     },
     {
       "query": "Where did Rachel move to after her recent relocation?",
@@ -1364,8 +1364,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 0.28492292704952554,
-      "result_count": 14
+      "score": 0.28492292724116863,
+      "result_count": 10
     },
     {
       "query": "What was the amount I was pre-approved for when I got my mortgage from Wells Fargo?",
@@ -1374,8 +1374,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6336664416600482,
-      "result_count": 13
+      "score": 0.6336664407997439,
+      "result_count": 12
     },
     {
       "query": "How often do I attend yoga classes to help with my anxiety?",
@@ -1384,8 +1384,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.773227182979955,
-      "result_count": 9
+      "score": 0.5654165006944178,
+      "result_count": 8
     },
     {
       "query": "Is my mom using the same grocery list method as me?",
@@ -1395,7 +1395,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 14
+      "result_count": 13
     },
     {
       "query": "How many hours have I spent on my abstract ocean sculpture?",
@@ -1404,8 +1404,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.6324163711167768,
-      "result_count": 8
+      "score": 0.632416293690776,
+      "result_count": 11
     },
     {
       "query": "How many bikes do I currently own?",
@@ -1414,7 +1414,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5782735295093088,
+      "score": 0.5782735299317552,
       "result_count": 7
     },
     {
@@ -1424,7 +1424,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6451410966828854,
+      "score": 0.645141064253016,
       "result_count": 13
     },
     {
@@ -1434,7 +1434,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5729998809836594,
+      "score": 0.5729998808927513,
       "result_count": 11
     },
     {
@@ -1444,7 +1444,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.4791136842878355,
+      "score": 0.4791136792952993,
       "result_count": 17
     },
     {
@@ -1454,7 +1454,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.4899333681647161,
+      "score": 0.4899333320089917,
       "result_count": 9
     },
     {
@@ -1464,7 +1464,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6574998276916824,
+      "score": 0.6574998389520063,
       "result_count": 9
     },
     {
@@ -1474,8 +1474,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6479408586792211,
-      "result_count": 14
+      "score": 0.6479408665137604,
+      "result_count": 12
     },
     {
       "query": "How many titles are currently on my to-watch list?",
@@ -1484,8 +1484,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6639998433040382,
-      "result_count": 13
+      "score": 0.6639998369631993,
+      "result_count": 11
     },
     {
       "query": "How many stars do I need to reach the gold level on my Starbucks Rewards app?",
@@ -1494,8 +1494,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 0.45925719536633,
-      "result_count": 20
+      "score": 0.4592572128557922,
+      "result_count": 14
     },
     {
       "query": "How long have I been using my Fitbit Charge 3?",
@@ -1504,8 +1504,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.6526584377197339,
-      "result_count": 12
+      "score": 0.6526584445069121,
+      "result_count": 10
     },
     {
       "query": "How many sessions of the bereavement support group did I attend?",
@@ -1514,7 +1514,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.3907731370819626,
+      "score": 0.3907731238144593,
       "result_count": 9
     },
     {
@@ -1524,7 +1524,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5274998851588976,
+      "score": 0.5274998761712051,
       "result_count": 10
     },
     {
@@ -1534,7 +1534,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6033332379965969,
+      "score": 0.6033332334487229,
       "result_count": 12
     },
     {
@@ -1544,7 +1544,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6412498697217628,
+      "score": 0.6412498916094683,
       "result_count": 12
     },
     {
@@ -1554,8 +1554,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6639998203715405,
-      "result_count": 10
+      "score": 0.66399983475298,
+      "result_count": 12
     },
     {
       "query": "What company is Rachel, an old colleague from my previous company, currently working at?",
@@ -1564,8 +1564,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.647705980738784,
-      "result_count": 12
+      "score": 0.6477059568638868,
+      "result_count": 10
     },
     {
       "query": "For the coffee-to-water ratio in my French press, did I switch to more water per tablespoon of coffee, or less?",
@@ -1574,8 +1574,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6352628975483435,
-      "result_count": 13
+      "score": 0.6352628848720272,
+      "result_count": 12
     },
     {
       "query": "Where is the painting 'Ethereal Dreams' by Emma Taylor currently hanging?",
@@ -1584,8 +1584,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.5895453322579582,
-      "result_count": 11
+      "score": 0.5895453270886577,
+      "result_count": 13
     },
     {
       "query": "How many times have I worn my new black Converse Chuck Taylor All Star sneakers?",
@@ -1594,8 +1594,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 0.3399655234456055,
-      "result_count": 14
+      "score": 0.3399654977228272,
+      "result_count": 11
     },
     {
       "query": "How many episodes of the Science series have I completed on Crash Course?",
@@ -1604,7 +1604,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.534447881893092,
+      "score": 0.5344478861693995,
       "result_count": 9
     },
     {
@@ -1615,7 +1615,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 11
+      "result_count": 14
     },
     {
       "query": "How many new postcards have I added to my collection since I started collecting again?",
@@ -1624,8 +1624,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.7224997646891037,
-      "result_count": 13
+      "score": 0.7224997756393303,
+      "result_count": 9
     },
     {
       "query": "How many videos of Corey Schafer's Python programming series have I completed so far?",
@@ -1634,8 +1634,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.5023141190085991,
-      "result_count": 10
+      "score": 0.502314122825846,
+      "result_count": 9
     },
     {
       "query": "How long have I been living in my current apartment in Harajuku?",
@@ -1644,8 +1644,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.43223874088411046,
-      "result_count": 15
+      "score": 0.4322387439859578,
+      "result_count": 13
     },
     {
       "query": "What brand of BBQ sauce am I currently obsessed with?",
@@ -1654,8 +1654,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6184998703713596,
-      "result_count": 8
+      "score": 0.618499837721601,
+      "result_count": 12
     },
     {
       "query": "How long have my parents been staying with me in the US?",
@@ -1664,7 +1664,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6412498481691875,
+      "score": 0.6412498516824797,
       "result_count": 9
     },
     {
@@ -1674,8 +1674,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.7136362396697632,
-      "result_count": 11
+      "score": 0.7136362377172861,
+      "result_count": 9
     },
     {
       "query": "How long have I had my cat, Luna?",
@@ -1684,8 +1684,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5843749103374661,
-      "result_count": 11
+      "score": 0.5843749078423346,
+      "result_count": 9
     },
     {
       "query": "How many Instagram followers do I currently have?",
@@ -1694,7 +1694,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.43493937739219435,
+      "score": 0.4349393779436842,
       "result_count": 8
     },
     {
@@ -1704,8 +1704,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6499998059043163,
-      "result_count": 10
+      "score": 0.6499997968777889,
+      "result_count": 12
     },
     {
       "query": "How many issues of National Geographic have I finished reading?",
@@ -1714,18 +1714,18 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.6184998803351658,
-      "result_count": 14
+      "score": 0.6184998795227782,
+      "result_count": 10
     },
     {
       "query": "Did I finish reading 'The Nightingale' by Kristin Hannah?",
       "expected": "Yes",
       "category": "knowledge-update",
       "difficulty": "medium",
-      "hit": true,
-      "rank": 11,
-      "score": 0.21119942971244413,
-      "result_count": 14
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 8
     },
     {
       "query": "Where did I get my guitar serviced?",
@@ -1734,8 +1734,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6249999137235059,
-      "result_count": 20
+      "score": 0.6249999176228596,
+      "result_count": 9
     },
     {
       "query": "What is my current highest score in Ticket to Ride?",
@@ -1744,7 +1744,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6639998519870903,
+      "score": 0.6639998585923415,
       "result_count": 11
     },
     {
@@ -1754,8 +1754,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5895453211403976,
-      "result_count": 12
+      "score": 0.5895453278695416,
+      "result_count": 11
     },
     {
       "query": "How much did I earn at the Downtown Farmers Market on my most recent visit?",
@@ -1763,8 +1763,8 @@
       "category": "knowledge-update",
       "difficulty": "medium",
       "hit": true,
-      "rank": 2,
-      "score": 0.694333124393498,
+      "rank": 1,
+      "score": 0.6943331221834782,
       "result_count": 15
     },
     {
@@ -1774,8 +1774,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.7322497498386622,
-      "result_count": 16
+      "score": 0.7322497754981461,
+      "result_count": 9
     },
     {
       "query": "What time do I usually go to the gym?",
@@ -1784,7 +1784,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.5053492309478246,
+      "score": 0.5053492361277525,
       "result_count": 12
     },
     {
@@ -1794,8 +1794,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.649999842950296,
-      "result_count": 11
+      "score": 0.6499998584713771,
+      "result_count": 12
     },
     {
       "query": "Where am I planning to stay for my birthday trip to Hawaii?",
@@ -1804,7 +1804,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.5078252421159783,
+      "score": 0.5078252404020879,
       "result_count": 11
     },
     {
@@ -1814,7 +1814,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.3667731562801338,
+      "score": 0.3667731521032437,
       "result_count": 13
     },
     {
@@ -1824,7 +1824,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6033331415490906,
+      "score": 0.6033331290819689,
       "result_count": 12
     },
     {
@@ -1834,8 +1834,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.4643717981447636,
-      "result_count": 13
+      "score": 0.4643718132611687,
+      "result_count": 11
     },
     {
       "query": "How many autographed baseballs have I added to my collection in the first three months of collection?",
@@ -1844,8 +1844,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6696873097522368,
-      "result_count": 13
+      "score": 0.6696873154406892,
+      "result_count": 10
     },
     {
       "query": "How often do I play tennis with my friends at the local park previously? How often do I play now?",
@@ -1854,8 +1854,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6336664145732586,
-      "result_count": 16
+      "score": 0.6336663529120963,
+      "result_count": 18
     },
     {
       "query": "How much time do I dedicate to coding exercises each day?",
@@ -1864,7 +1864,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 7,
-      "score": 0.3526495014545261,
+      "score": 0.3526494956940573,
       "result_count": 9
     },
     {
@@ -1874,8 +1874,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.4775068144414044,
-      "result_count": 15
+      "score": 0.477506810842795,
+      "result_count": 16
     },
     {
       "query": "How many pre-1920 American coins do I have in my collection?",
@@ -1885,7 +1885,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 9
+      "result_count": 10
     },
     {
       "query": "How many free night's stays can I redeem at any Hilton property with my accumulated points?",
@@ -1894,8 +1894,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.4900111312718435,
-      "result_count": 10
+      "score": 0.49001113628953163,
+      "result_count": 8
     },
     {
       "query": "How much weight have I lost since I started going to the gym consistently?",
@@ -1904,7 +1904,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6849998281237452,
+      "score": 0.6849998170778814,
       "result_count": 9
     },
     {
@@ -1914,7 +1914,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.37702496255700607,
+      "score": 0.37702495963524696,
       "result_count": 9
     },
     {
@@ -1923,9 +1923,9 @@
       "category": "knowledge-update",
       "difficulty": "medium",
       "hit": true,
-      "rank": 3,
-      "score": 0.4999641963164723,
-      "result_count": 8
+      "rank": 2,
+      "score": 0.4999641900085574,
+      "result_count": 11
     },
     {
       "query": "How many projects have I completed since starting painting classes?",
@@ -1934,8 +1934,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.42463118934666166,
-      "result_count": 13
+      "score": 0.42463118884207945,
+      "result_count": 7
     },
     {
       "query": "What type of vehicle model am I currently working on?",
@@ -1944,8 +1944,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.3310603699720071,
-      "result_count": 5
+      "score": 0.3310603733833212,
+      "result_count": 4
     },
     {
       "query": "What was my previous goal for my Apex Legends level before I updated my goal?",
@@ -1954,7 +1954,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5377169118575515,
+      "score": 0.5377169320138837,
       "result_count": 13
     },
     {
@@ -1964,7 +1964,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.612306776895977,
+      "score": 0.6123067700702005,
       "result_count": 11
     },
     {
@@ -1974,7 +1974,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.7044442976945207,
+      "score": 0.7044443013382568,
       "result_count": 12
     },
     {
@@ -1984,7 +1984,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.6077411439398128,
+      "score": 0.607741149363619,
       "result_count": 8
     },
     {
@@ -1995,7 +1995,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 10
+      "result_count": 12
     },
     {
       "query": "How many times have I met up with Alex from Germany?",
@@ -2004,7 +2004,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6309090220536815,
+      "score": 0.6309090103854503,
       "result_count": 11
     },
     {
@@ -2014,7 +2014,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6128123558183908,
+      "score": 0.6128123669840737,
       "result_count": 11
     },
     {
@@ -2024,8 +2024,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.40661887445611383,
-      "result_count": 13
+      "score": 0.4066188386599469,
+      "result_count": 6
     },
     {
       "query": "What new kitchen gadget did I invest in before getting the Air Fryer?",
@@ -2034,8 +2034,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 0.2016307024453195,
-      "result_count": 12
+      "score": 0.20163070555474444,
+      "result_count": 9
     },
     {
       "query": "How many Italian restaurants have I tried in my city?",
@@ -2044,8 +2044,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.5208263264514876,
-      "result_count": 19
+      "score": 0.5208263166216764,
+      "result_count": 12
     },
     {
       "query": "How many engineers do I lead when I just started my new role as Software Engineer Manager?",
@@ -2054,7 +2054,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.46042135579857046,
+      "score": 0.4604213328068436,
       "result_count": 13
     },
     {
@@ -2064,7 +2064,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5599999313602272,
+      "score": 0.5599999296707976,
       "result_count": 11
     },
     {
@@ -2074,8 +2074,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.548181681832567,
-      "result_count": 15
+      "score": 0.5481816801506831,
+      "result_count": 13
     },
     {
       "query": "How many autographed football have I added to my collection in the first three months of collection?",
@@ -2084,8 +2084,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6412498293611498,
-      "result_count": 13
+      "score": 0.6412498302403693,
+      "result_count": 11
     },
     {
       "query": "How often do I play table tennis with my friends at the local park?",
@@ -2094,7 +2094,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 0.45574953235349364,
+      "score": 0.4557495063245486,
       "result_count": 18
     },
     {
@@ -2104,7 +2104,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5982995297201442,
+      "score": 0.5944115023121942,
       "result_count": 9
     },
     {
@@ -2114,7 +2114,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5843749142176117,
+      "score": 0.5843748962678855,
       "result_count": 17
     },
     {
@@ -2124,8 +2124,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6847184549604131,
-      "result_count": 12
+      "score": 0.6847184592450598,
+      "result_count": 8
     },
     {
       "query": "Can you suggest some accessories that would complement my current photography setup?",
@@ -2134,8 +2134,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.46590242762544165,
-      "result_count": 13
+      "score": 0.46590242953225863,
+      "result_count": 11
     },
     {
       "query": "Can you recommend some recent publications or conferences that I might find interesting?",
@@ -2144,8 +2144,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 6,
-      "score": 0.25771666525493414,
-      "result_count": 10
+      "score": 0.25771666540001786,
+      "result_count": 9
     },
     {
       "query": "Can you suggest a hotel for my upcoming trip to Miami?",
@@ -2154,8 +2154,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.4004797326662638,
-      "result_count": 11
+      "score": 0.40047972626523276,
+      "result_count": 4
     },
     {
       "query": "Can you recommend some interesting cultural events happening around me this weekend?",
@@ -2164,8 +2164,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.45023400334913727,
-      "result_count": 10
+      "score": 0.4502340061835642,
+      "result_count": 11
     },
     {
       "query": "Can you recommend a show or movie for me to watch tonight?",
@@ -2174,8 +2174,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 4,
-      "score": 0.4002390275574835,
-      "result_count": 8
+      "score": 0.40023902436748615,
+      "result_count": 6
     },
     {
       "query": "Can you suggest some activities that I can do in the evening?",
@@ -2204,7 +2204,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 8,
-      "score": 0.2621006456838809,
+      "score": 0.2621006469864745,
       "result_count": 12
     },
     {
@@ -2215,7 +2215,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 12
+      "result_count": 6
     },
     {
       "query": "What should I serve for dinner this weekend with my homegrown ingredients?",
@@ -2224,7 +2224,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 7,
-      "score": 0.20884983327547205,
+      "score": 0.20884983241473923,
       "result_count": 12
     },
     {
@@ -2245,7 +2245,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 15
+      "result_count": 12
     },
     {
       "query": "I've been having trouble with the battery life on my phone lately. Any tips?",
@@ -2255,17 +2255,17 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 10
+      "result_count": 12
     },
     {
       "query": "I've been feeling like my chocolate chip cookies need something extra. Any advice?",
       "expected": "The user would prefer responses that build upon their previous experimentation with turbinado sugar, suggesting ingredients or techniques that complement its richer flavor. They might not prefer generic cookie-making advice or suggestions that don't take into account their existing use of turbinado sugar.",
       "category": "single-session-preference",
       "difficulty": "easy",
-      "hit": true,
-      "rank": 9,
-      "score": 0.10843537790046368,
-      "result_count": 11
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 8
     },
     {
       "query": "I'm thinking of inviting my colleagues over for a small gathering. Any tips on what to bake?",
@@ -2275,7 +2275,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 8
+      "result_count": 7
     },
     {
       "query": "I was thinking about rearranging the furniture in my bedroom this weekend. Any tips?",
@@ -2284,8 +2284,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5274998901572916,
-      "result_count": 12
+      "score": 0.5274998946316277,
+      "result_count": 11
     },
     {
       "query": "I'm getting excited about my visit to the music store this weekend. Any tips on what to look for in a new guitar?",
@@ -2294,8 +2294,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.4390209409300585,
-      "result_count": 12
+      "score": 0.43902094423043864,
+      "result_count": 9
     },
     {
       "query": "I was thinking of trying a new coffee creamer recipe. Any recommendations?",
@@ -2304,7 +2304,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5274999133404478,
+      "score": 0.5274999035983714,
       "result_count": 8
     },
     {
@@ -2314,8 +2314,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.3785554351545444,
-      "result_count": 10
+      "score": 0.37855544092285226,
+      "result_count": 9
     },
     {
       "query": "I've been feeling nostalgic lately. Do you think it would be a good idea to attend my high school reunion?",
@@ -2325,7 +2325,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 12
+      "result_count": 9
     },
     {
       "query": "I'm trying to decide whether to buy a NAS device now or wait. What do you think?",
@@ -2334,8 +2334,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5944116652312338,
-      "result_count": 10
+      "score": 0.5944116645646044,
+      "result_count": 7
     },
     {
       "query": "I am planning another theme park weekend; do you have any suggestions?",
@@ -2344,8 +2344,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.2790268058998577,
-      "result_count": 12
+      "score": 0.2790268074077658,
+      "result_count": 6
     },
     {
       "query": "I'm planning my meal prep next week, any suggestions for new recipes?",
@@ -2355,7 +2355,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 12
+      "result_count": 9
     },
     {
       "query": "I'm planning a trip to Denver soon. Any suggestions on what to do there?",
@@ -2364,7 +2364,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 13,
-      "score": 0.2337327387586446,
+      "score": 0.23373274118714463,
       "result_count": 14
     },
     {
@@ -2374,8 +2374,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.43434679205145443,
-      "result_count": 9
+      "score": 0.4343467850688412,
+      "result_count": 5
     },
     {
       "query": "I noticed my bike seems to be performing even better during my Sunday group rides. Could there be a reason for this?",
@@ -2384,7 +2384,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 4,
-      "score": 0.33965789748515596,
+      "score": 0.3396578980933361,
       "result_count": 12
     },
     {
@@ -2394,7 +2394,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 4,
-      "score": 0.28987969102829364,
+      "score": 0.2898796953969151,
       "result_count": 9
     },
     {
@@ -2404,8 +2404,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 5,
-      "score": 0.27030327732435155,
-      "result_count": 9
+      "score": 0.2703032811097402,
+      "result_count": 8
     },
     {
       "query": "I’m a bit anxious about getting around Tokyo. Do you have any helpful tips?",
@@ -2424,8 +2424,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.632499792561467,
-      "result_count": 13
+      "score": 0.6324997774832308,
+      "result_count": 9
     },
     {
       "query": "I'm planning to visit Bandung again and I was wondering if you could remind me of the name of that restaurant in Cihampelas Walk that serves a great Nasi Goreng?",
@@ -2434,8 +2434,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5762497603235167,
-      "result_count": 14
+      "score": 0.5762497710588467,
+      "result_count": 12
     },
     {
       "query": "I'm going back to our previous conversation about the children's book on dinosaurs. Can you remind me what color was the scaly body of the Plesiosaur in the image?",
@@ -2444,7 +2444,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6249999887973681,
+      "score": 0.6249999880188613,
       "result_count": 2
     },
     {
@@ -2454,8 +2454,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.586481276250014,
-      "result_count": 14
+      "score": 0.5864812529326283,
+      "result_count": 8
     },
     {
       "query": "Can you remind me of the name of the romantic Italian restaurant in Rome you recommended for dinner?",
@@ -2464,8 +2464,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5729999510833168,
-      "result_count": 8
+      "score": 0.5729999477132557,
+      "result_count": 6
     },
     {
       "query": "I remember you told me about the refining processes at CITGO's three refineries earlier. Can you remind me what kind of processes are used at the Lake Charles Refinery?",
@@ -2474,8 +2474,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6093999187613519,
-      "result_count": 7
+      "score": 0.6093999177062538,
+      "result_count": 4
     },
     {
       "query": "I'm planning my trip to Amsterdam again and I was wondering, what was the name of that hostel near the Red Light District that you recommended last time?",
@@ -2484,8 +2484,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.518399963529153,
-      "result_count": 6
+      "score": 0.5183999649260594,
+      "result_count": 4
     },
     {
       "query": "I think we discussed work from home jobs for seniors earlier. Can you remind me what was the 7th job in the list you provided?",
@@ -2494,7 +2494,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.12114759277095657,
+      "score": 0.12114759430012625,
       "result_count": 2
     },
     {
@@ -2504,8 +2504,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5547999858437173,
-      "result_count": 3
+      "score": 0.5547999847680295,
+      "result_count": 2
     },
     {
       "query": "I wanted to check back on our previous conversation about Netflix. I mentioned that I wanted to be able to access all seasons of old shows? Do you remember what show I used as an example, the one that only had the last season available?",
@@ -2514,8 +2514,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5705402943086867,
-      "result_count": 21
+      "score": 0.5705402644327935,
+      "result_count": 13
     },
     {
       "query": "I wanted to follow up on our previous conversation about binaural beats for anxiety and depression. Can you remind me how many subjects were in the study published in the journal Music and Medicine that found significant reductions in symptoms of depression, anxiety, and stress?",
@@ -2524,8 +2524,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6232894079986242,
-      "result_count": 6
+      "score": 0.6232894007443355,
+      "result_count": 3
     },
     {
       "query": "I was thinking about our previous conversation about the Fifth Album, and I was wondering if you could remind me what song you said best exemplified the band's growth and development as artists?",
@@ -2534,8 +2534,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.5230839907812647,
-      "result_count": 14
+      "score": 0.5230839806151782,
+      "result_count": 6
     },
     {
       "query": "I wanted to follow up on our previous conversation about front-end and back-end development. Can you remind me of the specific back-end programming languages you recommended I learn?",
@@ -2544,7 +2544,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5799998878222367,
+      "score": 0.5799998818938066,
       "result_count": 10
     },
     {
@@ -2554,8 +2554,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5547999284457796,
-      "result_count": 8
+      "score": 0.5547999290131073,
+      "result_count": 2
     },
     {
       "query": "I'm going back to our previous chat about the Lost Temple of the Djinn one-shot. Can you remind me how many mummies the party will face in the temple?",
@@ -2564,7 +2564,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5864814679715353,
+      "score": 0.5864814652952494,
       "result_count": 2
     },
     {
@@ -2574,8 +2574,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6509996352923885,
-      "result_count": 14
+      "score": 0.6509996146794202,
+      "result_count": 9
     },
     {
       "query": "I was going through our previous conversation about The Library of Babel, and I wanted to confirm - what did Borges say about the center and circumference of the Library?",
@@ -2584,8 +2584,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5895454352906974,
-      "result_count": 3
+      "score": 4.078299142219277,
+      "result_count": 1
     },
     {
       "query": "I'm going back to our previous conversation about the grant aim page on molecular subtypes and endometrial cancer. Can you remind me what were the three objectives we outlined for the project?",
@@ -2594,7 +2594,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.549516120250125,
+      "score": 0.5495161209707222,
       "result_count": 2
     },
     {
@@ -2604,8 +2604,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5336672197849861,
-      "result_count": 6
+      "score": 0.5336672220430996,
+      "result_count": 4
     },
     {
       "query": "I'm planning to visit the Vatican again and I was wondering if you could remind me of the name of that famous deli near the Vatican that serves the best cured meats and cheeses?",
@@ -2614,8 +2614,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6033331585542282,
-      "result_count": 12
+      "score": 0.603333156277718,
+      "result_count": 6
     },
     {
       "query": "I'm going back to our previous conversation about DIY home decor projects using recycled materials. Can you remind me what sealant you recommended for the newspaper flower vase?",
@@ -2624,8 +2624,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6249999149751846,
-      "result_count": 8
+      "score": 0.6249999177162033,
+      "result_count": 6
     },
     {
       "query": "I'm planning my trip to Speyer again and I wanted to confirm, what's the phone number of the Speyer tourism board that you provided me earlier?",
@@ -2634,7 +2634,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.32239341888062273,
+      "score": 0.32239342343496263,
       "result_count": 6
     },
     {
@@ -2644,8 +2644,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6211762569215302,
-      "result_count": 11
+      "score": 0.621176271639151,
+      "result_count": 8
     },
     {
       "query": "I was going through our previous conversation about the impact of the political climate in Catalonia on its literature and music. Can you remind me of the example you gave of a Spanish-Catalan singer-songwriter who supports unity between Catalonia and Spain?",
@@ -2654,8 +2654,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5906940987466225,
-      "result_count": 14
+      "score": 0.5906940575015692,
+      "result_count": 11
     },
     {
       "query": "I remember you provided a list of 100 prompt parameters that I can specify to influence your output. Can you remind me what was the 27th parameter on that list?",
@@ -2664,7 +2664,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.5417673252069591,
+      "score": 0.5417673247633119,
       "result_count": 4
     },
     {
@@ -2674,8 +2674,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.39799288321971715,
-      "result_count": 4
+      "score": 0.3979928824831672,
+      "result_count": 2
     },
     {
       "query": "I wanted to follow up on our previous conversation about mindfulness techniques. You mentioned some great resources for guided imagery exercises, can you remind me of the website that had free exercises like 'The Mountain Meditation' and 'The Body Scan Meditation'?",
@@ -2684,7 +2684,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6033332191949755,
+      "score": 0.6033332048724601,
       "result_count": 8
     },
     {
@@ -2694,8 +2694,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.3391395423414697,
-      "result_count": 16
+      "score": 0.33913955643406135,
+      "result_count": 11
     },
     {
       "query": "I was going through our previous conversation about atmospheric correction methods, and I wanted to confirm - you mentioned that 6S, MAJA, and Sen2Cor are all algorithms for atmospheric correction of remote sensing images. Can you remind me which one is implemented in the SIAC_GEE tool?",
@@ -2704,8 +2704,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.599634071915684,
-      "result_count": 15
+      "score": 0.5996340673211461,
+      "result_count": 8
     },
     {
       "query": "I was going through our previous conversation about making a classic French omelette, and I wanted to confirm - how many eggs did you say we need for the recipe?",
@@ -2714,8 +2714,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.31130687646948957,
-      "result_count": 8
+      "score": 0.31130687648041644,
+      "result_count": 7
     },
     {
       "query": "I'm planning another trip to New York City and I was wondering if you could remind me of that vegan eatery you recommended last time, the one with multiple locations throughout the city?",
@@ -2724,7 +2724,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5578332420134333,
+      "score": 0.5578332326948059,
       "result_count": 8
     },
     {
@@ -2734,7 +2734,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6509999789991183,
+      "score": 0.6509999674835508,
       "result_count": 2
     },
     {
@@ -2744,8 +2744,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5624998377573218,
-      "result_count": 12
+      "score": 0.5624998456398712,
+      "result_count": 7
     },
     {
       "query": "I wanted to follow up on our previous conversation about natural remedies for dark circles under the eyes. You mentioned applying tomato juice mixed with lemon juice, how long did you say I should leave it on for?",
@@ -2754,8 +2754,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5619696184424923,
-      "result_count": 8
+      "score": 0.5619696219450975,
+      "result_count": 3
     },
     {
       "query": "I was going through our previous chat. Can you remind me of the name of the last venue you recommended in the list of popular venues in Portland for indie music shows?",
@@ -2764,8 +2764,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5099999604112558,
-      "result_count": 6
+      "score": 0.5099999585806378,
+      "result_count": 5
     },
     {
       "query": "Can you remind me what was the average improvement in framerate when using the Hardware-Aware Modular Training (HAMT) agent in the 'To Adapt or Not to Adapt? Real-Time Adaptation for Semantic Segmentation' submission?",
@@ -2774,8 +2774,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.7094996816941972,
-      "result_count": 11
+      "score": 0.709499697304903,
+      "result_count": 5
     },
     {
       "query": "I wanted to follow up on our previous conversation about language learning apps. You mentioned a few options, and I was wondering if you could remind me of the one that uses mnemonics to help learners memorize words and phrases?",
@@ -2784,8 +2784,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5906943946643367,
-      "result_count": 6
+      "score": 0.5906943974237311,
+      "result_count": 3
     },
     {
       "query": "I'm looking back at our previous chat about the DHL Wellness Retreats campaign. Can you remind me how much was allocated for influencer marketing in the campaign plan?",
@@ -2794,7 +2794,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6201851362455008,
+      "score": 0.6201851356912206,
       "result_count": 5
     },
     {
@@ -2804,8 +2804,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5864813933721807,
-      "result_count": 8
+      "score": 0.5864814041765056,
+      "result_count": 4
     },
     {
       "query": "I wanted to follow up on our previous conversation about private sector businesses in Chaudhary. Can you remind me of the company that employs over 40,000 people in the rug-manufacturing industry?",
@@ -2814,8 +2814,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6522579966755775,
-      "result_count": 6
+      "score": 0.6522580041028502,
+      "result_count": 4
     },
     {
       "query": "I'm looking back at our previous conversation about the Bajimaya v Reward Homes Pty Ltd case. Can you remind me what year the construction of the house began?",
@@ -2824,8 +2824,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6538887018570841,
-      "result_count": 12
+      "score": 0.6538886855026032,
+      "result_count": 8
     },
     {
       "query": "I wanted to follow up on our previous conversation about YouTube videos for workplace posture. Can you remind me of the Mayo Clinic video you recommended?",
@@ -2834,7 +2834,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6093999918429797,
+      "score": 0.6093999920208093,
       "result_count": 2
     },
     {
@@ -2844,8 +2844,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5383332967162886,
-      "result_count": 5
+      "score": 0.5383332952094741,
+      "result_count": 4
     },
     {
       "query": "I was looking back at our previous chat and I wanted to confirm, how many times did the Chiefs play the Jaguars at Arrowhead Stadium?",
@@ -2854,7 +2854,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5068180919586096,
+      "score": 0.5068180839889938,
       "result_count": 15
     },
     {
@@ -2863,9 +2863,9 @@
       "category": "single-session-assistant",
       "difficulty": "easy",
       "hit": true,
-      "rank": 13,
-      "score": 0.14579217393575575,
-      "result_count": 17
+      "rank": 2,
+      "score": 0.34312951635304273,
+      "result_count": 14
     },
     {
       "query": "I was looking back at our previous conversation about buying unique engagement rings directly from designers. Can you remind me of the Instagram handle of the UK-based designer who works with unusual gemstones?",
@@ -2884,8 +2884,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 4,
-      "score": 2.502098209052762,
-      "result_count": 30
+      "score": 2.502098225631317,
+      "result_count": 28
     },
     {
       "query": "I'm going back to our previous conversation about music theory. You mentioned some online resources for learning music theory. Can you remind me of the website you recommended for free lessons and exercises?",
@@ -2894,8 +2894,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6451723484826725,
-      "result_count": 6
+      "score": 0.6451723525009725,
+      "result_count": 3
     },
     {
       "query": "I'm looking back at our previous conversation about the Seco de Cordero recipe from Ancash. You mentioned using a light or medium-bodied beer, but I was wondering if you could remind me what type of beer you specifically recommended?",
@@ -2904,8 +2904,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5951349763935466,
-      "result_count": 10
+      "score": 0.5951349494587433,
+      "result_count": 7
     },
     {
       "query": "I wanted to follow up on our previous conversation about fracking in the Marcellus Shale region. You mentioned that some states require fracking companies to monitor groundwater quality at nearby wells before drilling and for a certain period after drilling is complete. Can you remind me which state you mentioned as an example that has this requirement?",
@@ -2914,8 +2914,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6457999019097217,
-      "result_count": 6
+      "score": 0.6457998935247348,
+      "result_count": 4
     },
     {
       "query": "I'm looking back at our previous conversation where you created two sad songs for me. Can you remind me what was the chord progression for the chorus in the second song?",
@@ -2924,8 +2924,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.552777758106969,
-      "result_count": 3
+      "score": 0.5527777491696998,
+      "result_count": 2
     },
     {
       "query": "I'm going back to our previous conversation about traditional Indian embroidery and tailoring techniques. Can you remind me of the name of that online store based in India that sells traditional Indian fabrics, threads, and embellishments?",
@@ -2934,8 +2934,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6554684541613419,
-      "result_count": 14
+      "score": 0.6554684206367697,
+      "result_count": 9
     },
     {
       "query": "I was looking back at our previous conversation about environmentally responsible supply chain practices, and I was wondering if you could remind me of the company you mentioned that's doing a great job with sustainability?",
@@ -2944,7 +2944,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5895453951333921,
+      "score": 0.5895454023787446,
       "result_count": 6
     },
     {
@@ -2954,8 +2954,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.603333158025167,
-      "result_count": 12
+      "score": 0.6033331613198504,
+      "result_count": 5
     },
     {
       "query": "I remember you told me to dilute tea tree oil with a carrier oil before applying it to my skin. Can you remind me what the recommended ratio is?",
@@ -2964,8 +2964,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.682199731745401,
-      "result_count": 14
+      "score": 0.6821997397083281,
+      "result_count": 12
     },
     {
       "query": "I was looking back at our previous conversation about Caribbean dishes and I was wondering, what was the name of that Jamaican dish you recommended I try with snapper that has fruit in it?",
@@ -2974,7 +2974,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.49680266656395905,
+      "score": 0.49680265226579223,
       "result_count": 12
     },
     {
@@ -2984,8 +2984,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6033332781459885,
-      "result_count": 6
+      "score": 0.6033332851928876,
+      "result_count": 4
     },
     {
       "query": "How long is my daily commute to work?",
@@ -2994,8 +2994,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5843749473334896,
-      "result_count": 12
+      "score": 0.5843749506822714,
+      "result_count": 11
     },
     {
       "query": "Where did I redeem a $5 coupon on coffee creamer?",
@@ -3004,8 +3004,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.4647827411645248,
-      "result_count": 12
+      "score": 0.4647827480100025,
+      "result_count": 3
     },
     {
       "query": "What play did I attend at the local community theater?",
@@ -3014,8 +3014,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 6,
-      "score": 0.24484833345855264,
-      "result_count": 12
+      "score": 0.24484833497066316,
+      "result_count": 7
     },
     {
       "query": "What is the name of the playlist I created on Spotify?",
@@ -3024,8 +3024,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6639999013219898,
-      "result_count": 12
+      "score": 0.6639999070782787,
+      "result_count": 6
     },
     {
       "query": "What was my last name before I changed it?",
@@ -3034,8 +3034,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6538888016981279,
-      "result_count": 12
+      "score": 0.6538887986346988,
+      "result_count": 8
     },
     {
       "query": "Where do I take yoga classes?",
@@ -3044,8 +3044,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.4563536950550093,
-      "result_count": 12
+      "score": 0.45635369476330667,
+      "result_count": 6
     },
     {
       "query": "What color did I repaint my bedroom walls?",
@@ -3054,8 +3054,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5843749583027156,
-      "result_count": 9
+      "score": 0.5843749438450732,
+      "result_count": 8
     },
     {
       "query": "When did I volunteer at the local animal shelter's fundraising dinner?",
@@ -3064,8 +3064,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6412498800923603,
-      "result_count": 12
+      "score": 0.6412498787849052,
+      "result_count": 9
     },
     {
       "query": "Where did I buy my new tennis racket from?",
@@ -3074,8 +3074,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6033332655277674,
-      "result_count": 12
+      "score": 0.6033332658820749,
+      "result_count": 9
     },
     {
       "query": "What was my previous occupation?",
@@ -3084,7 +3084,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.5250538977194175,
+      "score": 0.5250538974251786,
       "result_count": 7
     },
     {
@@ -3094,8 +3094,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6945026269082999,
-      "result_count": 11
+      "score": 0.6945026251754619,
+      "result_count": 5
     },
     {
       "query": "How many playlists do I have on Spotify?",
@@ -3104,8 +3104,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.698124920837943,
-      "result_count": 12
+      "score": 0.6981249146910345,
+      "result_count": 8
     },
     {
       "query": "Where did I attend for my study abroad program?",
@@ -3114,8 +3114,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6033332888611574,
-      "result_count": 10
+      "score": 0.6033332901313885,
+      "result_count": 4
     },
     {
       "query": "What was the discount I got on my first purchase from the new clothing brand?",
@@ -3124,8 +3124,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6899998774040751,
-      "result_count": 11
+      "score": 0.6899998719445756,
+      "result_count": 5
     },
     {
       "query": "How long did it take me to assemble the IKEA bookshelf?",
@@ -3134,8 +3134,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.628091512569605,
-      "result_count": 11
+      "score": 0.6280915211647059,
+      "result_count": 8
     },
     {
       "query": "What did I buy for my sister's birthday gift?",
@@ -3144,8 +3144,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.5724975079339498,
-      "result_count": 12
+      "score": 0.5724975124362373,
+      "result_count": 7
     },
     {
       "query": "What speed is my new internet plan?",
@@ -3154,8 +3154,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.4708209542405113,
-      "result_count": 11
+      "score": 0.4708209602416436,
+      "result_count": 6
     },
     {
       "query": "How many shirts did I pack for my 5-day trip to Costa Rica?",
@@ -3164,8 +3164,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5924999291426478,
-      "result_count": 10
+      "score": 0.592499927502771,
+      "result_count": 7
     },
     {
       "query": "What was my previous stance on spirituality?",
@@ -3174,8 +3174,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6249999320463075,
-      "result_count": 5
+      "score": 0.6249999324054846,
+      "result_count": 3
     },
     {
       "query": "What brand are my favorite running shoes?",
@@ -3184,8 +3184,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6899999552065815,
-      "result_count": 9
+      "score": 0.689999946389902,
+      "result_count": 7
     },
     {
       "query": "What certification did I complete last month?",
@@ -3194,8 +3194,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6899999458049929,
-      "result_count": 11
+      "score": 0.6899999450333851,
+      "result_count": 7
     },
     {
       "query": "How many bikes do I own?",
@@ -3204,18 +3204,18 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6033332759653375,
-      "result_count": 11
+      "score": 0.6033332842447863,
+      "result_count": 5
     },
     {
       "query": "What breed is my dog?",
       "expected": "Golden Retriever",
       "category": "single-session-user",
       "difficulty": "easy",
-      "hit": true,
-      "rank": 4,
-      "score": 0.27300013963062497,
-      "result_count": 10
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
     },
     {
       "query": "How many largemouth bass did I catch on my fishing trip to Lake Michigan?",
@@ -3224,8 +3224,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6249998846647433,
-      "result_count": 10
+      "score": 0.6249998860004237,
+      "result_count": 8
     },
     {
       "query": "How many amateur comedians did I watch perform at the open mic night?",
@@ -3234,8 +3234,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6499998857505898,
-      "result_count": 8
+      "score": 0.6499998885161985,
+      "result_count": 7
     },
     {
       "query": "What is the name of my cat?",
@@ -3244,8 +3244,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 2,
-      "score": 0.4892005567991587,
-      "result_count": 12
+      "score": 0.48920056749017227,
+      "result_count": 3
     },
     {
       "query": "How old was I when my grandma gave me the silver necklace?",
@@ -3254,8 +3254,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6412499050497118,
-      "result_count": 12
+      "score": 0.6412499153464201,
+      "result_count": 9
     },
     {
       "query": "What is my preferred gin-to-vermouth ratio for a classic gin martini?",
@@ -3264,8 +3264,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6412498959830882,
-      "result_count": 12
+      "score": 0.6412499049181415,
+      "result_count": 8
     },
     {
       "query": "How much RAM did I upgrade my laptop to?",
@@ -3274,8 +3274,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.4557714267204738,
-      "result_count": 12
+      "score": 0.4557714282187819,
+      "result_count": 6
     },
     {
       "query": "How much is the painting of a sunset worth in terms of the amount I paid for it?",
@@ -3284,8 +3284,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5274999221369514,
-      "result_count": 10
+      "score": 0.5274999260841161,
+      "result_count": 5
     },
     {
       "query": "Where did I attend my cousin's wedding?",
@@ -3294,8 +3294,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5843749469735862,
-      "result_count": 12
+      "score": 0.5843749383799078,
+      "result_count": 7
     },
     {
       "query": "Where did I complete my Bachelor's degree in Computer Science?",
@@ -3304,8 +3304,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.35024770948017053,
-      "result_count": 8
+      "score": 0.35024770143121947,
+      "result_count": 6
     },
     {
       "query": "How long did it take to move to the new apartment?",
@@ -3314,8 +3314,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6639999028149124,
-      "result_count": 12
+      "score": 0.6639999147312651,
+      "result_count": 7
     },
     {
       "query": "What type of cocktail recipe did I try last weekend?",
@@ -3324,8 +3324,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6184999047456368,
-      "result_count": 12
+      "score": 0.6184999117003367,
+      "result_count": 7
     },
     {
       "query": "What type of rice is my favorite?",
@@ -3334,8 +3334,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6249999352927846,
-      "result_count": 10
+      "score": 0.6249999492322538,
+      "result_count": 7
     },
     {
       "query": "Who did I have a conversation with about destiny?",
@@ -3344,7 +3344,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.7044443489042729,
+      "score": 0.7044443514801441,
       "result_count": 7
     },
     {
@@ -3354,8 +3354,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5843749528049063,
-      "result_count": 11
+      "score": 0.5843749498605412,
+      "result_count": 7
     },
     {
       "query": "What time do I stop checking work emails and messages?",
@@ -3364,8 +3364,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6639999379860955,
-      "result_count": 10
+      "score": 0.6639999381896668,
+      "result_count": 3
     },
     {
       "query": "How many copies of my favorite artist's debut album were released worldwide?",
@@ -3374,8 +3374,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6149998913725613,
-      "result_count": 12
+      "score": 0.6149999066061396,
+      "result_count": 6
     },
     {
       "query": "How long have I been collecting vintage cameras?",
@@ -3384,8 +3384,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6981249253040362,
-      "result_count": 9
+      "score": 0.698124927247903,
+      "result_count": 7
     },
     {
       "query": "Where did I go on a week-long trip with my family?",
@@ -3394,8 +3394,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6033332374352673,
-      "result_count": 8
+      "score": 0.6033332253100191,
+      "result_count": 3
     },
     {
       "query": "What did I bake for my niece's birthday party?",
@@ -3404,8 +3404,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6184999224631148,
-      "result_count": 11
+      "score": 0.6184999069960727,
+      "result_count": 4
     },
     {
       "query": "What is the name of the music streaming service have I been using lately?",
@@ -3414,8 +3414,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.4749999420329313,
-      "result_count": 10
+      "score": 0.4749999412999536,
+      "result_count": 8
     },
     {
       "query": "How long did I wait for the decision on my asylum application?",
@@ -3424,8 +3424,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6791665724302286,
-      "result_count": 12
+      "score": 0.6791665705338277,
+      "result_count": 7
     },
     {
       "query": "What type of action figure did I buy from a thrift store?",
@@ -3434,8 +3434,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5654165624753572,
-      "result_count": 6
+      "score": 0.5654165672493184,
+      "result_count": 5
     },
     {
       "query": "How long was I in Japan for?",
@@ -3444,8 +3444,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.559999925277273,
-      "result_count": 12
+      "score": 0.5599999484483593,
+      "result_count": 5
     },
     {
       "query": "Where did I attend the Imagine Dragons concert?",
@@ -3454,8 +3454,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.641249942164983,
-      "result_count": 12
+      "score": 0.6412499415216686,
+      "result_count": 2
     },
     {
       "query": "How much screen time have I been averaging on Instagram per day?",
@@ -3464,8 +3464,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6791665500400635,
-      "result_count": 8
+      "score": 0.6791665607463904,
+      "result_count": 6
     },
     {
       "query": "What type of bulb did I replace in my bedside lamp?",
@@ -3474,8 +3474,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5895453658214119,
-      "result_count": 12
+      "score": 0.5895453626244319,
+      "result_count": 6
     },
     {
       "query": "What size is my new Samsung TV?",
@@ -3484,7 +3484,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.559999962031824,
+      "score": 0.5599999656914876,
       "result_count": 7
     },
     {
@@ -3494,8 +3494,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5274999499735055,
-      "result_count": 12
+      "score": 3.4096764737924428,
+      "result_count": 1
     },
     {
       "query": "How many skeins of worsted weight yarn did I find in my stash?",
@@ -3504,8 +3504,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6849998923533583,
-      "result_count": 12
+      "score": 0.6849998638469817,
+      "result_count": 8
     },
     {
       "query": "How many hours did I spend watching documentaries on Netflix last month?",
@@ -3514,8 +3514,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6049578578655731,
-      "result_count": 9
+      "score": 0.6049578622507346,
+      "result_count": 7
     },
     {
       "query": "What time do I usually get home from work on weeknights?",
@@ -3524,8 +3524,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6722726360157669,
-      "result_count": 12
+      "score": 0.6722726312149168,
+      "result_count": 5
     },
     {
       "query": "What is my ethnicity?",
@@ -3534,7 +3534,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6412499635227905,
+      "score": 0.6412499656012332,
       "result_count": 7
     },
     {
@@ -3544,7 +3544,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.46545447569610743,
+      "score": 0.4654544773157106,
       "result_count": 8
     },
     {
@@ -3554,7 +3554,7 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5274999536339331,
+      "score": 0.5274999598977314,
       "result_count": 10
     },
     {
@@ -3564,8 +3564,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6722726311243093,
-      "result_count": 12
+      "score": 0.6722726324467144,
+      "result_count": 9
     },
     {
       "query": "Who gave me a new stand mixer as a birthday gift?",
@@ -3574,8 +3574,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.6639998856997323,
-      "result_count": 12
+      "score": 0.6639999088364011,
+      "result_count": 7
     },
     {
       "query": "What brand of shampoo do I currently use?",
@@ -3584,8 +3584,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.54124953826837,
-      "result_count": 12
+      "score": 0.5412495408671602,
+      "result_count": 7
     },
     {
       "query": "What health issue did I initially think was just a cold?",
@@ -3594,8 +3594,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5481817417378918,
-      "result_count": 11
+      "score": 0.5481817516307055,
+      "result_count": 4
     },
     {
       "query": "Where did I meet Sophia?",
@@ -3604,8 +3604,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 3,
-      "score": 0.5354958756373803,
-      "result_count": 12
+      "score": 0.5354958753883524,
+      "result_count": 4
     },
     {
       "query": "What game did I finally beat last weekend?",
@@ -3614,8 +3614,8 @@
       "difficulty": "easy",
       "hit": true,
       "rank": 1,
-      "score": 0.5843749472798684,
-      "result_count": 11
+      "score": 0.5843749501895767,
+      "result_count": 5
     },
     {
       "query": "What is the name of my hamster?",
@@ -3624,8 +3624,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6249999478768911,
-      "result_count": 12
+      "score": 0.6249999484717105,
+      "result_count": 3
     },
     {
       "query": "How long have I been collecting vintage films?",
@@ -3634,8 +3634,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 0.28451980911106767,
-      "result_count": 9
+      "score": 0.2845198097060966,
+      "result_count": 5
     },
     {
       "query": "What did I bake for my uncle's birthday party?",
@@ -3644,18 +3644,18 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 0.2535090690424304,
-      "result_count": 11
+      "score": 0.2535090709614941,
+      "result_count": 4
     },
     {
       "query": "How long was I in Korea for?",
       "expected": "You did not mention this information. You mentioned staying in Japan, but not in Korea.",
       "category": "single-session-user",
       "difficulty": "hard",
-      "hit": true,
-      "rank": 7,
-      "score": 0.3250003218629868,
-      "result_count": 12
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 6
     },
     {
       "query": "How much time do I dedicate to practicing violin every day?",
@@ -3675,7 +3675,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 12
+      "result_count": 5
     },
     {
       "query": "How many days passed between my visit to the Museum of Modern Art (MoMA) and the 'Ancient Civilizations' exhibit at the Metropolitan Museum of Art?",
@@ -3683,9 +3683,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 4,
-      "score": 0.4087194471976616,
-      "result_count": 9
+      "rank": 3,
+      "score": 0.40871946118890284,
+      "result_count": 8
     },
     {
       "query": "Which three events happened in the order from first to last: the day I helped my friend prepare the nursery, the day I helped my cousin pick out stuff for her baby shower, and the day I ordered a customized phone case for my friend's birthday?",
@@ -3693,8 +3693,8 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 2,
-      "score": 0.5274991353639724,
+      "rank": 1,
+      "score": 0.5274990899446181,
       "result_count": 10
     },
     {
@@ -3704,8 +3704,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.36267350549928956,
-      "result_count": 8
+      "score": 0.3626735018505594,
+      "result_count": 7
     },
     {
       "query": "How many months have passed since I participated in two charity events in a row, on consecutive days?",
@@ -3714,7 +3714,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 2.4538153808873577,
+      "score": 2.4538154552172573,
       "result_count": 13
     },
     {
@@ -3724,7 +3724,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.3386993515677844,
+      "score": 0.3386993424284181,
       "result_count": 9
     },
     {
@@ -3733,8 +3733,8 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 5,
-      "score": 0.42987180995740076,
+      "rank": 3,
+      "score": 0.42987181674265984,
       "result_count": 9
     },
     {
@@ -3744,8 +3744,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5924999056186647,
-      "result_count": 12
+      "score": 0.5924999135459251,
+      "result_count": 6
     },
     {
       "query": "Which event happened first, my cousin's wedding or Michael's engagement party?",
@@ -3754,7 +3754,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5654164956089205,
+      "score": 0.5654165052555417,
       "result_count": 10
     },
     {
@@ -3764,8 +3764,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.5310666193280769,
-      "result_count": 12
+      "score": 0.5310666186675199,
+      "result_count": 5
     },
     {
       "query": "How many days ago did I attend a baking class at a local culinary school when I made my friend's birthday cake?",
@@ -3775,7 +3775,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 10
+      "result_count": 9
     },
     {
       "query": "How many days passed between the day I started watering my herb garden and the day I harvested my first batch of fresh herbs?",
@@ -3783,9 +3783,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 4,
-      "score": 0.4504299377114383,
-      "result_count": 11
+      "rank": 3,
+      "score": 0.45042996304881994,
+      "result_count": 10
     },
     {
       "query": "How many weeks ago did I start using the cashback app 'Ibotta'?",
@@ -3794,8 +3794,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.4516666025269308,
-      "result_count": 12
+      "score": 0.4516666035132577,
+      "result_count": 8
     },
     {
       "query": "How many days had passed since I finished reading 'The Seven Husbands of Evelyn Hugo' when I attended the book reading event at the local library, where the author of 'The Silent Patient' is discussing her latest thriller novel?",
@@ -3804,7 +3804,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.2661061319926307,
+      "score": 0.2661061330585743,
       "result_count": 9
     },
     {
@@ -3814,7 +3814,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.48040757269857787,
+      "score": 0.4804075422217412,
       "result_count": 8
     },
     {
@@ -3823,9 +3823,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 4,
-      "score": 0.5843747360020127,
-      "result_count": 11
+      "rank": 1,
+      "score": 0.5843747394667186,
+      "result_count": 9
     },
     {
       "query": "How many months ago did I attend the Seattle International Film Festival?",
@@ -3835,7 +3835,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 8
+      "result_count": 5
     },
     {
       "query": "How many days ago did I buy a smoker?",
@@ -3844,8 +3844,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.3677970985723718,
-      "result_count": 12
+      "score": 0.3677970935686527,
+      "result_count": 8
     },
     {
       "query": "What is the order of the three events: 'I signed up for the rewards program at ShopRite', 'I used a Buy One Get One Free coupon on Luvs diapers at Walmart', and 'I redeemed $12 cashback for a $10 Amazon gift card from Ibotta'?",
@@ -3853,9 +3853,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 11,
-      "score": 0.5274996065026233,
-      "result_count": 16
+      "rank": 6,
+      "score": 0.5274995404781112,
+      "result_count": 13
     },
     {
       "query": "How many weeks in total do I spent on reading 'The Nightingale' and listening to 'Sapiens: A Brief History of Humankind' and 'The Power'?",
@@ -3864,7 +3864,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 9.695628063070137,
+      "score": 9.695626423103453,
       "result_count": 6
     },
     {
@@ -3874,8 +3874,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.29597241518871015,
-      "result_count": 13
+      "score": 0.29597240846316053,
+      "result_count": 12
     },
     {
       "query": "How many weeks passed between the day I bought my new tennis racket and the day I received it?",
@@ -3884,8 +3884,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.4043775625932869,
-      "result_count": 9
+      "score": 0.40437756513565914,
+      "result_count": 7
     },
     {
       "query": "How many days ago did I meet Emma?",
@@ -3895,7 +3895,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 11
+      "result_count": 4
     },
     {
       "query": "What is the order of the six museums I visited from earliest to latest?",
@@ -3904,7 +3904,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 1.9380442150607118,
+      "score": 1.9380442182379305,
       "result_count": 11
     },
     {
@@ -3914,7 +3914,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5426664993634501,
+      "score": 0.5426664830809259,
       "result_count": 10
     },
     {
@@ -3924,7 +3924,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 0.3839608060572859,
+      "score": 0.3839607966409213,
       "result_count": 9
     },
     {
@@ -3953,9 +3953,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 9,
-      "score": 0.528891296472903,
-      "result_count": 12
+      "rank": 5,
+      "score": 0.5288912839243475,
+      "result_count": 8
     },
     {
       "query": "How many days did it take me to finish 'The Nightingale' by Kristin Hannah?",
@@ -3965,7 +3965,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 10
+      "result_count": 8
     },
     {
       "query": "What is the order of the three sports events I participated in during the past month, from earliest to latest?",
@@ -3984,7 +3984,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 11,
-      "score": 0.171334728736572,
+      "score": 0.17133472795451082,
       "result_count": 11
     },
     {
@@ -3994,7 +3994,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 5,
-      "score": 5.191789877722351,
+      "score": 5.19178574993848,
       "result_count": 8
     },
     {
@@ -4004,7 +4004,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.4509883562036887,
+      "score": 0.4509882676935995,
       "result_count": 7
     },
     {
@@ -4014,7 +4014,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6849998343877908,
+      "score": 0.6849997236984653,
       "result_count": 11
     },
     {
@@ -4024,7 +4024,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.3150744708190585,
+      "score": 0.3150744323448105,
       "result_count": 7
     },
     {
@@ -4034,8 +4034,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.3777913253082602,
-      "result_count": 9
+      "score": 0.37779132392549775,
+      "result_count": 6
     },
     {
       "query": "What is the order of airlines I flew with from earliest to latest before today?",
@@ -4044,7 +4044,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 1.9229643935733152,
+      "score": 1.9229642842280343,
       "result_count": 10
     },
     {
@@ -4054,7 +4054,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.2747764286879563,
+      "score": 0.2747764313644375,
       "result_count": 9
     },
     {
@@ -4064,7 +4064,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.33411742900531727,
+      "score": 0.3341174231340453,
       "result_count": 10
     },
     {
@@ -4074,8 +4074,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 6,
-      "score": 0.1968645282682016,
-      "result_count": 12
+      "score": 0.1968645270561532,
+      "result_count": 8
     },
     {
       "query": "How many months passed between the completion of my undergraduate degree and the submission of my master's thesis?",
@@ -4094,8 +4094,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5274999597711123,
-      "result_count": 7
+      "score": 6.3072846410453955,
+      "result_count": 1
     },
     {
       "query": "Which event did I participate in first, the charity gala or the charity bake sale?",
@@ -4104,7 +4104,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6018501888092176,
+      "score": 0.6018501378514036,
       "result_count": 7
     },
     {
@@ -4115,7 +4115,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 12
+      "result_count": 3
     },
     {
       "query": "How many days ago did I launch my website when I signed a contract with my first client?",
@@ -4123,9 +4123,9 @@
       "category": "temporal-reasoning",
       "difficulty": "medium",
       "hit": true,
-      "rank": 5,
-      "score": 0.2639408977943478,
-      "result_count": 7
+      "rank": 4,
+      "score": 0.26394088449931596,
+      "result_count": 6
     },
     {
       "query": "How many days ago did I go on a whitewater rafting trip in the Oregon mountains?",
@@ -4134,8 +4134,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.3574326998011084,
-      "result_count": 12
+      "score": 0.3574326929513039,
+      "result_count": 6
     },
     {
       "query": "How many days ago did I harvest my first batch of fresh herbs from the herb garden kit?",
@@ -4144,8 +4144,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.30817329658613096,
-      "result_count": 12
+      "score": 0.3081732988434533,
+      "result_count": 7
     },
     {
       "query": "How many weeks ago did I attend the 'Summer Nights' festival at Universal Studios Hollywood?",
@@ -4154,8 +4154,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.6639998773241245,
-      "result_count": 12
+      "score": 0.6639998773977345,
+      "result_count": 8
     },
     {
       "query": "How many days ago did I participate in the 5K charity run?",
@@ -4164,8 +4164,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5274999229020387,
-      "result_count": 12
+      "score": 0.5274999229720306,
+      "result_count": 7
     },
     {
       "query": "Which event happened first, my participation in the #PlankChallenge or my post about vegan chili recipe?",
@@ -4174,7 +4174,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.503914697683232,
+      "score": 0.503914684212915,
       "result_count": 13
     },
     {
@@ -4184,8 +4184,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.3645262840833891,
-      "result_count": 10
+      "score": 0.36452626440522595,
+      "result_count": 11
     },
     {
       "query": "Who graduated first, second and third among Emma, Rachel and Alex?",
@@ -4194,7 +4194,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 7,
-      "score": 0.48199990891372124,
+      "score": 0.4819999047287959,
       "result_count": 16
     },
     {
@@ -4205,7 +4205,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 7
+      "result_count": 8
     },
     {
       "query": "Which book did I finish a week ago?",
@@ -4214,8 +4214,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5843749387448857,
-      "result_count": 9
+      "score": 0.5843749495910064,
+      "result_count": 8
     },
     {
       "query": "I mentioned participating in a sports event two weeks ago. What was the event?",
@@ -4224,7 +4224,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.332499131148471,
+      "score": 0.3324991333202482,
       "result_count": 9
     },
     {
@@ -4232,10 +4232,10 @@
       "expected": "my aunt",
       "category": "temporal-reasoning",
       "difficulty": "medium",
-      "hit": true,
-      "rank": 4,
-      "score": 0.2275003665765681,
-      "result_count": 6
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
     },
     {
       "query": "What charity event did I participate in a month ago?",
@@ -4244,7 +4244,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 6,
-      "score": 1.3537425341604503,
+      "score": 1.3537425113271349,
       "result_count": 7
     },
     {
@@ -4264,7 +4264,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.1697613772880847,
+      "score": 0.16976137710014141,
       "result_count": 12
     },
     {
@@ -4274,7 +4274,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 2.5432314335440793,
+      "score": 2.543231347403617,
       "result_count": 16
     },
     {
@@ -4284,7 +4284,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5274998617940732,
+      "score": 0.5274998459270489,
       "result_count": 4
     },
     {
@@ -4294,8 +4294,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5274998960781907,
-      "result_count": 12
+      "score": 0.5274998865639696,
+      "result_count": 9
     },
     {
       "query": "What was the the life event of one of my relatives that I participated in a week ago?",
@@ -4304,7 +4304,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.3426548132170146,
+      "score": 0.34265481403611187,
       "result_count": 8
     },
     {
@@ -4314,8 +4314,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5274999265264526,
-      "result_count": 7
+      "score": 7.201598178345483,
+      "result_count": 1
     },
     {
       "query": "What is the artist that I started to listen to last Friday?",
@@ -4324,7 +4324,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 4,
-      "score": 0.4850034889851636,
+      "score": 0.48500344384006555,
       "result_count": 8
     },
     {
@@ -4334,8 +4334,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5123331972671034,
-      "result_count": 15
+      "score": 0.5123331828098278,
+      "result_count": 14
     },
     {
       "query": "What was the significant buisiness milestone I mentioned four weeks ago?",
@@ -4344,8 +4344,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 0.4648828275146212,
-      "result_count": 10
+      "score": 0.46488282052216234,
+      "result_count": 7
     },
     {
       "query": "What did I do with Rachel on the Wednesday two months ago?",
@@ -4354,7 +4354,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.5654165271744359,
+      "score": 0.5654165303075676,
       "result_count": 10
     },
     {
@@ -4364,7 +4364,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 2,
-      "score": 2.171732010579302,
+      "score": 2.171732068165027,
       "result_count": 9
     },
     {
@@ -4374,7 +4374,7 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 6,
-      "score": 0.3403976404390036,
+      "score": 0.3403976373323362,
       "result_count": 9
     },
     {
@@ -4384,8 +4384,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 6,
-      "score": 0.14527029889193724,
-      "result_count": 9
+      "score": 0.14527029788011064,
+      "result_count": 6
     },
     {
       "query": "Where did I attend the religious activity last week?",
@@ -4394,8 +4394,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 3,
-      "score": 0.31510244841019164,
-      "result_count": 12
+      "score": 0.3151024476331166,
+      "result_count": 5
     },
     {
       "query": "What was the social media activity I participated 5 days ago?",
@@ -4404,8 +4404,8 @@
       "difficulty": "medium",
       "hit": true,
       "rank": 1,
-      "score": 0.548181744552097,
-      "result_count": 8
+      "score": 0.5481817357180737,
+      "result_count": 5
     },
     {
       "query": "What is the total distance of the hikes I did on two consecutive weekends?",
@@ -4414,7 +4414,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.4197237980430904,
+      "score": 0.4197237992372582,
       "result_count": 10
     },
     {
@@ -4425,7 +4425,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 10
+      "result_count": 11
     },
     {
       "query": "For my daily commute, how much more expensive was the taxi ride compared to the train fare?",
@@ -4433,8 +4433,8 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 3,
-      "score": 0.5262695905440301,
+      "rank": 2,
+      "score": 0.5262695884506657,
       "result_count": 14
     },
     {
@@ -4445,7 +4445,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 8
+      "result_count": 9
     },
     {
       "query": "How many antique items did I inherit or acquire from my family members?",
@@ -4454,7 +4454,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 11,
-      "score": 0.294678079051527,
+      "score": 0.29467808072020707,
       "result_count": 14
     },
     {
@@ -4464,8 +4464,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6033330455447411,
-      "result_count": 19
+      "score": 0.6033330436647235,
+      "result_count": 16
     },
     {
       "query": "How much cashback did I earn at SaveMart last Thursday?",
@@ -4475,7 +4475,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 24
+      "result_count": 16
     },
     {
       "query": "What is the difference in price between my luxury boots and the similar pair found at the budget store?",
@@ -4495,7 +4495,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 12
+      "result_count": 13
     },
     {
       "query": "When did I submit my research paper on sentiment analysis?",
@@ -4505,7 +4505,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 10
+      "result_count": 9
     },
     {
       "query": "What percentage discount did I get on the book from my favorite author?",
@@ -4543,9 +4543,9 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 8,
-      "score": 0.3081105399637841,
-      "result_count": 11
+      "rank": 7,
+      "score": 0.30811053461358584,
+      "result_count": 10
     },
     {
       "query": "How many hours do I work in a typical week during peak campaign seasons?",
@@ -4554,7 +4554,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6574997782540384,
+      "score": 0.6574997881971939,
       "result_count": 9
     },
     {
@@ -4564,8 +4564,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6249998043715324,
-      "result_count": 7
+      "score": 0.6249997880009839,
+      "result_count": 4
     },
     {
       "query": "What was the total number of people reached by my Facebook ad campaign and Instagram influencer collaboration?",
@@ -4575,7 +4575,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 11
+      "result_count": 9
     },
     {
       "query": "How many Marvel movies did I re-watch?",
@@ -4584,7 +4584,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 8,
-      "score": 0.36533065763739625,
+      "score": 0.36533066873010467,
       "result_count": 12
     },
     {
@@ -4595,7 +4595,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 13
+      "result_count": 14
     },
     {
       "query": "What is the total number of goals and assists I have in the recreational indoor soccer league?",
@@ -4604,8 +4604,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.47652965468544617,
-      "result_count": 9
+      "score": 0.47652965424763455,
+      "result_count": 8
     },
     {
       "query": "How much did I spend on car wash and parking ticket?",
@@ -4615,7 +4615,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 23
+      "result_count": 12
     },
     {
       "query": "How many sports have I played competitively in the past?",
@@ -4624,7 +4624,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 12,
-      "score": 0.2431295878382563,
+      "score": 0.24312959097240877,
       "result_count": 12
     },
     {
@@ -4634,8 +4634,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6033331777772324,
-      "result_count": 9
+      "score": 0.6033331628118062,
+      "result_count": 12
     },
     {
       "query": "How old was I when Alex was born?",
@@ -4654,8 +4654,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 0.5121196441821592,
-      "result_count": 11
+      "score": 0.5121196727888973,
+      "result_count": 12
     },
     {
       "query": "What is the total number of days I spent in Japan and Chicago?",
@@ -4664,8 +4664,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.5449999409261074,
-      "result_count": 19
+      "score": 0.5449999371049675,
+      "result_count": 13
     },
     {
       "query": "What is the minimum amount I could get if I sold the vintage diamond necklace and the antique vanity?",
@@ -4675,7 +4675,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 9
+      "result_count": 7
     },
     {
       "query": "What percentage of the countryside property's price is the cost of the renovations I plan to do on my current house?",
@@ -4683,18 +4683,18 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 4,
-      "score": 0.4546307568760881,
-      "result_count": 7
+      "rank": 3,
+      "score": 0.4546307601630685,
+      "result_count": 6
     },
     {
       "query": "What is the total cost of Lola's vet visit and flea medication?",
       "expected": "$75",
       "category": "multi-session",
       "difficulty": "hard",
-      "hit": false,
-      "rank": -1,
-      "score": 0,
+      "hit": true,
+      "rank": 13,
+      "score": 0.1994443331856013,
       "result_count": 13
     },
     {
@@ -4705,7 +4705,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 14
+      "result_count": 18
     },
     {
       "query": "What is the total number of lunch meals I got from the chicken fajitas and lentil soup?",
@@ -4734,8 +4734,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 0.31074094307570055,
-      "result_count": 10
+      "score": 0.31074094707047994,
+      "result_count": 8
     },
     {
       "query": "How long have I been working in my current role?",
@@ -4744,8 +4744,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6184998558061636,
-      "result_count": 15
+      "score": 0.6184998334904557,
+      "result_count": 16
     },
     {
       "query": "How much more was the pre-approval amount than the final sale price of the house?",
@@ -4774,8 +4774,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6412498498007339,
-      "result_count": 8
+      "score": 0.641249847844138,
+      "result_count": 7
     },
     {
       "query": "What is the total time it takes I to get ready and commute to work?",
@@ -4784,7 +4784,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.592499811030516,
+      "score": 0.5924997961536919,
       "result_count": 9
     },
     {
@@ -4794,7 +4794,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.5054273985992458,
+      "score": 0.3163970066494612,
       "result_count": 11
     },
     {
@@ -4825,7 +4825,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 8
+      "result_count": 10
     },
     {
       "query": "How much faster did I finish the 5K run compared to my previous year's time?",
@@ -4834,7 +4834,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 0.39463275560632544,
+      "score": 0.394632737303262,
       "result_count": 12
     },
     {
@@ -4864,8 +4864,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.534573826274288,
-      "result_count": 14
+      "score": 0.5345738278300493,
+      "result_count": 13
     },
     {
       "query": "What is the total weight of the new feed I purchased in the past two months?",
@@ -4874,7 +4874,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5599998275193608,
+      "score": 0.5599998275205026,
       "result_count": 11
     },
     {
@@ -4933,9 +4933,9 @@
       "category": "multi-session",
       "difficulty": "hard",
       "hit": true,
-      "rank": 3,
-      "score": 0.5195460285912448,
-      "result_count": 24
+      "rank": 2,
+      "score": 0.5195458598245452,
+      "result_count": 20
     },
     {
       "query": "What is the total number of comments on my recent Facebook Live session and my most popular YouTube video?",
@@ -4954,7 +4954,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.4708541393700353,
+      "score": 0.47085403315817376,
       "result_count": 12
     },
     {
@@ -4975,7 +4975,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 7
+      "result_count": 8
     },
     {
       "query": "What is the average GPA of my undergraduate and graduate studies?",
@@ -4994,8 +4994,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 0.27272389450615303,
-      "result_count": 11
+      "score": 0.27272388586126173,
+      "result_count": 9
     },
     {
       "query": "What was the page count of the two novels I finished in January and March?",
@@ -5014,7 +5014,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6538887374864288,
+      "score": 0.6538887415595435,
       "result_count": 7
     },
     {
@@ -5025,7 +5025,7 @@
       "hit": false,
       "rank": -1,
       "score": 0,
-      "result_count": 10
+      "result_count": 9
     },
     {
       "query": "How much discount will I get on my next purchase at FreshMart?",
@@ -5034,8 +5034,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.641249860991764,
-      "result_count": 18
+      "score": 0.6412498548126375,
+      "result_count": 15
     },
     {
       "query": "How much earlier do I wake up on Fridays compared to other weekdays?",
@@ -5044,8 +5044,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.4224399455234208,
-      "result_count": 23
+      "score": 0.42243994227770437,
+      "result_count": 16
     },
     {
       "query": "How many fun runs did I miss in March due to work commitments?",
@@ -5054,8 +5054,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 2,
-      "score": 0.5989875931936667,
-      "result_count": 11
+      "score": 0.5989875905002241,
+      "result_count": 7
     },
     {
       "query": "How many pages do I have left to read in 'Sapiens'?",
@@ -5064,8 +5064,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6908172841104626,
-      "result_count": 10
+      "score": 0.6908172845053147,
+      "result_count": 11
     },
     {
       "query": "How many plants did I initially plant for tomatoes and chili peppers?",
@@ -5074,7 +5074,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5654165157608202,
+      "score": 0.5654165144324227,
       "result_count": 10
     },
     {
@@ -5084,8 +5084,8 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 4,
-      "score": 0.40653049158727544,
-      "result_count": 16
+      "score": 0.40653046137844523,
+      "result_count": 15
     },
     {
       "query": "At which university did I present a poster for my undergrad course research project?",
@@ -5094,7 +5094,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.5786579928019179,
+      "score": 0.5786579596855694,
       "result_count": 9
     },
     {
@@ -5104,7 +5104,7 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 3,
-      "score": 0.3997127732949301,
+      "score": 0.39971275772035203,
       "result_count": 8
     },
     {
@@ -5114,10 +5114,10 @@
       "difficulty": "hard",
       "hit": true,
       "rank": 1,
-      "score": 0.6216175822065285,
+      "score": 0.6216175395025745,
       "result_count": 11
     }
   ],
-  "duration": 69448436869,
-  "git_commit": "24b076f"
+  "duration": 73898252094,
+  "git_commit": "50b83ee"
 }
