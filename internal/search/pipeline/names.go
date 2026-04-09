@@ -9,3 +9,9 @@ const (
 	PipelineFast        = "fast"
 	PipelineFull        = "full"
 )
+
+// Metadata key 常量 / Metadata key constants
+const (
+	// MetaForceRerank full 管线强制 LLM rerank / Force LLM rerank in full pipeline
+	MetaForceRerank = "force_llm_rerank"
+)

@@ -370,11 +370,8 @@ func (s *GraphStage) ftsMultiHopFallback(ctx context.Context, state *pipeline.Pi
 		ranked = ranked[:3]
 	}
 	if len(ranked) == 0 {
-		// 无扩展词，直接返回 hop1 / No expansion terms, return hop1 as-is
-		for _, r := range hop1 {
-			r.Source = "graph_fts_fallback"
-		}
-		return hop1
+		// 无扩展词，创建副本返回（不可变原则）/ No expansion terms, return copies (immutable)
+		return copyResultsWithSource(hop1, "graph_fts_fallback")
 	}
 
 	// 第 2 跳: 用扩展词 FTS / Hop 2: FTS with expanded terms
@@ -386,11 +383,8 @@ func (s *GraphStage) ftsMultiHopFallback(ctx context.Context, state *pipeline.Pi
 
 	hop2, err := s.ftsSearcher.SearchText(ctx, expandedQuery, state.Identity, s.ftsTop)
 	if err != nil {
-		// hop2 失败时仍返回 hop1 / Return hop1 on hop2 failure
-		for _, r := range hop1 {
-			r.Source = "graph_fts_fallback"
-		}
-		return hop1
+		// hop2 失败时仍返回 hop1 副本 / Return hop1 copies on hop2 failure
+		return copyResultsWithSource(hop1, "graph_fts_fallback")
 	}
 
 	// 合并去重: hop1(score=1.0) + hop2(score=0.5) / Merge: hop1 full score + hop2 half score
@@ -428,7 +422,7 @@ func (s *GraphStage) ftsMultiHopFallback(ctx context.Context, state *pipeline.Pi
 // Extract significant terms from text (rune segments with length >= 2)
 func extractSignificantTerms(text string) []string {
 	words := strings.Fields(text)
-	var terms []string
+	terms := make([]string, 0, len(words))
 	for _, w := range words {
 		w = strings.Trim(w, ".,;:!?\"'()[]{}"+"\u3001\u3002\uff01\uff1f\uff1a\uff0c\u201c\u201d\u2018\u2019\uff08\uff09\u3010\u3011")
 		runes := []rune(w)
@@ -437,4 +431,20 @@ func extractSignificantTerms(text string) []string {
 		}
 	}
 	return terms
+}
+
+// copyResultsWithSource 创建结果副本并设置 Source（不可变模式）/ Create result copies with new Source (immutable)
+func copyResultsWithSource(results []*model.SearchResult, source string) []*model.SearchResult {
+	out := make([]*model.SearchResult, 0, len(results))
+	for _, r := range results {
+		if r.Memory == nil {
+			continue
+		}
+		out = append(out, &model.SearchResult{
+			Memory: r.Memory,
+			Score:  r.Score,
+			Source: source,
+		})
+	}
+	return out
 }

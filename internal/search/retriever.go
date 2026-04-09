@@ -145,7 +145,7 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 	}
 	// full 管线无条件触发 LLM rerank / full pipeline forces LLM rerank
 	if pipelineName == pipeline.PipelineFull {
-		state.Metadata["force_llm_rerank"] = true
+		state.Metadata[pipeline.MetaForceRerank] = true
 	}
 
 	// 3. 执行管线 / Execute pipeline

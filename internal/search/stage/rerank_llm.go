@@ -40,6 +40,10 @@ const confidenceHighThreshold = 0.6
 // confidenceLowThreshold 低置信度阈值 / Low confidence threshold
 const confidenceLowThreshold = 0.3
 
+// confidenceSkipGapRatio 跳过 LLM rerank 的分数差阈值 / Score gap ratio threshold to skip LLM rerank
+// top1 与 top2 分差超过此比例时认为排序已确定，无需 LLM / When gap between top1 and top2 exceeds this ratio, ranking is confident
+const confidenceSkipGapRatio = 0.2
+
 // scoreRegex 正则回退解析 LLM 分数响应 / Regex fallback for parsing LLM score response
 var scoreRegex = regexp.MustCompile(`"index"\s*:\s*(\d+)\s*,\s*"score"\s*:\s*([\d.]+)`)
 
@@ -118,7 +122,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 	if len(state.Candidates) >= 2 && !s.forceRerank(state) {
 		top1 := state.Candidates[0].Score
 		top2 := state.Candidates[1].Score
-		if top1 > 0 && (top1-top2)/top1 > 0.2 {
+		if top1 > 0 && (top1-top2)/top1 > confidenceSkipGapRatio {
 			state.Confidence = pipeline.ConfidenceHigh
 			state.AddTrace(pipeline.StageTrace{
 				Name:        s.Name(),
@@ -273,7 +277,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 
 // forceRerank 检查是否强制 LLM rerank（full 管线或显式请求）/ Check if LLM rerank is forced
 func (s *RerankLLMStage) forceRerank(state *pipeline.PipelineState) bool {
-	if v, ok := state.Metadata["force_llm_rerank"]; ok {
+	if v, ok := state.Metadata[pipeline.MetaForceRerank]; ok {
 		if b, ok := v.(bool); ok {
 			return b
 		}
