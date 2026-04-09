@@ -166,7 +166,7 @@ func TestCoreStage_Execute_UsesFilterScope(t *testing.T) {
 	}
 }
 
-func TestCoreStage_Execute_TraceRecorded(t *testing.T) {
+func TestCoreStage_Execute_NoNormalPathTrace(t *testing.T) {
 	s := stage.NewCoreStage(&coreProviderMock{memories: []*model.Memory{
 		{ID: "core-1", Content: "core"},
 	}})
@@ -176,14 +176,10 @@ func TestCoreStage_Execute_TraceRecorded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
-	found := false
+	// Normal-path trace is now added by pipeline.executeWithTrace, not by the stage itself
 	for _, tr := range got.Traces {
-		if tr.Name == "core" {
-			found = true
-			break
+		if tr.Name == "core" && !tr.Skipped && tr.Note == "" {
+			t.Error("stage should not emit its own normal-path trace (pipeline handles it)")
 		}
-	}
-	if !found {
-		t.Error("expected trace for core stage")
 	}
 }

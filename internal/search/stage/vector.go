@@ -97,13 +97,6 @@ func (s *VectorStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	// 追加结果 / Append results
 	state.Candidates = append(state.Candidates, filtered...)
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(filtered),
-	})
-
 	return state, nil
 }
 

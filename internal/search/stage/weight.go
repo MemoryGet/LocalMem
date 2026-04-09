@@ -76,7 +76,6 @@ func (s *WeightStage) Name() string {
 // Execute 执行综合加权 / Execute combined weighting
 func (s *WeightStage) Execute(ctx context.Context, state *pipeline.PipelineState) (*pipeline.PipelineState, error) {
 	start := time.Now()
-	inputCount := len(state.Candidates)
 
 	if len(state.Candidates) == 0 {
 		state.AddTrace(pipeline.StageTrace{
@@ -125,13 +124,6 @@ func (s *WeightStage) Execute(ctx context.Context, state *pipeline.PipelineState
 	})
 
 	state.Candidates = weighted
-
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(weighted),
-	})
 
 	return state, nil
 }

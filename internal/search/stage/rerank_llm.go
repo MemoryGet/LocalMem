@@ -209,13 +209,6 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 
 	state.Candidates = out
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(out),
-	})
-
 	return state, nil
 }
 

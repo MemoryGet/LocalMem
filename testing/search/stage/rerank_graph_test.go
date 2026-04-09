@@ -288,7 +288,7 @@ func TestRerankGraphStage_ImmutableInput(t *testing.T) {
 	}
 }
 
-func TestRerankGraphStage_TraceRecorded(t *testing.T) {
+func TestRerankGraphStage_NoNormalPathTrace(t *testing.T) {
 	mock := &mockGraphRetrieverForRerank{
 		memEntities: map[string][]*model.Entity{
 			"m1": {{ID: "e1", Name: "e1"}},
@@ -308,14 +308,10 @@ func TestRerankGraphStage_TraceRecorded(t *testing.T) {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
 
-	found := false
+	// Normal-path trace is now added by pipeline.executeWithTrace, not by the stage itself
 	for _, tr := range got.Traces {
-		if tr.Name == "rerank_graph" {
-			found = true
-			break
+		if tr.Name == "rerank_graph" && !tr.Skipped && tr.Note == "" {
+			t.Error("stage should not emit its own normal-path trace (pipeline handles it)")
 		}
-	}
-	if !found {
-		t.Error("expected trace for rerank_graph stage")
 	}
 }

@@ -106,13 +106,6 @@ func (s *MergeStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 
 	state.Candidates = merged
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(merged),
-	})
-
 	return state, nil
 }
 

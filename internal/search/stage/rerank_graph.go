@@ -182,13 +182,6 @@ func (s *RerankGraphStage) Execute(ctx context.Context, state *pipeline.Pipeline
 
 	state.Candidates = result
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(result),
-	})
-
 	return state, nil
 }
 

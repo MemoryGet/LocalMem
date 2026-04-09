@@ -133,13 +133,6 @@ func (s *GraphStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	// 追加结果（不替换已有候选）/ Append results (don't replace existing candidates)
 	state.Candidates = append(state.Candidates, results...)
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(results),
-	})
-
 	return state, nil
 }
 

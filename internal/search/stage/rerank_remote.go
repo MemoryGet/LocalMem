@@ -173,13 +173,6 @@ func (s *RemoteRerankStage) Execute(ctx context.Context, state *pipeline.Pipelin
 
 	state.Candidates = reranked
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(reranked),
-	})
-
 	return state, nil
 }
 

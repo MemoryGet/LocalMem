@@ -112,13 +112,6 @@ func (s *CoreStage) Execute(ctx context.Context, state *pipeline.PipelineState) 
 	// core 置顶 + 原结果 / Core first + original results
 	state.Candidates = append(injected, state.Candidates...)
 
-	state.AddTrace(pipeline.StageTrace{
-		Name:        s.Name(),
-		Duration:    time.Since(start),
-		InputCount:  inputCount,
-		OutputCount: len(state.Candidates),
-	})
-
 	return state, nil
 }
 

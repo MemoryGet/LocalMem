@@ -171,7 +171,7 @@ func TestMMRStage_Execute_LimitEnforced(t *testing.T) {
 	}
 }
 
-func TestMMRStage_Execute_TraceRecorded(t *testing.T) {
+func TestMMRStage_Execute_NoNormalPathTrace(t *testing.T) {
 	searcher := &vectorSearcherMock{vectors: map[string][]float32{
 		"a": {1.0, 0},
 		"b": {0, 1.0},
@@ -189,15 +189,11 @@ func TestMMRStage_Execute_TraceRecorded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
-	found := false
+	// Normal-path trace is now added by pipeline.executeWithTrace, not by the stage itself
 	for _, tr := range got.Traces {
-		if tr.Name == "mmr" && !tr.Skipped {
-			found = true
-			break
+		if tr.Name == "mmr" && !tr.Skipped && tr.Note == "" {
+			t.Error("stage should not emit its own normal-path trace (pipeline handles it)")
 		}
-	}
-	if !found {
-		t.Error("expected non-skipped trace for mmr stage")
 	}
 }
 
