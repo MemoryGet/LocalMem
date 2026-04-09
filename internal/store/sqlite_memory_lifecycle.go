@@ -4,6 +4,8 @@ package store
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"iclude/internal/logger"
@@ -443,34 +445,72 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 	// FTS5 语法净化：包裹为短语查询防止操作符注入 / Sanitize for FTS5 syntax injection
 	tokenizedQuery = sanitizeFTS5Query(tokenizedQuery)
 
-	visCond, visArgs := visibilityCondition("m.", identity)
 	w := s.bm25Weights
-	// 用 CTE 消除 bm25() 重复计算 / Use CTE to avoid computing bm25() twice
-	sqlQuery := `WITH ranked AS (
-		SELECT ` + memoryColumnsAliased + `,
-			bm25(memories_fts, ?, ?, ?) AS rank
-		FROM memories m
-		JOIN memories_fts f ON m.rowid = f.rowid
-		WHERE memories_fts MATCH ? AND m.deleted_at IS NULL AND ` + visCond + `
-	)
-	SELECT ` + memoryColumns + `, rank FROM ranked ORDER BY rank LIMIT ?`
 
-	args := []interface{}{w[0], w[1], w[2], tokenizedQuery}
-	args = append(args, visArgs...)
-	args = append(args, limit)
-	rows, err := s.db.QueryContext(ctx, sqlQuery, args...)
+	// 两步查询（避免 FTS5 JOIN 主表的性能暴跌）/ Two-step query to avoid FTS5 JOIN perf cliff
+	// Step 1: FTS5 纯索引查询取 rowid + bm25 rank（极快）/ Pure FTS5 index query for rowid + rank
+	ftsQuery := `SELECT rowid, bm25(memories_fts, ?, ?, ?) AS rank
+		FROM memories_fts WHERE memories_fts MATCH ? ORDER BY rank LIMIT ?`
+	ftsArgs := []interface{}{w[0], w[1], w[2], tokenizedQuery, limit * 3} // 多取一些，后面 visibility 过滤会减少
+	ftsRows, err := s.db.QueryContext(ctx, ftsQuery, ftsArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to search memories: %w", err)
+		return nil, fmt.Errorf("failed to FTS5 search: %w", err)
 	}
-	defer rows.Close()
+
+	type ftsHit struct {
+		rowid int64
+		rank  float64
+	}
+	var hits []ftsHit
+	for ftsRows.Next() {
+		var h ftsHit
+		if err := ftsRows.Scan(&h.rowid, &h.rank); err != nil {
+			ftsRows.Close()
+			return nil, fmt.Errorf("failed to scan FTS5 hit: %w", err)
+		}
+		hits = append(hits, h)
+	}
+	ftsRows.Close()
+
+	if len(hits) == 0 {
+		return nil, nil
+	}
+
+	// Step 2: 用 rowid IN (...) 批量查主表 + visibility 过滤 / Batch fetch from main table with visibility
+	visCond, visArgs := visibilityCondition("", identity)
+	placeholders := make([]string, len(hits))
+	rowidArgs := make([]interface{}, len(hits))
+	rankMap := make(map[int64]float64, len(hits))
+	for i, h := range hits {
+		placeholders[i] = "?"
+		rowidArgs[i] = h.rowid
+		rankMap[h.rowid] = h.rank
+	}
+
+	mainQuery := `SELECT rowid, ` + memoryColumns + ` FROM memories
+		WHERE rowid IN (` + strings.Join(placeholders, ",") + `) AND deleted_at IS NULL AND ` + visCond
+
+	mainArgs := append(rowidArgs, visArgs...)
+	mainRows, err := s.db.QueryContext(ctx, mainQuery, mainArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch memories by rowid: %w", err)
+	}
+	defer mainRows.Close()
 
 	queryWords := extractQueryWords(query)
 	var results []*model.SearchResult
-	for rows.Next() {
-		mem, rank, err := s.scanMemoryWithRank(rows)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan search result: %w", err)
+	for mainRows.Next() {
+		var rowid int64
+		var dest memScanDest
+		fields := append([]interface{}{&rowid}, dest.scanFields()...)
+		if err := mainRows.Scan(fields...); err != nil {
+			return nil, fmt.Errorf("failed to scan memory: %w", err)
 		}
+		mem, err := dest.toMemory()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert scan dest: %w", err)
+		}
+		rank := rankMap[rowid]
 		bm25Score := -rank
 		coverageScore := wordCoverage(mem.Content+" "+mem.Excerpt, queryWords)
 		hybridScore := 0.7*bm25Score + 0.3*coverageScore*bm25Score
@@ -480,8 +520,16 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 			Source: "sqlite",
 		})
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate search results: %w", err)
+	if err := mainRows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate memories: %w", err)
+	}
+
+	// 按分数排序（rowid IN 不保证顺序）/ Sort by score (rowid IN doesn't preserve order)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+	if len(results) > limit {
+		results = results[:limit]
 	}
 
 	return results, nil
