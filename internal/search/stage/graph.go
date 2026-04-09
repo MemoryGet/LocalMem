@@ -3,6 +3,7 @@ package stage
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
 	"iclude/internal/logger"
@@ -109,12 +110,25 @@ func (s *GraphStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	// 阶段 1: 获取种子实体 / Phase 1: Resolve seed entities
 	seedEntities := s.resolveSeedEntities(ctx, state)
 	if len(seedEntities) == 0 {
+		// Tier 3 兜底: FTS 多跳共现遍历（图谱未就绪时）/ Tier 3 fallback: FTS multi-hop co-occurrence
+		results := s.ftsMultiHopFallback(ctx, state)
+		if len(results) > 0 {
+			state.Candidates = append(state.Candidates, results...)
+			state.AddTrace(pipeline.StageTrace{
+				Name:        s.Name(),
+				Duration:    time.Since(start),
+				InputCount:  inputCount,
+				OutputCount: len(results),
+				Note:        "fts_multi_hop fallback (no graph entities)",
+			})
+			return state, nil
+		}
 		state.AddTrace(pipeline.StageTrace{
 			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
 			OutputCount: 0,
-			Note:        "no seed entities found",
+			Note:        "no seed entities and fts fallback empty",
 		})
 		return state, nil
 	}
@@ -309,4 +323,118 @@ func (s *GraphStage) collectMemories(ctx context.Context, visited map[string]int
 	}
 
 	return results
+}
+
+// ftsMultiHopFallback FTS 多跳共现遍历兜底（Tier 3，图谱未就绪时）
+// FTS multi-hop co-occurrence fallback when graph has no entities
+func (s *GraphStage) ftsMultiHopFallback(ctx context.Context, state *pipeline.PipelineState) []*model.SearchResult {
+	if s.ftsSearcher == nil || state.Query == "" {
+		return nil
+	}
+
+	// 第 1 跳: 原始查询 FTS / Hop 1: original query FTS
+	hop1, err := s.ftsSearcher.SearchText(ctx, state.Query, state.Identity, s.ftsTop)
+	if err != nil || len(hop1) == 0 {
+		return nil
+	}
+
+	// 从 hop1 结果中提取关键词（取每条内容的高频有意义词）/ Extract key terms from hop1 results
+	termFreq := make(map[string]int)
+	queryLower := strings.ToLower(state.Query)
+	for _, r := range hop1 {
+		if r.Memory == nil {
+			continue
+		}
+		words := extractSignificantTerms(r.Memory.Content)
+		for _, w := range words {
+			// 排除查询本身的词，只取扩展词 / Exclude query terms, keep expansion terms only
+			if !strings.Contains(queryLower, strings.ToLower(w)) {
+				termFreq[w]++
+			}
+		}
+	}
+
+	// 取出现次数最多的 top-3 扩展词 / Pick top-3 most frequent expansion terms
+	type termCount struct {
+		term  string
+		count int
+	}
+	var ranked []termCount
+	for t, c := range termFreq {
+		if c >= 2 { // 至少出现 2 次才算有意义 / At least 2 occurrences
+			ranked = append(ranked, termCount{t, c})
+		}
+	}
+	sort.Slice(ranked, func(i, j int) bool { return ranked[i].count > ranked[j].count })
+	if len(ranked) > 3 {
+		ranked = ranked[:3]
+	}
+	if len(ranked) == 0 {
+		// 无扩展词，直接返回 hop1 / No expansion terms, return hop1 as-is
+		for _, r := range hop1 {
+			r.Source = "graph_fts_fallback"
+		}
+		return hop1
+	}
+
+	// 第 2 跳: 用扩展词 FTS / Hop 2: FTS with expanded terms
+	var expandedTerms []string
+	for _, tc := range ranked {
+		expandedTerms = append(expandedTerms, tc.term)
+	}
+	expandedQuery := strings.Join(expandedTerms, " ")
+
+	hop2, err := s.ftsSearcher.SearchText(ctx, expandedQuery, state.Identity, s.ftsTop)
+	if err != nil {
+		// hop2 失败时仍返回 hop1 / Return hop1 on hop2 failure
+		for _, r := range hop1 {
+			r.Source = "graph_fts_fallback"
+		}
+		return hop1
+	}
+
+	// 合并去重: hop1(score=1.0) + hop2(score=0.5) / Merge: hop1 full score + hop2 half score
+	seen := make(map[string]bool)
+	var merged []*model.SearchResult
+
+	for _, r := range hop1 {
+		if r.Memory != nil {
+			seen[r.Memory.ID] = true
+			merged = append(merged, &model.SearchResult{
+				Memory: r.Memory,
+				Score:  1.0,
+				Source: "graph_fts_fallback",
+			})
+		}
+	}
+	for _, r := range hop2 {
+		if r.Memory != nil && !seen[r.Memory.ID] {
+			seen[r.Memory.ID] = true
+			merged = append(merged, &model.SearchResult{
+				Memory: r.Memory,
+				Score:  0.5, // hop2 降权 / Hop2 discounted
+				Source: "graph_fts_fallback",
+			})
+		}
+	}
+
+	if len(merged) > s.limit {
+		merged = merged[:s.limit]
+	}
+	return merged
+}
+
+// extractSignificantTerms 从文本中提取有意义的词（长度 >= 2 的 rune 词段）
+// Extract significant terms from text (rune segments with length >= 2)
+func extractSignificantTerms(text string) []string {
+	words := strings.Fields(text)
+	var terms []string
+	for _, w := range words {
+		w = strings.Trim(w, ".,;:!?\"'()[]{}"+"\u3001\u3002\uff01\uff1f\uff1a\uff0c\u201c\u201d\u2018\u2019\uff08\uff09\u3010\u3011")
+		runes := []rune(w)
+		if len(runes) >= 2 {
+			terms = append(terms, w)
+		}
+	}
+	return terms
 }
