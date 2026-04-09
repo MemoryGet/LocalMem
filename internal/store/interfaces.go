@@ -288,6 +288,9 @@ type GraphStore interface {
 	// GetMemoryEntities 获取记忆关联的实体 / Get entities associated with a memory
 	GetMemoryEntities(ctx context.Context, memoryID string) ([]*model.Entity, error)
 
+	// GetMemoriesEntities 批量获取记忆关联的实体 / Batch get entities for multiple memories
+	GetMemoriesEntities(ctx context.Context, memoryIDs []string) (map[string][]*model.Entity, error)
+
 	// FindEntitiesByName 按名称模糊匹配实体（索引查询，替代 ListEntities 全量扫描）/ Find entities by name (indexed query)
 	FindEntitiesByName(ctx context.Context, name string, scope string, limit int) ([]*model.Entity, error)
 

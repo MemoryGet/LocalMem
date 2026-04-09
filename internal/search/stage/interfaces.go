@@ -19,7 +19,19 @@ type GraphRetriever interface {
 	GetEntityRelations(ctx context.Context, entityID string) ([]*model.EntityRelation, error)
 	GetEntityMemories(ctx context.Context, entityID string, limit int) ([]*model.Memory, error)
 	GetMemoryEntities(ctx context.Context, memoryID string) ([]*model.Entity, error)
+	// GetMemoriesEntities 批量获取记忆关联的实体 / Batch get entities for multiple memories
+	GetMemoriesEntities(ctx context.Context, memoryIDs []string) (map[string][]*model.Entity, error)
 }
+
+// Source 标签常量 / Source label constants
+const (
+	SourceFTS      = "sqlite"
+	SourceGraph    = "graph"
+	SourceVector   = "vector"
+	SourceTemporal = "temporal"
+	SourceHybrid   = "hybrid"
+	SourceCore     = "core"
+)
 
 // VectorSearcher 向量检索所需的最小接口 / Minimal interface for vector search
 type VectorSearcher interface {

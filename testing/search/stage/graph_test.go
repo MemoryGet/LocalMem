@@ -44,6 +44,16 @@ func (m *mockGraphRetriever) GetMemoryEntities(_ context.Context, memoryID strin
 	return m.memoryEntities[memoryID], nil
 }
 
+func (m *mockGraphRetriever) GetMemoriesEntities(_ context.Context, memoryIDs []string) (map[string][]*model.Entity, error) {
+	result := make(map[string][]*model.Entity, len(memoryIDs))
+	for _, id := range memoryIDs {
+		if ents, ok := m.memoryEntities[id]; ok {
+			result[id] = ents
+		}
+	}
+	return result, nil
+}
+
 // ftsSearcherSpy 已在 fts_test.go 中定义 / Defined in fts_test.go
 
 // --- Helper functions ---

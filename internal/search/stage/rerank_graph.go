@@ -100,6 +100,27 @@ func (s *RerankGraphStage) Execute(ctx context.Context, state *pipeline.Pipeline
 	// 预构建查询实体邻居映射 / Pre-build query entity neighbor maps
 	queryEntitySet, hop1Set, hop2Set := s.buildNeighborSets(ctx, queryEntities)
 
+	// 批量预获取所有候选记忆的实体映射（消除 N+1）/ Batch pre-fetch entity mappings for all candidates (eliminate N+1)
+	memIDs := make([]string, 0, len(state.Candidates))
+	for _, cand := range state.Candidates {
+		if cand != nil && cand.Memory != nil {
+			memIDs = append(memIDs, cand.Memory.ID)
+		}
+	}
+	allMemEntities, err := s.graphStore.GetMemoriesEntities(ctx, memIDs)
+	if err != nil {
+		// 批量查询失败时降级跳过 / Degrade gracefully on batch query failure
+		state.AddTrace(pipeline.StageTrace{
+			Name:        s.Name(),
+			Duration:    time.Since(start),
+			InputCount:  inputCount,
+			OutputCount: inputCount,
+			Skipped:     true,
+			Note:        "skipped: batch GetMemoriesEntities failed",
+		})
+		return state, nil
+	}
+
 	// 计算每个候选的图距离分并混合 / Compute graph distance score for each candidate and blend
 	maxBaseScore := findMaxBaseScore(state.Candidates)
 
@@ -115,11 +136,8 @@ func (s *RerankGraphStage) Execute(ctx context.Context, state *pipeline.Pipeline
 			continue
 		}
 
-		// 获取候选记忆关联的实体 / Get entities associated with candidate memory
-		memEnts, err := s.graphStore.GetMemoryEntities(ctx, cand.Memory.ID)
-		if err != nil {
-			continue
-		}
+		// 从预获取映射中查找实体 / Look up entities from pre-fetched map
+		memEnts := allMemEntities[cand.Memory.ID]
 
 		// 取候选所有实体中最高的图距离分 / Take max graph score across all candidate's entities
 		graphScore := 0.0

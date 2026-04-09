@@ -64,6 +64,16 @@ func (m *integrationGraphRetriever) GetMemoryEntities(_ context.Context, memoryI
 	return m.memoryEntities[memoryID], nil
 }
 
+func (m *integrationGraphRetriever) GetMemoriesEntities(_ context.Context, memoryIDs []string) (map[string][]*model.Entity, error) {
+	result := make(map[string][]*model.Entity, len(memoryIDs))
+	for _, id := range memoryIDs {
+		if ents, ok := m.memoryEntities[id]; ok {
+			result[id] = ents
+		}
+	}
+	return result, nil
+}
+
 // integrationTimelineSearcher timeline mock / 时间线 mock
 type integrationTimelineSearcher struct {
 	memories []*model.Memory

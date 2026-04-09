@@ -31,6 +31,16 @@ func (m *mockGraphRetrieverForRerank) GetMemoryEntities(_ context.Context, memor
 	return m.memEntities[memoryID], nil
 }
 
+func (m *mockGraphRetrieverForRerank) GetMemoriesEntities(_ context.Context, memoryIDs []string) (map[string][]*model.Entity, error) {
+	result := make(map[string][]*model.Entity, len(memoryIDs))
+	for _, id := range memoryIDs {
+		if ents, ok := m.memEntities[id]; ok {
+			result[id] = ents
+		}
+	}
+	return result, nil
+}
+
 func TestRerankGraphStage_Name(t *testing.T) {
 	s := stage.NewRerankGraphStage(nil, 0, 0)
 	if s.Name() != "rerank_graph" {
