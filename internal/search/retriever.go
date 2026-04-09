@@ -7,11 +7,15 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"iclude/internal/config"
 	"iclude/internal/llm"
 	"iclude/internal/logger"
 	"iclude/internal/model"
+	"iclude/internal/search/pipeline"
+	"iclude/internal/search/pipeline/builtin"
+	"iclude/internal/search/strategy"
 	"iclude/pkg/scoring"
 	"iclude/internal/store"
 
@@ -43,6 +47,11 @@ type Retriever struct {
 	preprocessor *Preprocessor // 可为 nil / may be nil
 	tracker      AccessTracker // 可为 nil / may be nil
 	coreProvider CoreProvider  // 可为 nil / may be nil
+
+	// 管线系统 / Pipeline system
+	executor       *pipeline.Executor
+	strategyAgent  *strategy.Agent
+	ruleClassifier *strategy.RuleClassifier
 }
 
 // NewRetriever 创建检索器 / Create a new retriever
@@ -64,6 +73,104 @@ func (r *Retriever) SetCoreProvider(cp CoreProvider) {
 	r.coreProvider = cp
 }
 
+// SetPipelineComponents 手动注入管线组件（用于评测等需要自定义 LLM Provider 的场景）
+// Manually inject pipeline components (for eval scenarios with custom LLM providers)
+func (r *Retriever) SetPipelineComponents(executor *pipeline.Executor, agent *strategy.Agent, rc *strategy.RuleClassifier) {
+	r.executor = executor
+	r.strategyAgent = agent
+	r.ruleClassifier = rc
+}
+
+// InitPipeline 初始化管线系统 / Initialize pipeline system
+// 在 NewRetriever 后、首次 Retrieve 前调用 / Call after NewRetriever, before first Retrieve
+func (r *Retriever) InitPipeline() {
+	registry := pipeline.NewRegistry()
+	deps := builtin.Deps{
+		FTSSearcher:  r.memStore,
+		GraphStore:   r.graphStore,
+		VectorStore:  r.vecStore,
+		Embedder:     r.embedder,
+		Timeline:     r.memStore,
+		CoreProvider: r.coreProvider,
+		LLM:          r.llm,
+		Cfg:          r.cfg,
+	}
+	postStages := builtin.RegisterBuiltins(registry, deps)
+
+	r.executor = pipeline.NewExecutor(registry, pipeline.WithPostStages(postStages...))
+
+	rc := strategy.NewRuleClassifier(pipeline.PipelineExploration)
+	r.ruleClassifier = rc
+	r.strategyAgent = strategy.NewAgent(r.llm, rc, 5*time.Second)
+}
+
+// selectPipelineWithPlan 选择管线并返回查询计划 / Select pipeline and return query plan
+func (r *Retriever) selectPipelineWithPlan(ctx context.Context, req *model.RetrieveRequest) (string, *pipeline.QueryPlan) {
+	// 策略 Agent（LLM + 规则 fallback）/ Strategy agent (LLM + rule fallback)
+	if r.strategyAgent != nil {
+		name, plan, _ := r.strategyAgent.Select(ctx, req.Query)
+		return name, plan
+	}
+	return pipeline.PipelineExploration, nil // 最终 fallback / ultimate fallback
+}
+
+// RetrieveResult 检索结果（含可选调试信息）/ Retrieve result with optional debug info
+type RetrieveResult struct {
+	Results      []*model.SearchResult
+	PipelineInfo *PipelineDebugInfo // 仅 debug=true 时填充 / Only populated when debug=true
+}
+
+// PipelineDebugInfo 管线调试信息 / Pipeline debug information
+type PipelineDebugInfo struct {
+	PipelineName string              `json:"pipeline_name"`
+	Traces       []pipeline.StageTrace `json:"traces"`
+}
+
+// retrieveViaPipeline 通过管线执行检索 / Execute retrieval via pipeline
+func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.RetrieveRequest) (*RetrieveResult, error) {
+	// 1. 选择管线：请求级 override > 策略 Agent / Select pipeline: per-request override > strategy agent
+	pipelineName := req.Pipeline
+	var plan *pipeline.QueryPlan
+	if pipelineName == "" {
+		pipelineName, plan = r.selectPipelineWithPlan(ctx, req)
+	}
+
+	// 2. 构建初始状态 / Build initial state
+	state := pipeline.NewState(req.Query, r.resolveIdentity(req))
+	state.Plan = plan
+	state.Metadata["request"] = req
+	state.Filters = req.Filters
+	if len(req.Embedding) > 0 {
+		state.Embedding = req.Embedding
+	}
+
+	// 3. 执行管线 / Execute pipeline
+	result, err := r.executor.Execute(ctx, pipelineName, state)
+	if err != nil {
+		return nil, fmt.Errorf("pipeline %q execution failed: %w", pipelineName, err)
+	}
+
+	// 4. 异步记录访问（与旧逻辑一致）/ Async access tracking (same as legacy)
+	if r.tracker != nil {
+		for _, res := range result.Candidates {
+			if res.Memory != nil {
+				r.tracker.Track(res.Memory.ID)
+			}
+		}
+	}
+
+	out := &RetrieveResult{Results: result.Candidates}
+	// 5. 填充调试信息 / Populate debug info if requested
+	if req.Debug {
+		out.PipelineInfo = &PipelineDebugInfo{
+			PipelineName: result.PipelineName,
+			Traces:       result.Traces,
+		}
+	}
+
+	return out, nil
+}
+
 // resolveIdentity 从请求中构建身份，优先使用请求中的 OwnerID / Build identity from request, prefer request OwnerID
 func (r *Retriever) resolveIdentity(req *model.RetrieveRequest) *model.Identity {
 	ownerID := req.OwnerID
@@ -74,12 +181,46 @@ func (r *Retriever) resolveIdentity(req *model.RetrieveRequest) *model.Identity 
 }
 
 // Retrieve 执行检索 / Execute retrieval
-// 根据配置自动选择：仅 SQLite、仅 Qdrant、或双后端 RRF 融合
+// 管线模式优先，未初始化时走旧逻辑 / Pipeline mode preferred, falls back to legacy if not initialized
 func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	if req.Query == "" && len(req.Embedding) == 0 {
 		return nil, fmt.Errorf("query or embedding is required: %w", model.ErrInvalidInput)
 	}
 
+	// 管线模式 / Pipeline mode
+	if r.executor != nil {
+		result, err := r.retrieveViaPipeline(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return result.Results, nil
+	}
+
+	// 兼容模式：管线未初始化时走旧逻辑 / Legacy mode: fall back to old logic if pipeline not initialized
+	return r.retrieveLegacy(ctx, req)
+}
+
+// RetrieveWithDebug 执行检索并返回调试信息 / Execute retrieval with debug info
+// 管线模式时返回 trace，旧逻辑模式返回空调试信息 / Returns trace in pipeline mode, empty debug in legacy mode
+func (r *Retriever) RetrieveWithDebug(ctx context.Context, req *model.RetrieveRequest) (*RetrieveResult, error) {
+	if req.Query == "" && len(req.Embedding) == 0 {
+		return nil, fmt.Errorf("query or embedding is required: %w", model.ErrInvalidInput)
+	}
+
+	if r.executor != nil {
+		return r.retrieveViaPipeline(ctx, req)
+	}
+
+	results, err := r.retrieveLegacy(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return &RetrieveResult{Results: results}, nil
+}
+
+// retrieveLegacy 旧检索逻辑（管线未初始化时的 fallback）/ Legacy retrieval logic (fallback when pipeline not initialized)
+// 根据配置自动选择：仅 SQLite、仅 Qdrant、或双后端 RRF 融合
+func (r *Retriever) retrieveLegacy(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	limit := req.Limit
 	if limit <= 0 {
 		limit = 10

@@ -190,6 +190,29 @@ type RetrievalConfig struct {
 	Rerank           RerankConfig     `mapstructure:"rerank"`
 	MMR              MMRConfig        `mapstructure:"mmr"`
 	Preprocess       PreprocessConfig `mapstructure:"preprocess"`
+	Strategy         StrategyConfig              `mapstructure:"strategy"`
+	Pipelines        map[string]PipelineOverrides `mapstructure:"pipelines"`
+}
+
+// StrategyConfig 策略 Agent 配置 / Strategy agent configuration
+type StrategyConfig struct {
+	UseLLM           bool   `mapstructure:"use_llm"`
+	FallbackPipeline string `mapstructure:"fallback_pipeline"`
+}
+
+// PipelineOverrides 管线参数覆盖 / Pipeline parameter overrides
+type PipelineOverrides struct {
+	GraphDepth          int     `mapstructure:"graph_depth"`
+	GraphLimit          int     `mapstructure:"graph_limit"`
+	FTSLimit            int     `mapstructure:"fts_limit"`
+	VectorMinScore      float64 `mapstructure:"vector_min_score"`
+	VectorLimit         int     `mapstructure:"vector_limit"`
+	ScoreRatio          float64 `mapstructure:"score_ratio"`
+	RerankTopK          int     `mapstructure:"rerank_top_k"`
+	RerankMinRelevance  float64 `mapstructure:"rerank_min_relevance"`
+	GraphRerankMinScore float64 `mapstructure:"graph_rerank_min_score"`
+	TemporalLimit       int     `mapstructure:"temporal_limit"`
+	TrimMaxTokens       int     `mapstructure:"trim_max_tokens"`
 }
 
 // RerankConfig 精排配置 / Re-ranking configuration
@@ -356,6 +379,9 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.rerank.timeout", "5s")
 	viper.SetDefault("retrieval.mmr.enabled", false)
 	viper.SetDefault("retrieval.mmr.lambda", 0.7)
+	// Strategy 默认值 / Strategy defaults
+	viper.SetDefault("retrieval.strategy.use_llm", true)
+	viper.SetDefault("retrieval.strategy.fallback_pipeline", "exploration")
 	// Crystallization 默认值 / Crystallization defaults
 	viper.SetDefault("crystallization.enabled", true)
 	viper.SetDefault("crystallization.min_reinforce_count", 5)

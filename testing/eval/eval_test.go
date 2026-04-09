@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	eval "iclude/testing/eval"
 
@@ -241,6 +242,142 @@ func TestLongMemEvalOracle(t *testing.T) {
 
 	require.NoError(t, eval.SaveBaseline(report, "longmemeval-oracle-fts-v1", "baselines"))
 	t.Logf("LongMemEval baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
+// TestLongMemEvalOraclePipeline 管线模式 LongMemEval oracle（对比 legacy FTS baseline）
+func TestLongMemEvalOraclePipeline(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval questions", len(entries))
+
+	tmpDir := t.TempDir()
+	report, err := eval.RunLongMemEvalPipeline(context.Background(), entries, tmpDir)
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	// 加载 legacy baseline 对比 / Compare with legacy baseline
+	baseline, err := eval.LoadBaseline("longmemeval-oracle-fts-v1", "baselines")
+	if err == nil {
+		regressions := eval.CompareBaseline(report, baseline, eval.DefaultThresholds)
+		eval.PrintComparison(report, baseline, regressions)
+	}
+
+	require.NoError(t, eval.SaveBaseline(report, "longmemeval-oracle-pipeline-v1", "baselines"))
+	t.Logf("Pipeline baseline saved: HitRate %.1f%%, MRR %.3f", report.Metrics.HitRate, report.Metrics.MRR)
+}
+
+// TestLongMemEvalOracleGraphPipeline 图谱增强管线 LongMemEval 评测 / Graph-enhanced pipeline LongMemEval evaluation
+func TestLongMemEvalOracleGraphPipeline(t *testing.T) {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		t.Skip("skip: OPENAI_API_KEY not set, graph pipeline requires LLM for entity extraction")
+	}
+
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval questions (graph pipeline, capped at 100)", len(entries))
+
+	tmpDir := t.TempDir()
+	report, err := eval.RunLongMemEvalGraphPipeline(context.Background(), entries, tmpDir, 100)
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	// 加载 legacy baseline 对比 / Compare with legacy FTS baseline
+	baseline, err := eval.LoadBaseline("longmemeval-oracle-fts-v1", "baselines")
+	if err == nil {
+		regressions := eval.CompareBaseline(report, baseline, eval.DefaultThresholds)
+		eval.PrintComparison(report, baseline, regressions)
+	}
+
+	require.NoError(t, eval.SaveBaseline(report, "longmemeval-oracle-graph-pipeline-v1", "baselines"))
+	t.Logf("Graph pipeline baseline saved: HitRate %.1f%%, MRR %.3f, Duration %s",
+		report.Metrics.HitRate, report.Metrics.MRR, report.Duration.Round(time.Second))
+}
+
+// TestLongMemEvalOracleFullPipeline 完整管线 LongMemEval 评测（Graph + LLM rerank）/ Full pipeline LongMemEval evaluation
+func TestLongMemEvalOracleFullPipeline(t *testing.T) {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		t.Skip("skip: OPENAI_API_KEY not set, full pipeline requires LLM")
+	}
+
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval questions (full pipeline, capped at 100)", len(entries))
+
+	tmpDir := t.TempDir()
+	report, err := eval.RunLongMemEvalFullPipeline(context.Background(), entries, tmpDir, 100)
+	require.NoError(t, err)
+	eval.PrintReport(report)
+
+	// 加载 legacy baseline 对比 / Compare with legacy FTS baseline
+	baseline, err := eval.LoadBaseline("longmemeval-oracle-fts-v1", "baselines")
+	if err == nil {
+		regressions := eval.CompareBaseline(report, baseline, eval.DefaultThresholds)
+		eval.PrintComparison(report, baseline, regressions)
+	}
+
+	require.NoError(t, eval.SaveBaseline(report, "longmemeval-oracle-full-pipeline-v1", "baselines"))
+	t.Logf("Full pipeline baseline saved: HitRate %.1f%%, MRR %.3f, Duration %s",
+		report.Metrics.HitRate, report.Metrics.MRR, report.Duration.Round(time.Second))
+}
+
+// TestLongMemEvalOracleAllLLM 全链路 LLM 评测：实体抽取 + strategy agent + LLM rerank + preprocess
+// All-LLM evaluation with per-stage token usage tracking
+func TestLongMemEvalOracleAllLLM(t *testing.T) {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		t.Skip("skip: OPENAI_API_KEY not set, all-llm pipeline requires LLM")
+	}
+
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval questions (all-llm pipeline, capped at 100)", len(entries))
+
+	tmpDir := t.TempDir()
+	report, tracker, err := eval.RunLongMemEvalAllLLM(context.Background(), entries, tmpDir, 50)
+	require.NoError(t, err)
+
+	eval.PrintReport(report)
+
+	// 打印 LLM 用量报告 / Print LLM usage report
+	tracker.PrintUsage()
+
+	// 加载 legacy baseline 对比 / Compare with legacy FTS baseline
+	baseline, err := eval.LoadBaseline("longmemeval-oracle-fts-v1", "baselines")
+	if err == nil {
+		regressions := eval.CompareBaseline(report, baseline, eval.DefaultThresholds)
+		eval.PrintComparison(report, baseline, regressions)
+	}
+
+	require.NoError(t, eval.SaveBaseline(report, "longmemeval-oracle-allllm-v1", "baselines"))
+	t.Logf("All-LLM pipeline baseline saved: HitRate %.1f%%, MRR %.3f, Duration %s",
+		report.Metrics.HitRate, report.Metrics.MRR, report.Duration.Round(time.Second))
+
+	// 输出每阶段用量 / Log per-stage usage
+	for _, u := range tracker.Summary() {
+		t.Logf("LLM Stage [%s]: calls=%d, prompt=%d, completion=%d, total=%d",
+			u.Stage, u.Calls, u.PromptTokens, u.CompletionTokens, u.TotalTokens)
+	}
+	total := tracker.Total()
+	t.Logf("LLM TOTAL: calls=%d, tokens=%d", total.Calls, total.TotalTokens)
 }
 
 func TestRegressionCheck(t *testing.T) {

@@ -1,0 +1,1068 @@
+{
+  "mode": "pipeline (full) — LongMemEval oracle",
+  "dataset": "longmemeval-oracle",
+  "timestamp": "2026-04-09T00:36:45.94216117+08:00",
+  "metrics": {
+    "total": 100,
+    "hit_rate": 87,
+    "mrr": 0.5917619047619048,
+    "ndcg@5": 0.6399001361810018,
+    "ndcg@10": 0.6610438288697361,
+    "recall@1": 0.42,
+    "recall@3": 0.76,
+    "recall@5": 0.81,
+    "recall@10": 0.87
+  },
+  "by_category": {
+    "multi-session": {
+      "total": 40,
+      "hit_rate": 85,
+      "mrr": 0.5216666666666666,
+      "ndcg@5": 0.5764375864773976,
+      "ndcg@10": 0.6031531255104994,
+      "recall@1": 0.325,
+      "recall@3": 0.7,
+      "recall@5": 0.775,
+      "recall@10": 0.85
+    },
+    "temporal-reasoning": {
+      "total": 60,
+      "hit_rate": 88.33333333333333,
+      "mrr": 0.6384920634920636,
+      "ndcg@5": 0.6822085026500714,
+      "ndcg@10": 0.6996376311092277,
+      "recall@1": 0.48333333333333334,
+      "recall@3": 0.8,
+      "recall@5": 0.8333333333333334,
+      "recall@10": 0.8833333333333333
+    }
+  },
+  "by_difficulty": {
+    "hard": {
+      "total": 46,
+      "hit_rate": 84.78260869565217,
+      "mrr": 0.5405797101449274,
+      "ndcg@5": 0.5938991949182352,
+      "ndcg@10": 0.6171300984252802,
+      "recall@1": 0.34782608695652173,
+      "recall@3": 0.717391304347826,
+      "recall@5": 0.782608695652174,
+      "recall@10": 0.8478260869565217
+    },
+    "medium": {
+      "total": 54,
+      "hit_rate": 88.88888888888889,
+      "mrr": 0.6353615520282188,
+      "ndcg@5": 0.6790861231826179,
+      "ndcg@10": 0.6984518214705694,
+      "recall@1": 0.48148148148148145,
+      "recall@3": 0.7962962962962963,
+      "recall@5": 0.8333333333333334,
+      "recall@10": 0.8888888888888888
+    }
+  },
+  "cases": [
+    {
+      "query": "What was the first issue I had with my new car after its first service?",
+      "expected": "GPS system not functioning correctly",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 20.558392140379016,
+      "result_count": 12
+    },
+    {
+      "query": "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?",
+      "expected": "'Data Analysis using Python' webinar",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 20.040154818964144,
+      "result_count": 7
+    },
+    {
+      "query": "Which vehicle did I take care of first in February, the bike or the car?",
+      "expected": "bike",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 11.398669119133311,
+      "result_count": 10
+    },
+    {
+      "query": "Which device did I got first, the Samsung Galaxy S22 or the Dell XPS 13?",
+      "expected": "Samsung Galaxy S22",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 27.667940755177753,
+      "result_count": 6
+    },
+    {
+      "query": "How many days before the team meeting I was preparing for did I attend the workshop on 'Effective Communication in the Workplace'?",
+      "expected": "7 days. 8 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 17.6837820838304,
+      "result_count": 10
+    },
+    {
+      "query": "How many days had passed between the Sunday mass at St. Mary's Church and the Ash Wednesday service at the cathedral?",
+      "expected": "30 days. 31 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "How many days did it take for me to find a house I loved after starting to work with Rachel?",
+      "expected": "14 days. 15 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 16.735351270632787,
+      "result_count": 11
+    },
+    {
+      "query": "Which seeds were started first, the tomatoes or the marigolds?",
+      "expected": "Tomatoes",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 7.065931087746012,
+      "result_count": 9
+    },
+    {
+      "query": "How many days had passed between the Hindu festival of Holi and the Sunday mass at St. Mary's Church?",
+      "expected": "21 days. 22 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 10
+    },
+    {
+      "query": "How many days before the 'Rack Fest' did I participate in the 'Turbocharged Tuesdays' event?",
+      "expected": "4 days.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 13.440921609615149,
+      "result_count": 12
+    },
+    {
+      "query": "Which pair of shoes did I clean last month?",
+      "expected": "white Adidas sneakers",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 12.686825310909072,
+      "result_count": 11
+    },
+    {
+      "query": "Which event happened first, the purchase of the coffee maker or the malfunction of the stand mixer?",
+      "expected": "The malfunction of the stand mixer",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 16.63726366183688,
+      "result_count": 9
+    },
+    {
+      "query": "How many days had passed between the 'Walk for Hunger' event and the 'Coastal Cleanup' event?",
+      "expected": "14 days. 8 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 13.280393739591181,
+      "result_count": 11
+    },
+    {
+      "query": "Which item did I purchase first, the dog bed for Max or the training pads for Luna?",
+      "expected": "Training pads for Luna",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 16.034093288474526,
+      "result_count": 9
+    },
+    {
+      "query": "Which task did I complete first, fixing the fence or trimming the goats' hooves?",
+      "expected": "Fixing the fence",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 17.248093074442995,
+      "result_count": 6
+    },
+    {
+      "query": "How many charity events did I participate in before the 'Run for the Cure' event?",
+      "expected": "4",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 37.84987076479138,
+      "result_count": 10
+    },
+    {
+      "query": "How long have I been working before I started my current job at NovaTech?",
+      "expected": "4 years and 9 months",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 12.018271897682705,
+      "result_count": 11
+    },
+    {
+      "query": "Which book did I finish reading first, 'The Hate U Give' or 'The Nightingale'?",
+      "expected": "'The Hate U Give'",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 18.351515790634185,
+      "result_count": 7
+    },
+    {
+      "query": "Which device did I set up first, the smart thermostat or the mesh network system?",
+      "expected": "Smart thermostat",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 23.988033842477414,
+      "result_count": 10
+    },
+    {
+      "query": "How many months ago did I book the Airbnb in San Francisco?",
+      "expected": "Five months ago",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 13.016908723103578,
+      "result_count": 7
+    },
+    {
+      "query": "How long did I take to finish 'The Seven Husbands of Evelyn Hugo' and 'The Nightingale' combined?",
+      "expected": "5.5 weeks",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 43.10160054949672,
+      "result_count": 5
+    },
+    {
+      "query": "What was the date on which I attended the first BBQ event in June?",
+      "expected": "June 3rd",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 12.215762748813646,
+      "result_count": 5
+    },
+    {
+      "query": "How many days before I bought the iPhone 13 Pro did I attend the Holiday Market?",
+      "expected": "7 days. 8 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 17.04670511313303,
+      "result_count": 10
+    },
+    {
+      "query": "Which show did I start watching first, 'The Crown' or 'Game of Thrones'?",
+      "expected": "'Game of Thrones'",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 13.67036672192129,
+      "result_count": 7
+    },
+    {
+      "query": "How long had I been a member of 'Book Lovers Unite' when I attended the meetup?",
+      "expected": "Two weeks",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 7,
+      "score": 6.301997824694998,
+      "result_count": 12
+    },
+    {
+      "query": "How long had I been watching stand-up comedy specials regularly when I attended the open mic night at the local comedy club?",
+      "expected": "2 months",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 32.25883730605636,
+      "result_count": 6
+    },
+    {
+      "query": "What time do I wake up on Tuesdays and Thursdays?",
+      "expected": "6:45 AM",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 11.26409570781791,
+      "result_count": 4
+    },
+    {
+      "query": "How many days had passed since I bought my Adidas running shoes when I realized one of the shoelaces on my old Converse sneakers had broken?",
+      "expected": "14 days. 15 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 2
+    },
+    {
+      "query": "Which event happened first, the road trip to the coast or the arrival of the new prime lens?",
+      "expected": "The arrival of the new prime lens",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 23.578944514105864,
+      "result_count": 5
+    },
+    {
+      "query": "Which airline did I fly with the most in March and April?",
+      "expected": "United Airlines",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 4,
+      "score": 12.044731935182805,
+      "result_count": 10
+    },
+    {
+      "query": "How long had I been bird watching when I attended the bird watching workshop?",
+      "expected": "Two months",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 9.99158526943276,
+      "result_count": 6
+    },
+    {
+      "query": "Which trip did I take first, the one to Europe with family or the solo trip to Thailand?",
+      "expected": "The solo trip to Thailand",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 16.98151748943892,
+      "result_count": 8
+    },
+    {
+      "query": "Which device did I set up first, the smart thermostat or the new router?",
+      "expected": "new router",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 6,
+      "score": 8.925238373288085,
+      "result_count": 9
+    },
+    {
+      "query": "Which health issue did I deal with first, the persistent cough or the skin tag removal?",
+      "expected": "Persistent cough",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 10.169937023406675,
+      "result_count": 7
+    },
+    {
+      "query": "How old was I when I moved to the United States?",
+      "expected": "27",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 7
+    },
+    {
+      "query": "How long had I been using the new area rug when I rearranged my living room furniture?",
+      "expected": "One week. Answers ranging from 7 days to 10 days are also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 4,
+      "score": 17.16718821506384,
+      "result_count": 7
+    },
+    {
+      "query": "How many days before my best friend's birthday party did I order her gift?",
+      "expected": "7 days. 8 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 6,
+      "score": 6.986129470952846,
+      "result_count": 6
+    },
+    {
+      "query": "Which trip did the narrator take first, the solo trip to Europe or the family road trip across the American Southwest?",
+      "expected": "The family road trip across the American Southwest",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 41.92250002586422,
+      "result_count": 4
+    },
+    {
+      "query": "How long did I use my new binoculars before I saw the American goldfinches returning to the area?",
+      "expected": "Two weeks",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "Who did I meet first, Mark and Sarah or Tom?",
+      "expected": "Tom",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 8.477819056908352,
+      "result_count": 9
+    },
+    {
+      "query": "How many weeks have I been accepted into the exchange program when I started attending the pre-departure orientation sessions?",
+      "expected": "one week",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 31.732756544669893,
+      "result_count": 5
+    },
+    {
+      "query": "Which group did I join first, 'Page Turners' or 'Marketing Professionals'?",
+      "expected": "Page Turners",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 15.396326019359556,
+      "result_count": 8
+    },
+    {
+      "query": "How long had I been taking guitar lessons when I bought the new guitar amp?",
+      "expected": "Four weeks",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 13.794521290552124,
+      "result_count": 9
+    },
+    {
+      "query": "Which streaming service did I start using most recently?",
+      "expected": "Disney+",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "How many months before my anniversary did Rachel get engaged?",
+      "expected": "2",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 6.160948711524992,
+      "result_count": 13
+    },
+    {
+      "query": "Which event happened first, the narrator losing their phone charger or the narrator receiving their new phone case?",
+      "expected": "Receiving the new phone case",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 14.175945897924962,
+      "result_count": 8
+    },
+    {
+      "query": "Who did I meet first, the woman selling jam at the farmer's market or the tourist from Australia?",
+      "expected": "the woman selling jam at the farmer's market",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 26.564880595371513,
+      "result_count": 4
+    },
+    {
+      "query": "Which event happened first, the meeting with Rachel or the pride parade?",
+      "expected": "The meeting with Rachel",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 13.542820992128819,
+      "result_count": 7
+    },
+    {
+      "query": "Which gift did I buy first, the necklace for my sister or the photo album for my mom?",
+      "expected": "the photo album for my mom",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 18.77355946182465,
+      "result_count": 12
+    },
+    {
+      "query": "Which event did I participate in first, the volleyball league or the charity 5K run to raise money for a local children's hospital?",
+      "expected": "volleyball league",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 48.56009703999472,
+      "result_count": 1
+    },
+    {
+      "query": "Which event happened first, my attendance at a cultural festival or the start of my Spanish classes?",
+      "expected": "Spanish classes",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 3,
+      "score": 11.29246324954246,
+      "result_count": 9
+    },
+    {
+      "query": "Which project did I start first, the Ferrari model or the Japanese Zero fighter plane model?",
+      "expected": "Japanese Zero fighter plane model",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 10.702694587796216,
+      "result_count": 10
+    },
+    {
+      "query": "Who became a parent first, Rachel or Alex?",
+      "expected": "Alex",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 5.20463598947291,
+      "result_count": 6
+    },
+    {
+      "query": "How many days had passed between the day I bought a gift for my brother's graduation ceremony and the day I bought a birthday gift for my best friend?",
+      "expected": "7 days. 8 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 16.067805227852357,
+      "result_count": 10
+    },
+    {
+      "query": "Which task did I complete first, fixing the fence or purchasing three cows from Peter?",
+      "expected": "The information provided is not enough. You mentioned fixing the fence but did not mention purchasing cows from Peter.",
+      "category": "temporal-reasoning",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 16.22823491197874,
+      "result_count": 5
+    },
+    {
+      "query": "How long have I been working before I started my current job at Google?",
+      "expected": "The information provided is not enough. From the information provided, You haven't started working at Google yet.",
+      "category": "temporal-reasoning",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 9.265497780205752,
+      "result_count": 9
+    },
+    {
+      "query": "When did I book the Airbnb in Sacramento?",
+      "expected": "The information provided is not enough. You only mentioned booking Airbnb in San Francisco.",
+      "category": "temporal-reasoning",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 13.02834218742579,
+      "result_count": 4
+    },
+    {
+      "query": "How many days before I bought my iPad did I attend the Holiday Market?",
+      "expected": "The information provided is not enough. You mentioned getting the iPhone 13 Pro and attending the market, but you did not mention buying an iPad.",
+      "category": "temporal-reasoning",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 9.814238216796102,
+      "result_count": 10
+    },
+    {
+      "query": "Which project did I start first, the Ferrari model or the Porsche 991 Turbo S model?",
+      "expected": "The information provided is not enough. You did not mention starting the Porsche 991 Turbo S model.",
+      "category": "temporal-reasoning",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 8
+    },
+    {
+      "query": "Who became a parent first, Tom or Alex?",
+      "expected": "The information provided is not enough. You mentioned Alex becoming a parent in January, but you didn't mention anything about Tom.",
+      "category": "temporal-reasoning",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.204622710163311,
+      "result_count": 10
+    },
+    {
+      "query": "How many items of clothing do I need to pick up or return from a store?",
+      "expected": "3",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 18.0582020753973,
+      "result_count": 9
+    },
+    {
+      "query": "How many projects have I led or am currently leading?",
+      "expected": "2",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 26.758248723382106,
+      "result_count": 3
+    },
+    {
+      "query": "How many model kits have I worked on or bought?",
+      "expected": "I have worked on or bought five model kits. The scales of the models are: Revell F-15 Eagle (scale not mentioned), Tamiya 1/48 scale Spitfire Mk.V, 1/16 scale German Tiger I tank, 1/72 scale B-29 bomber, and 1/24 scale '69 Camaro.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 4.68465995094194,
+      "result_count": 3
+    },
+    {
+      "query": "How many days did I spend on camping trips in the United States this year?",
+      "expected": "8 days.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 4,
+      "score": 7.023369048468431,
+      "result_count": 8
+    },
+    {
+      "query": "How many weeks did it take me to watch all the Marvel Cinematic Universe movies and the main Star Wars films?",
+      "expected": "3.5 weeks",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 19.97794219681562,
+      "result_count": 9
+    },
+    {
+      "query": "How many plants did I acquire in the last month?",
+      "expected": "3",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 7.442724773834231,
+      "result_count": 4
+    },
+    {
+      "query": "How much total money have I spent on bike-related expenses since the start of the year?",
+      "expected": "$185",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 4
+    },
+    {
+      "query": "How many hours in total did I spend driving to my three road trip destinations combined?",
+      "expected": "15 hours for getting to the three destinations (or 30 hours for the round trip)",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 4,
+      "score": 10.170405934432543,
+      "result_count": 11
+    },
+    {
+      "query": "How many different doctors did I visit?",
+      "expected": "I visited three different doctors: a primary care physician, an ENT specialist, and a dermatologist.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 0.36284165267200263,
+      "result_count": 14
+    },
+    {
+      "query": "What time did I go to bed on the day before I had a doctor's appointment?",
+      "expected": "2 AM",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 5,
+      "score": 9.536666976604323,
+      "result_count": 5
+    },
+    {
+      "query": "How many different types of citrus fruits have I used in my cocktail recipes?",
+      "expected": "3",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 22.283308584595115,
+      "result_count": 9
+    },
+    {
+      "query": "How many movie festivals that I attended?",
+      "expected": "I attended four movie festivals.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 8.167075333473933,
+      "result_count": 6
+    },
+    {
+      "query": "How many days did I take social media breaks in total?",
+      "expected": "17 days",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 9.297258163594593,
+      "result_count": 7
+    },
+    {
+      "query": "How many tanks do I currently have, including the one I set up for my friend's kid?",
+      "expected": "3",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 1
+    },
+    {
+      "query": "What is the total amount I spent on luxury items in the past few months?",
+      "expected": "$2,500",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 6,
+      "score": 11.646925234677287,
+      "result_count": 8
+    },
+    {
+      "query": "How many hours have I spent playing games in total?",
+      "expected": "140 hours",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 17.546071836414615,
+      "result_count": 5
+    },
+    {
+      "query": "How many weddings have I attended in this year?",
+      "expected": "I attended three weddings. The couples were Rachel and Mike, Emily and Sarah, and Jen and Tom.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 9.599628905731883,
+      "result_count": 5
+    },
+    {
+      "query": "How many babies were born to friends and family members in the last few months?",
+      "expected": "5",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 16.364539061851538,
+      "result_count": 14
+    },
+    {
+      "query": "How many pieces of furniture did I buy, assemble, sell, or fix in the past few months?",
+      "expected": "4",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 18.91637155674257,
+      "result_count": 7
+    },
+    {
+      "query": "How many times did I bake something in the past two weeks?",
+      "expected": "4",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 9.934729523657754,
+      "result_count": 9
+    },
+    {
+      "query": "How many different museums or galleries did I visit in the month of February?",
+      "expected": "2",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 11.775690304928656,
+      "result_count": 14
+    },
+    {
+      "query": "How many different cuisines have I learned to cook or tried out in the past few months?",
+      "expected": "4",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 17.15152204078069,
+      "result_count": 11
+    },
+    {
+      "query": "How many properties did I view before making an offer on the townhouse in the Brookside neighborhood?",
+      "expected": "I viewed four properties before making an offer on the townhouse in the Brookside neighborhood. The reasons I didn't make an offer on them were: the kitchen of the bungalow needed serious renovation, the property in Cedar Creek was out of my budget, the noise from the highway was a deal-breaker for the 1-bedroom condo, and my offer on the 2-bedroom condo was rejected due to a higher bid.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 6,
+      "score": 17.079722670848962,
+      "result_count": 8
+    },
+    {
+      "query": "How many different types of food delivery services have I used recently?",
+      "expected": "3",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 16.494805808851996,
+      "result_count": 9
+    },
+    {
+      "query": "How many hours of jogging and yoga did I do last week?",
+      "expected": "0.5 hours",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 23.60757275879148,
+      "result_count": 2
+    },
+    {
+      "query": "Which social media platform did I gain the most followers on over the past month?",
+      "expected": "TikTok",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 18.776141591423663,
+      "result_count": 8
+    },
+    {
+      "query": "Which grocery store did I spend the most money at in the past month?",
+      "expected": "Thrive Market",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 6,
+      "score": 8.708971173373433,
+      "result_count": 12
+    },
+    {
+      "query": "How much more did I spend on accommodations per night in Hawaii compared to Tokyo?",
+      "expected": "$270",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 6
+    },
+    {
+      "query": "How many different art-related events did I attend in the past month?",
+      "expected": "4",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 10.926101307225881,
+      "result_count": 6
+    },
+    {
+      "query": "What is the average age of me, my parents, and my grandparents?",
+      "expected": "59.6",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 3
+    },
+    {
+      "query": "How many doctor's appointments did I go to in March?",
+      "expected": "2",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 5.366280012221187,
+      "result_count": 11
+    },
+    {
+      "query": "How many days did it take for me to receive the new remote shutter release after I ordered it?",
+      "expected": "5 days. 6 days (including the last day) is also acceptable.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 20.594342301918402,
+      "result_count": 9
+    },
+    {
+      "query": "How many health-related devices do I use in a day?",
+      "expected": "4",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 3,
+      "score": 13.98168885774154,
+      "result_count": 8
+    },
+    {
+      "query": "How many fish are there in total in both of my aquariums?",
+      "expected": "17",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 9
+    },
+    {
+      "query": "How many fitness classes do I attend in a typical week?",
+      "expected": "5",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 10.226827858112916,
+      "result_count": 5
+    },
+    {
+      "query": "How many days did it take for my laptop backpack to arrive after I bought it?",
+      "expected": "5 days. 6 days (including the last day) is also acceptable.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 26.878671060074936,
+      "result_count": 3
+    },
+    {
+      "query": "How many pieces of jewelry did I acquire in the last two months?",
+      "expected": "3",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 1,
+      "score": 18.882821874227293,
+      "result_count": 3
+    },
+    {
+      "query": "How much money did I raise in total through all the charity events I participated in?",
+      "expected": "$5,850",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 5
+    },
+    {
+      "query": "How many projects have I been working on simultaneously, excluding my thesis?",
+      "expected": "2",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 14.354709429559058,
+      "result_count": 11
+    },
+    {
+      "query": "How many musical instruments do I currently own?",
+      "expected": "I currently own 4 musical instruments. I've had the Fender Stratocaster electric guitar for 5 years, the Yamaha FG800 acoustic guitar for 8 years, the 5-piece Pearl Export drum set for an unspecified amount of time, and the Korg B1 piano for 3 years.",
+      "category": "multi-session",
+      "difficulty": "hard",
+      "hit": true,
+      "rank": 2,
+      "score": 13.42691595931504,
+      "result_count": 8
+    }
+  ],
+  "duration": 275390932888,
+  "git_commit": "6103342"
+}

@@ -21,6 +21,7 @@ func EstimateTokens(text string) int {
 	return tokenutil.EstimateTokens(text)
 }
 
+// Deprecated: TrimByTokenBudget is used by retrieveLegacy() and search_handler. Use stage.TrimStage for pipeline mode.
 // TrimByTokenBudget 按token预算裁剪检索结果 / Trim search results by token budget
 // 至少返回 1 条结果（即使单条超出预算）
 func TrimByTokenBudget(results []*model.SearchResult, maxTokens int) ([]*model.SearchResult, int, bool) {

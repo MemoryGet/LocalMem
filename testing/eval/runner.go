@@ -156,7 +156,7 @@ func resolveLLMProvider() llm.Provider {
 	}
 	model := os.Getenv("OPENAI_MODEL")
 	if model == "" {
-		model = "gpt-4o-mini"
+		model = "gpt-5.4"
 	}
 	return llm.NewOpenAIProvider(baseURL, apiKey, model)
 }
