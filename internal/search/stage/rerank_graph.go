@@ -250,16 +250,3 @@ func entityGraphScore(entityID string, querySet, hop1Set, hop2Set map[string]boo
 	return 0.0
 }
 
-// findMaxBaseScore 查找候选中最大基础分数 / Find max base score among candidates
-func findMaxBaseScore(candidates []*model.SearchResult) float64 {
-	maxScore := 0.0
-	for _, c := range candidates {
-		if c != nil && c.Score > maxScore {
-			maxScore = c.Score
-		}
-	}
-	if maxScore <= 0 {
-		maxScore = 1
-	}
-	return maxScore
-}

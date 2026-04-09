@@ -41,11 +41,13 @@ func NewReranker(cfg config.RerankConfig) Reranker {
 	}
 }
 
+// Deprecated: OverlapReranker is the legacy reranker; use stage.OverlapRerankStage in new pipeline code.
 // OverlapReranker 使用查询-文档重叠度进行轻量精排 / Lightweight reranker based on query-document overlap
 type OverlapReranker struct {
 	cfg config.RerankConfig
 }
 
+// Deprecated: Rerank is the legacy overlap reranker method; use stage.OverlapRerankStage in new pipeline code.
 // Rerank 对前 top_k 个候选做重排，其余顺序保持不变 / Rerank top-k candidates, preserve the rest
 func (r *OverlapReranker) Rerank(ctx context.Context, query string, results []*model.SearchResult) []*model.SearchResult {
 	if err := ctx.Err(); err != nil || len(results) <= 1 {
@@ -132,6 +134,7 @@ func (r *OverlapReranker) Rerank(ctx context.Context, query string, results []*m
 	return reranked
 }
 
+// Deprecated: scoreOverlap is the legacy overlap scoring function; use stage.overlapScore in new pipeline code.
 func scoreOverlap(queryNorm string, terms []string, mem *model.Memory) float64 {
 	doc := normalizeRerankText(strings.Join([]string{mem.Content, mem.Excerpt, mem.Summary}, " "))
 	if doc == "" {
@@ -154,6 +157,7 @@ func scoreOverlap(queryNorm string, terms []string, mem *model.Memory) float64 {
 	return 0.35*phraseBoost + 0.65*coverage
 }
 
+// Deprecated: expandRerankTerms is the legacy term expansion; use stage.overlapExpandTerms in new pipeline code.
 func expandRerankTerms(query string) []string {
 	parts := splitRerankTerms(query)
 	seen := make(map[string]bool, len(parts)*2)

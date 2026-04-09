@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -168,25 +167,8 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 
 	s.breaker.recordSuccess()
 
-	// 计算最大基础分数用于归一化 / Compute max base score for normalization
-	maxBaseScore := 0.0
-	for _, res := range subset {
-		if res != nil && res.Score > maxBaseScore {
-			maxBaseScore = res.Score
-		}
-	}
-	if maxBaseScore <= 0 {
-		maxBaseScore = 1
-	}
-
-	// 构建评分结果 / Build scored results
-	type scoredResult struct {
-		result   *model.SearchResult
-		llmScore float64
-		blended  float64
-	}
-
-	var kept []scoredResult
+	// 过滤低相关性并构建外部分数映射 / Filter low relevance and build external score map
+	externalScores := make(map[int]float64, len(scores))
 	var topLLMScore float64
 	hasTopScore := false
 
@@ -197,17 +179,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 		if sc.Score < s.minRelevance {
 			continue
 		}
-
-		res := subset[sc.Index]
-		baseNorm := res.Score / maxBaseScore
-		blended := (1-s.scoreWeight)*baseNorm + s.scoreWeight*sc.Score
-
-		kept = append(kept, scoredResult{
-			result:   res,
-			llmScore: sc.Score,
-			blended:  blended,
-		})
-
+		externalScores[sc.Index] = sc.Score
 		if !hasTopScore || sc.Score > topLLMScore {
 			topLLMScore = sc.Score
 			hasTopScore = true
@@ -215,7 +187,7 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 	}
 
 	// 设置置信度 / Set confidence
-	if len(kept) == 0 {
+	if len(externalScores) == 0 {
 		state.Confidence = pipeline.ConfidenceNone
 	} else if topLLMScore >= confidenceHighThreshold {
 		state.Confidence = pipeline.ConfidenceHigh
@@ -225,18 +197,12 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 		state.Confidence = pipeline.ConfidenceNone
 	}
 
-	// 按混合分数排序 / Sort by blended score
-	sort.SliceStable(kept, func(i, j int) bool {
-		return kept[i].blended > kept[j].blended
-	})
+	// 使用共享 blendScores 混合分数 / Use shared blendScores for score blending
+	blended := blendScores(subset, externalScores, s.scoreWeight)
 
-	// 构建输出：创建副本避免修改输入 / Build output: create copies to avoid mutating input
-	out := make([]*model.SearchResult, 0, len(kept)+len(remaining))
-	for _, item := range kept {
-		resCopy := *item.result
-		resCopy.Score = item.blended
-		out = append(out, &resCopy)
-	}
+	// 构建输出 / Build output
+	out := make([]*model.SearchResult, 0, len(blended)+len(remaining))
+	out = append(out, blended...)
 
 	// 追加未参与 LLM 评估的候选 / Append non-top-K candidates
 	out = append(out, remaining...)
