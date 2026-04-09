@@ -73,6 +73,14 @@ func (r *Retriever) SetCoreProvider(cp CoreProvider) {
 	r.coreProvider = cp
 }
 
+// SetPipelineComponents 手动注入管线组件（用于评测等需要自定义 LLM Provider 的场景）
+// Manually inject pipeline components (for eval scenarios with custom LLM providers)
+func (r *Retriever) SetPipelineComponents(executor *pipeline.Executor, agent *strategy.Agent, rc *strategy.RuleClassifier) {
+	r.executor = executor
+	r.strategyAgent = agent
+	r.ruleClassifier = rc
+}
+
 // InitPipeline 初始化管线系统 / Initialize pipeline system
 // 在 NewRetriever 后、首次 Retrieve 前调用 / Call after NewRetriever, before first Retrieve
 func (r *Retriever) InitPipeline() {
@@ -134,6 +142,10 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 	state.Filters = req.Filters
 	if len(req.Embedding) > 0 {
 		state.Embedding = req.Embedding
+	}
+	// full 管线无条件触发 LLM rerank / full pipeline forces LLM rerank
+	if pipelineName == pipeline.PipelineFull {
+		state.Metadata["force_llm_rerank"] = true
 	}
 
 	// 3. 执行管线 / Execute pipeline

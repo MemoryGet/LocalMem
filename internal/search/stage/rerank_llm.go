@@ -114,6 +114,24 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 		return state, nil
 	}
 
+	// 置信度检查：top1 明显领先时跳过 LLM（节省成本）/ Confidence check: skip LLM when top1 clearly leads
+	if len(state.Candidates) >= 2 && !s.forceRerank(state) {
+		top1 := state.Candidates[0].Score
+		top2 := state.Candidates[1].Score
+		if top1 > 0 && (top1-top2)/top1 > 0.2 {
+			state.Confidence = pipeline.ConfidenceHigh
+			state.AddTrace(pipeline.StageTrace{
+				Name:        s.Name(),
+				Duration:    time.Since(start),
+				InputCount:  inputCount,
+				OutputCount: inputCount,
+				Skipped:     true,
+				Note:        fmt.Sprintf("skipped: top1 (%.4f) clearly leads top2 (%.4f), gap %.0f%%", top1, top2, (top1-top2)/top1*100),
+			})
+			return state, nil
+		}
+	}
+
 	// 熔断器检查 / Circuit breaker check
 	if !s.breaker.allow() {
 		state.AddTrace(pipeline.StageTrace{
@@ -251,6 +269,16 @@ func (s *RerankLLMStage) Execute(ctx context.Context, state *pipeline.PipelineSt
 	})
 
 	return state, nil
+}
+
+// forceRerank 检查是否强制 LLM rerank（full 管线或显式请求）/ Check if LLM rerank is forced
+func (s *RerankLLMStage) forceRerank(state *pipeline.PipelineState) bool {
+	if v, ok := state.Metadata["force_llm_rerank"]; ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return false
 }
 
 // llmScoreItem LLM 返回的单个评分项 / Single score item from LLM response
