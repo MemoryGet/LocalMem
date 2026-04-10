@@ -347,6 +347,81 @@ func TestSearchTextFiltered_ExcludeExpired(t *testing.T) {
 	assert.Equal(t, 3, len(results), "all memories should be included with IncludeExpired")
 }
 
+func TestSearchTextFiltered_SourceRefPrefix(t *testing.T) {
+	tok := tokenizer.NewSimpleTokenizer()
+	s, cleanup := setupStoreWithTokenizer(t, tok)
+	defer cleanup()
+	ctx := context.Background()
+
+	// 创建两条记忆，不同 source_ref，相同关键词 "Python"
+	// Create two memories with different source_ref but same keyword "Python"
+	mem1 := &model.Memory{
+		Content:    "Python programming best practices",
+		SourceType: "feishu",
+		SourceRef:  "feishu://chat/group-eng/msg/001",
+		TeamID:     "t1",
+	}
+	mem2 := &model.Memory{
+		Content:    "Python data analysis fundamentals",
+		SourceType: "wechat",
+		SourceRef:  "wechat://contact/bob/msg/001",
+		TeamID:     "t1",
+	}
+	require.NoError(t, s.Create(ctx, mem1))
+	require.NoError(t, s.Create(ctx, mem2))
+
+	tests := []struct {
+		name            string
+		query           string
+		sourceRefPrefix string
+		wantCount       int
+		wantContains    string
+	}{
+		{
+			name:            "no prefix filter returns both",
+			query:           "Python",
+			sourceRefPrefix: "",
+			wantCount:       2,
+		},
+		{
+			name:            "feishu prefix returns only feishu memory",
+			query:           "Python",
+			sourceRefPrefix: "feishu://chat/group-eng/",
+			wantCount:       1,
+			wantContains:    "best practices",
+		},
+		{
+			name:            "wechat prefix returns only wechat memory",
+			query:           "Python",
+			sourceRefPrefix: "wechat://contact/bob/",
+			wantCount:       1,
+			wantContains:    "data analysis",
+		},
+		{
+			name:            "non-matching prefix returns none",
+			query:           "Python",
+			sourceRefPrefix: "slack://channel/general/",
+			wantCount:       0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filters := &model.SearchFilters{TeamID: "t1"}
+			if tt.sourceRefPrefix != "" {
+				filters.SourceRefPrefix = tt.sourceRefPrefix
+			}
+			results, err := s.SearchTextFiltered(ctx, tt.query, filters, 10)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantCount, len(results),
+				"expected %d results, got %d", tt.wantCount, len(results))
+			if tt.wantContains != "" && len(results) > 0 {
+				assert.Contains(t, results[0].Memory.Content, tt.wantContains)
+			}
+		})
+	}
+}
+
 // === sqlbuilder 单元测试 ===
 
 func TestSQLBuilder_WhereBuilder(t *testing.T) {

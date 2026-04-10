@@ -523,6 +523,7 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 		wb.AndIf(filters.ContextID != "", "m.context_id = ?", filters.ContextID)
 		wb.AndIf(filters.Kind != "", "m.kind = ?", filters.Kind)
 		wb.AndIf(filters.SourceType != "", "m.source_type = ?", filters.SourceType)
+		wb.AndIf(filters.SourceRefPrefix != "", "m.source_ref LIKE ?", filters.SourceRefPrefix+"%")
 		wb.AndIf(filters.HappenedAfter != nil, "m.happened_at >= ?", filters.HappenedAfter)
 		wb.AndIf(filters.HappenedBefore != nil, "m.happened_at <= ?", filters.HappenedBefore)
 		wb.AndIf(filters.MinStrength > 0, "m.strength >= ?", filters.MinStrength)
