@@ -32,6 +32,7 @@ type Config struct {
 	Queue           QueueConfig           `mapstructure:"queue"`
 	Hooks           HooksConfig           `mapstructure:"hooks"`
 	Document        DocumentConfig        `mapstructure:"document"`
+	Ingest          IngestConfig          `mapstructure:"ingest"`
 }
 
 // StorageConfig 存储配置 / Storage configuration
@@ -187,7 +188,8 @@ type RetrievalConfig struct {
 	QdrantWeight     float64          `mapstructure:"qdrant_weight"`
 	GraphFTSTop      int              `mapstructure:"graph_fts_top"`
 	GraphEntityLimit int              `mapstructure:"graph_entity_limit"`
-	AccessAlpha      float64          `mapstructure:"access_alpha"` // 访问频率阻尼系数 / Access frequency damping coefficient
+	AccessAlpha          float64          `mapstructure:"access_alpha"`           // 访问频率阻尼系数 / Access frequency damping coefficient
+	RelationDecayLambda  float64          `mapstructure:"relation_decay_lambda"`  // 关系时间衰减系数 λ / Relation time decay lambda
 	Rerank           RerankConfig     `mapstructure:"rerank"`
 	MMR              MMRConfig        `mapstructure:"mmr"`
 	Preprocess       PreprocessConfig `mapstructure:"preprocess"`
@@ -315,6 +317,17 @@ func (p PreprocessConfig) ResolvedHyDEWeight() float64 {
 	return 0.8
 }
 
+// IngestConfig 数据摄入配置 / Data ingestion configuration
+type IngestConfig struct {
+	NoiseFilter NoiseFilterConfig `mapstructure:"noise_filter"`
+}
+
+// NoiseFilterConfig 噪声过滤配置 / Noise filter configuration
+type NoiseFilterConfig struct {
+	MinContentLength int      `mapstructure:"min_content_length"` // 最小内容长度 / Min content length (below this: discard)
+	Patterns         []string `mapstructure:"patterns"`           // 自定义噪声模式 / Custom noise patterns
+}
+
 // AppConfig 全局配置单例 / Global config singleton
 var AppConfig Config
 
@@ -371,6 +384,7 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.graph_fts_top", 5)
 	viper.SetDefault("retrieval.graph_entity_limit", 10)
 	viper.SetDefault("retrieval.access_alpha", 0.15)
+	viper.SetDefault("retrieval.relation_decay_lambda", 0.015)
 	viper.SetDefault("retrieval.rerank.enabled", false)
 	viper.SetDefault("retrieval.rerank.provider", "overlap")
 	viper.SetDefault("retrieval.rerank.base_url", "")
@@ -455,6 +469,8 @@ func LoadConfig() error {
 	viper.SetDefault("document.chunking.context_prefix", true)
 	viper.SetDefault("document.chunking.keep_table_intact", true)
 	viper.SetDefault("document.chunking.keep_code_intact", true)
+	// Ingest 默认值 / Ingest defaults
+	viper.SetDefault("ingest.noise_filter.min_content_length", 10)
 
 	// 从环境变量读取
 	viper.AutomaticEnv()
