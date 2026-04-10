@@ -451,12 +451,13 @@ func TestLongMemEvalSharedDB(t *testing.T) {
 
 // TestLongMemEvalQueryOnly 纯查询评测：复用已有数据库（EVAL_DB_PATH 指定），零 LLM 调用
 func TestLongMemEvalQueryOnly(t *testing.T) {
+	// 默认使用持久化共享评测库，可通过 EVAL_DB_PATH 覆盖 / Default to persistent shared eval DB, override via EVAL_DB_PATH
 	dbPath := os.Getenv("EVAL_DB_PATH")
 	if dbPath == "" {
-		t.Skip("skip: EVAL_DB_PATH not set, specify path to existing shared_eval.db")
+		dbPath = filepath.Join("..", "..", "data", "eval_shared.db")
 	}
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		t.Skipf("skip: DB not found at %s", dbPath)
+		t.Skipf("skip: eval DB not found at %s (run TestLongMemEvalSharedDB first or set EVAL_DB_PATH)", dbPath)
 	}
 
 	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")

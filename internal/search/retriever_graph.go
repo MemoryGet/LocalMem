@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"sort"
+	"strings"
 	"time"
 
 	"iclude/internal/llm"
@@ -44,11 +45,20 @@ func (r *Retriever) graphRetrieve(ctx context.Context, query string, teamID stri
 		}
 	}
 
-	// 阶段 1.5: LLM fallback（FTS5 无实体命中时）/ LLM fallback when no entities found
-	if len(entityIDs) == 0 && r.llm != nil {
-		llmEntities := r.llmExtractEntities(ctx, query, scope)
-		for _, id := range llmEntities {
-			entityIDs[id] = true
+	// 阶段 1.5: 关键词直接匹配实体表（零 LLM，替代原 LLM fallback）
+	// Keyword direct match against entity table (zero LLM, replaces LLM fallback)
+	if len(entityIDs) == 0 {
+		for _, kw := range strings.Fields(query) {
+			if len([]rune(kw)) < 2 {
+				continue
+			}
+			entities, err := r.graphStore.FindEntitiesByName(ctx, kw, scope, 3)
+			if err != nil {
+				continue
+			}
+			for _, ent := range entities {
+				entityIDs[ent.ID] = true
+			}
 		}
 	}
 

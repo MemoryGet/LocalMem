@@ -3,6 +3,7 @@ package stage
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
 	"iclude/internal/logger"
@@ -136,15 +137,15 @@ func (s *GraphStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	return state, nil
 }
 
-// resolveSeedEntities 解析种子实体：优先从 Plan.Entities，否则 FTS 反查
-// Resolve seed entities: prefer Plan.Entities, fallback to FTS reverse lookup
+// resolveSeedEntities 解析种子实体：Plan → 关键词直接匹配 → FTS 反查（三路径，零 LLM）
+// Resolve seed entities: Plan → keyword direct match → FTS reverse lookup (3 paths, zero LLM)
 func (s *GraphStage) resolveSeedEntities(ctx context.Context, state *pipeline.PipelineState) map[string]int {
 	seeds := make(map[string]int) // entityID → depth (0 for seeds)
+	scope := s.resolveScope(state)
 
 	// 路径 1: 从 Plan 中预提取的实体名查找 / Path 1: Look up pre-extracted entity names from Plan
 	if state.Plan != nil && len(state.Plan.Entities) > 0 {
 		for _, name := range state.Plan.Entities {
-			scope := s.resolveScope(state)
 			entities, err := s.graphStore.FindEntitiesByName(ctx, name, scope, 1)
 			if err != nil {
 				logger.Warn("graph: FindEntitiesByName failed",
@@ -162,7 +163,28 @@ func (s *GraphStage) resolveSeedEntities(ctx context.Context, state *pipeline.Pi
 		}
 	}
 
-	// 路径 2: FTS 反查 → 获取记忆关联的实体 / Path 2: FTS reverse lookup → get memory entities
+	// 路径 2: query 关键词直接匹配实体表（纯索引查询，零 LLM）
+	// Path 2: match query keywords directly against entity table (index-only, zero LLM)
+	if state.Query != "" {
+		keywords := strings.Fields(state.Query)
+		for _, kw := range keywords {
+			if len([]rune(kw)) < 2 {
+				continue // 跳过单字符词 / Skip single-char words
+			}
+			entities, err := s.graphStore.FindEntitiesByName(ctx, kw, scope, 3)
+			if err != nil {
+				continue
+			}
+			for _, ent := range entities {
+				seeds[ent.ID] = 0
+			}
+		}
+		if len(seeds) > 0 {
+			return seeds
+		}
+	}
+
+	// 路径 3: FTS 反查 → 获取记忆关联的实体 / Path 3: FTS reverse lookup → get memory entities
 	if s.ftsSearcher != nil && state.Query != "" {
 		ftsResults, err := s.ftsSearcher.SearchText(ctx, state.Query, state.Identity, s.ftsTop)
 		if err != nil {
