@@ -10,9 +10,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// createFreshSchema 为新数据库一步创建 V25 终态 schema / Create final V25 schema for new databases in one step
-// 等效于 V0→V25 全部迁移的最终结果，但跳过中间步骤
-// Equivalent to running all V0→V25 migrations, but skips intermediate steps
+// createFreshSchema 为新数据库一步创建 V26 终态 schema / Create final V26 schema for new databases in one step
+// 等效于 V0→V26 全部迁移的最终结果，但跳过中间步骤
+// Equivalent to running all V0→V26 migrations, but skips intermediate steps
 func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -131,6 +131,7 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		metadata    TEXT,
 		created_at  DATETIME NOT NULL,
 		updated_at  DATETIME NOT NULL,
+		deleted_at  DATETIME DEFAULT NULL,
 		UNIQUE(name, entity_type, scope)
 	)`); err != nil {
 		return fmt.Errorf("fresh schema: create entities: %w", err)
@@ -143,8 +144,11 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		target_id     TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
 		relation_type TEXT NOT NULL,
 		weight        REAL DEFAULT 1.0 CHECK (weight >= 0),
+		mention_count INTEGER DEFAULT 1,
+		last_seen_at  DATETIME,
 		metadata      TEXT,
 		created_at    DATETIME NOT NULL,
+		updated_at    DATETIME,
 		CHECK (source_id != target_id),
 		UNIQUE(source_id, target_id, relation_type)
 	)`); err != nil {
@@ -263,6 +267,8 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		`CREATE INDEX idx_memories_candidate_for ON memories(candidate_for) WHERE candidate_for != '' AND candidate_for IS NOT NULL`,
 		// V25: missing excerpt (heartbeat ListMissingExcerpt query path)
 		`CREATE INDEX idx_memories_missing_excerpt ON memories(created_at DESC) WHERE (excerpt = '' OR excerpt IS NULL) AND deleted_at IS NULL`,
+		// V26: source_ref prefix index (unfiltered, for prefix LIKE queries)
+		`CREATE INDEX idx_memories_source_ref_prefix ON memories(source_ref)`,
 	}
 	for _, idx := range memIndexes {
 		if _, err := tx.Exec(idx); err != nil {
@@ -286,6 +292,7 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 	entityIndexes := []string{
 		`CREATE INDEX idx_entities_lower_name ON entities(name COLLATE NOCASE)`,
 		`CREATE INDEX idx_entities_scope_type_updated ON entities(scope, entity_type, updated_at DESC)`,
+		`CREATE INDEX idx_entities_deleted_at ON entities(deleted_at)`,
 	}
 	for _, idx := range entityIndexes {
 		if _, err := tx.Exec(idx); err != nil {
@@ -297,6 +304,7 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 	erIndexes := []string{
 		`CREATE INDEX idx_entity_relations_source ON entity_relations(source_id)`,
 		`CREATE INDEX idx_entity_relations_target ON entity_relations(target_id)`,
+		`CREATE INDEX idx_entity_relations_last_seen ON entity_relations(last_seen_at)`,
 	}
 	for _, idx := range erIndexes {
 		if _, err := tx.Exec(idx); err != nil {
@@ -453,12 +461,12 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		return fmt.Errorf("fresh schema: scope_policies table: %w", err)
 	}
 
-	// --- 记录 schema 版本 = 25 / Record schema version = 25 ---
-	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (25)`); err != nil {
+	// --- 记录 schema 版本 = 26 / Record schema version = 26 ---
+	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (26)`); err != nil {
 		return fmt.Errorf("fresh schema: record version: %w", err)
 	}
 
-	logger.Info("fresh schema V25 created successfully",
+	logger.Info("fresh schema V26 created successfully",
 		zap.String("tokenizer", tokName),
 	)
 
