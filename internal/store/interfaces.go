@@ -296,6 +296,24 @@ type GraphStore interface {
 
 	// GetRelation 获取关系 / Get a relation by ID
 	GetRelation(ctx context.Context, id string) (*model.EntityRelation, error)
+
+	// SoftDeleteEntity 软删除实体 / Soft delete an entity
+	SoftDeleteEntity(ctx context.Context, id string) error
+
+	// RestoreEntity 恢复软删除的实体 / Restore a soft-deleted entity
+	RestoreEntity(ctx context.Context, id string) error
+
+	// UpdateRelationStats 更新关系共现统计 / Update relation co-occurrence stats
+	UpdateRelationStats(ctx context.Context, sourceID, targetID, relationType string) (*model.EntityRelation, error)
+
+	// CleanupStaleRelations 清理过期弱关系 / Cleanup stale weak relations
+	CleanupStaleRelations(ctx context.Context, minMentions int, cutoff time.Time) (int64, error)
+
+	// CleanupOrphanEntities 软删除无关系的孤儿实体 / Soft-delete orphan entities with no active relations
+	CleanupOrphanEntities(ctx context.Context) (int64, error)
+
+	// PurgeDeletedEntities 硬删除已超期的软删除实体 / Hard-delete entities soft-deleted before cutoff
+	PurgeDeletedEntities(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
 // DocumentStore 文档存储接口 / Document storage interface
