@@ -440,22 +440,27 @@ func (s *SQLiteMemoryStore) SearchText(ctx context.Context, query string, identi
 	if err != nil {
 		tokenizedQuery = query // 分词失败回退原文
 	}
-	// FTS5 语法净化：包裹为短语查询防止操作符注入 / Sanitize for FTS5 syntax injection
+	// FTS5 语法净化 / Sanitize for FTS5 syntax injection
 	tokenizedQuery = sanitizeFTS5Query(tokenizedQuery)
 
-	visCond, visArgs := visibilityCondition("m.", identity)
+	// CTE 分离策略：FTS5 纯索引在 CTE 内部完成排序，外层 JOIN memories 做 scope + visibility 过滤
+	// CTE isolation: FTS5 index-only ranking inside CTE, outer JOIN for scope + visibility filtering
+	// 原因：modernc/sqlite 纯 Go 实现中 FTS5 MATCH + WHERE 条件组合会导致全表扫描
+	// Reason: modernc/sqlite pure-Go FTS5 MATCH combined with WHERE conditions causes full table scan
 	w := s.bm25Weights
-	// 用 CTE 消除 bm25() 重复计算 / Use CTE to avoid computing bm25() twice
-	sqlQuery := `WITH ranked AS (
-		SELECT ` + memoryColumnsAliased + `,
-			bm25(memories_fts, ?, ?, ?) AS rank
-		FROM memories m
-		JOIN memories_fts f ON m.rowid = f.rowid
-		WHERE memories_fts MATCH ? AND m.deleted_at IS NULL AND ` + visCond + `
+	cteLimit := limit * 10 // scope 已缩小范围，预取 10 倍足够覆盖 visibility 过滤 / Scope narrows range, 10x overfetch covers visibility filtering
+	visCond, visArgs := visibilityCondition("m.", identity)
+	sqlQuery := `WITH fts AS (
+		SELECT rowid AS rid, bm25(memories_fts, ?, ?, ?) AS rank
+		FROM memories_fts WHERE memories_fts MATCH ?
+		ORDER BY rank LIMIT ?
 	)
-	SELECT ` + memoryColumns + `, rank FROM ranked ORDER BY rank LIMIT ?`
+	SELECT ` + memoryColumnsAliased + `, fts.rank
+	FROM fts JOIN memories m ON m.rowid = fts.rid
+	WHERE m.deleted_at IS NULL AND ` + visCond + `
+	ORDER BY fts.rank LIMIT ?`
 
-	args := []interface{}{w[0], w[1], w[2], tokenizedQuery}
+	args := []interface{}{w[0], w[1], w[2], tokenizedQuery, cteLimit}
 	args = append(args, visArgs...)
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, sqlQuery, args...)
@@ -504,9 +509,13 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 	// FTS5 语法净化 / Sanitize for FTS5 syntax injection
 	tokenizedQuery = sanitizeFTS5Query(tokenizedQuery)
 
-	// 使用 sqlbuilder 构建 WHERE 子句
+	// CTE 分离策略：FTS5 在 CTE 内部完成排序，外层 JOIN 做 scope/visibility/业务过滤
+	// CTE isolation: FTS5 ranking inside CTE, outer JOIN for scope/visibility/business filters
+	w := s.bm25Weights
+	cteLimit := limit * 10
+
+	// 外层过滤条件（不含 FTS5 MATCH）/ Outer filter conditions (without FTS5 MATCH)
 	wb := sqlbuilder.NewWhere()
-	wb.And("memories_fts MATCH ?", tokenizedQuery)
 	wb.And("m.deleted_at IS NULL")
 
 	if filters != nil {
@@ -523,8 +532,7 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 		wb.AndIf(filters.RetentionTier != "", "m.retention_tier = ?", filters.RetentionTier)
 		wb.AndIf(filters.MessageRole != "", "m.message_role = ?", filters.MessageRole)
 
-		// 可见性过滤（TeamID/OwnerID 由 API 层注入）/ Visibility filtering (injected by API layer)
-		// 无身份时仅返回公开记忆，防止越权访问 / Without identity, only public memories are visible
+		// 可见性过滤（scope + visibility）/ Visibility filtering (scope + visibility)
 		if filters.TeamID != "" || filters.OwnerID != "" {
 			identity := &model.Identity{TeamID: filters.TeamID, OwnerID: filters.OwnerID}
 			visCond, visArgs := visibilityCondition("m.", identity)
@@ -533,26 +541,24 @@ func (s *SQLiteMemoryStore) SearchTextFiltered(ctx context.Context, query string
 			wb.And("m.visibility = 'public'")
 		}
 	} else {
-		// filters 为 nil 时同样限制仅公开记忆 / When filters is nil, also restrict to public only
 		wb.And("m.visibility = 'public'")
 	}
 
-	whereClause, whereArgs := wb.Build()
-	w := s.bm25Weights
+	outerWhere, outerArgs := wb.Build()
 
-	// 用 CTE 消除 bm25() 重复计算 / Use CTE to avoid computing bm25() twice
-	sqlQuery := fmt.Sprintf(`WITH ranked AS (
-		SELECT %s,
-			bm25(memories_fts, ?, ?, ?) AS rank
-		FROM memories m
-		JOIN memories_fts f ON m.rowid = f.rowid
-		WHERE %s
+	sqlQuery := fmt.Sprintf(`WITH fts AS (
+		SELECT rowid AS rid, bm25(memories_fts, ?, ?, ?) AS rank
+		FROM memories_fts WHERE memories_fts MATCH ?
+		ORDER BY rank LIMIT ?
 	)
-	SELECT %s, rank FROM ranked ORDER BY rank LIMIT ?`, memoryColumnsAliased, whereClause, memoryColumns)
+	SELECT %s, fts.rank
+	FROM fts JOIN memories m ON m.rowid = fts.rid
+	WHERE %s
+	ORDER BY fts.rank LIMIT ?`, memoryColumnsAliased, outerWhere)
 
-	finalArgs := make([]interface{}, 0, len(whereArgs)+4)
-	finalArgs = append(finalArgs, w[0], w[1], w[2])
-	finalArgs = append(finalArgs, whereArgs...)
+	finalArgs := make([]interface{}, 0, 5+len(outerArgs)+1)
+	finalArgs = append(finalArgs, w[0], w[1], w[2], tokenizedQuery, cteLimit)
+	finalArgs = append(finalArgs, outerArgs...)
 	finalArgs = append(finalArgs, limit)
 
 	rows, err := s.db.QueryContext(ctx, sqlQuery, finalArgs...)

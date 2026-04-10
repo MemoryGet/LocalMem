@@ -195,6 +195,25 @@ func (s *SQLiteMemoryStore) Close() error {
 }
 
 // sanitizeFTS5Query 清除 FTS5 操作符，每个词独立包裹为短语 / Strip FTS5 operators, wrap each token as phrase
+// maxFTS5Terms FTS5 OR 查询最大项数，CTE 隔离后 FTS5 纯索引操作对 term 数不敏感，保持合理上限即可
+// Max OR terms in FTS5 query; with CTE isolation FTS5 runs index-only, moderate cap suffices
+const maxFTS5Terms = 12
+
+// fts5StopWords 英文停用词（FTS5 查询级过滤，减少无意义 term）/ English stop words for FTS5 query filtering
+var fts5StopWords = map[string]bool{
+	"a": true, "an": true, "the": true, "is": true, "are": true, "was": true, "were": true,
+	"be": true, "been": true, "being": true, "have": true, "has": true, "had": true,
+	"do": true, "does": true, "did": true, "will": true, "would": true, "could": true,
+	"should": true, "may": true, "might": true, "shall": true, "can": true,
+	"i": true, "me": true, "my": true, "we": true, "our": true, "you": true, "your": true,
+	"he": true, "she": true, "it": true, "its": true, "they": true, "them": true, "their": true,
+	"this": true, "that": true, "these": true, "those": true,
+	"in": true, "on": true, "at": true, "to": true, "for": true, "of": true, "with": true,
+	"by": true, "from": true, "as": true, "into": true, "about": true, "after": true,
+	"what": true, "which": true, "who": true, "whom": true, "how": true, "when": true, "where": true,
+	"if": true, "then": true, "so": true, "no": true, "not": true, "but": true, "or": true, "and": true,
+}
+
 func sanitizeFTS5Query(query string) string {
 	if query == "" {
 		return query
@@ -208,6 +227,14 @@ func sanitizeFTS5Query(query string) string {
 	var filtered []string
 	for _, w := range words {
 		if w == "" {
+			continue
+		}
+		lower := strings.ToLower(w)
+		// 跳过英文停用词和单字符英文词 / Skip stop words and single-char ASCII words
+		if fts5StopWords[lower] {
+			continue
+		}
+		if len(w) == 1 && w[0] < 0x80 {
 			continue
 		}
 		upper := strings.ToUpper(w)
@@ -224,11 +251,16 @@ func sanitizeFTS5Query(query string) string {
 	parts := make([]string, len(filtered))
 	copy(parts, filtered)
 
-	// 二元组增强：3+ 词时追加相邻词对短语 / Bigram boost for 3+ word queries
+	// 二元组增强：3+ 关键词时追加相邻词对短语提升精确匹配权重 / Bigram boost for 3+ word queries
 	if len(filtered) >= 3 {
 		for i := 0; i < len(filtered)-1; i++ {
 			parts = append(parts, `"`+filtered[i]+" "+filtered[i+1]+`"`)
 		}
+	}
+
+	// 截断到上限 / Truncate to cap
+	if len(parts) > maxFTS5Terms {
+		parts = parts[:maxFTS5Terms]
 	}
 
 	return strings.Join(parts, " OR ")

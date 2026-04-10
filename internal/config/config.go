@@ -175,6 +175,7 @@ type ExtractConfig struct {
 	Timeout             time.Duration `mapstructure:"timeout"`
 	EntityTypes         []string      `mapstructure:"entity_types"`   // 实体类型白名单 / Allowed entity types
 	RelationTypes       []string      `mapstructure:"relation_types"` // 关系类型白名单 / Allowed relation types
+	BatchTokenThreshold int           `mapstructure:"batch_token_threshold"` // 每批最大 content token 数，默认 4000 / Max content tokens per batch
 }
 
 // RetrievalConfig 检索配置 / Retrieval config
@@ -360,6 +361,7 @@ func LoadConfig() error {
 	viper.SetDefault("extract.timeout", "30s")
 	viper.SetDefault("extract.entity_types", []string{"person", "org", "concept", "tool", "location"})
 	viper.SetDefault("extract.relation_types", []string{"uses", "knows", "belongs_to", "related_to"})
+	viper.SetDefault("extract.batch_token_threshold", 32000)
 	// Retrieval 默认值 / Retrieval defaults
 	viper.SetDefault("retrieval.graph_enabled", true)
 	viper.SetDefault("retrieval.graph_depth", 1)
@@ -380,7 +382,7 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.mmr.enabled", false)
 	viper.SetDefault("retrieval.mmr.lambda", 0.7)
 	// Strategy 默认值 / Strategy defaults
-	viper.SetDefault("retrieval.strategy.use_llm", true)
+	viper.SetDefault("retrieval.strategy.use_llm", false)
 	viper.SetDefault("retrieval.strategy.fallback_pipeline", "exploration")
 	// Crystallization 默认值 / Crystallization defaults
 	viper.SetDefault("crystallization.enabled", true)

@@ -421,11 +421,10 @@ func runSingleQuestionGraphPipeline(ctx context.Context, entry LongMemEvalEntry,
 	graphMgr := memory.NewGraphManager(graphStore)
 	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, config.ExtractConfig{})
 
-	// Manager 带 extractor，seed 时自动抽取实体 / Manager with extractor for auto entity extraction
+	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
 	mgr := memory.NewManager(memory.ManagerDeps{
-		MemStore:    memStore,
-		Extractor:   extractor,
-		LLMProvider: llmProvider,
+		MemStore:  memStore,
+		Extractor: extractor,
 	})
 
 	for _, sm := range entry.SeedMemories {
@@ -501,11 +500,10 @@ func runSingleQuestionFullPipeline(ctx context.Context, entry LongMemEvalEntry, 
 	graphMgr := memory.NewGraphManager(graphStore)
 	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, config.ExtractConfig{})
 
-	// Manager 带 extractor / Manager with extractor
+	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
 	mgr := memory.NewManager(memory.ManagerDeps{
-		MemStore:    memStore,
-		Extractor:   extractor,
-		LLMProvider: llmProvider,
+		MemStore:  memStore,
+		Extractor: extractor,
 	})
 
 	for _, sm := range entry.SeedMemories {
@@ -697,10 +695,10 @@ func runSingleQuestionAllLLM(ctx context.Context, entry LongMemEvalEntry, tmpDir
 	graphMgr := memory.NewGraphManager(graphStore)
 	extractor := memory.NewExtractor(extractProvider, graphMgr, memStore, config.ExtractConfig{})
 
+	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
 	mgr := memory.NewManager(memory.ManagerDeps{
-		MemStore:    memStore,
-		Extractor:   extractor,
-		LLMProvider: extractProvider,
+		MemStore:  memStore,
+		Extractor: extractor,
 	})
 
 	// Seed memories（触发实体抽取）/ Seed memories (triggers entity extraction)
@@ -782,4 +780,480 @@ func runSingleQuestionAllLLM(ctx context.Context, entry LongMemEvalEntry, tmpDir
 		Score:       score,
 		ResultCount: len(results),
 	}, nil
+}
+
+// RunLongMemEvalSingleVerbose 单问题详细调试评测，每一步输出日志
+// Single-question verbose debug evaluation with step-by-step logging
+func RunLongMemEvalSingleVerbose(ctx context.Context, entry LongMemEvalEntry, tmpDir string) error {
+	rawProvider := resolveLLMProvider()
+	if rawProvider == nil {
+		return fmt.Errorf("LLM provider required (set OPENAI_API_KEY)")
+	}
+
+	tracker := NewLLMTracker()
+	start := time.Now()
+	qCase := entry.Case
+
+	fmt.Println("\n" + strings.Repeat("=", 70))
+	fmt.Printf("VERBOSE SINGLE-QUESTION DEBUG\n")
+	fmt.Printf("Question ID: %s\n", qCase.QuestionID)
+	fmt.Printf("Query:       %s\n", qCase.Query)
+	fmt.Printf("Expected:    %v\n", qCase.Expected)
+	fmt.Printf("Gold Answer: %s\n", qCase.GoldAnswer)
+	fmt.Printf("Category:    %s | Difficulty: %s\n", qCase.Category, qCase.Difficulty)
+	fmt.Printf("Seed memories: %d\n", len(entry.SeedMemories))
+	fmt.Println(strings.Repeat("=", 70))
+
+	// --- Step 1: 建库 / Create DB ---
+	stepStart := time.Now()
+	dbPath := filepath.Join(tmpDir, "verbose_debug.db")
+	tok := tokenizer.NewSimpleTokenizer()
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
+	if err != nil {
+		return fmt.Errorf("create store: %w", err)
+	}
+	defer memStore.Close()
+	if err := memStore.Init(ctx); err != nil {
+		return fmt.Errorf("init store: %w", err)
+	}
+	fmt.Printf("\n[Step 1] DB created (%s)\n", time.Since(stepStart).Round(time.Millisecond))
+
+	// --- Step 2: 图谱 + 实体抽取器 / Graph + Extractor ---
+	stepStart = time.Now()
+	extractProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "entity_extraction"}
+	strategyProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "strategy_agent"}
+	rerankProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "rerank_llm"}
+	preprocessProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "preprocess"}
+
+	db := memStore.DB().(*sql.DB)
+	graphStore := store.NewSQLiteGraphStore(db)
+	graphMgr := memory.NewGraphManager(graphStore)
+	ext := memory.NewExtractor(extractProvider, graphMgr, memStore, config.ExtractConfig{})
+
+	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
+	mgr := memory.NewManager(memory.ManagerDeps{
+		MemStore:  memStore,
+		Extractor: ext,
+	})
+	fmt.Printf("[Step 2] Graph store + Extractor initialized (%s)\n", time.Since(stepStart).Round(time.Millisecond))
+
+	// --- Step 3: Seed memories + 收集 ID / Seed memories and collect IDs ---
+	stepStart = time.Now()
+	fmt.Printf("\n[Step 3] Seeding %d memories...\n", len(entry.SeedMemories))
+	type seededMem struct{ ID, Content string }
+	var allSeeded []seededMem
+	for i, sm := range entry.SeedMemories {
+		kind := sm.Kind
+		if kind == "" {
+			kind = "conversation"
+		}
+		seedStart := time.Now()
+		mem, createErr := mgr.Create(ctx, &model.CreateMemoryRequest{
+			Content: sm.Content,
+			Kind:    kind,
+			SubKind: sm.SubKind,
+			Scope:   "eval/longmemeval",
+		})
+		elapsed := time.Since(seedStart)
+		contentPreview := sm.Content
+		if len([]rune(contentPreview)) > 80 {
+			contentPreview = string([]rune(contentPreview)[:80]) + "..."
+		}
+		status := "OK"
+		if createErr != nil {
+			status = fmt.Sprintf("ERR: %v", createErr)
+		} else {
+			allSeeded = append(allSeeded, seededMem{ID: mem.ID, Content: sm.Content})
+		}
+		fmt.Printf("  [3.%d] %s kind=%s (%s) %s\n", i+1, status, kind, elapsed.Round(time.Millisecond), contentPreview)
+	}
+	fmt.Printf("[Step 3] Seeding done: %d memories (%s)\n", len(allSeeded), time.Since(stepStart).Round(time.Millisecond))
+
+	// --- Step 3b: 批量实体抽取 / Batch entity extraction ---
+	stepStart = time.Now()
+	fmt.Printf("\n[Step 3b] Batch entity extraction (%d items)...\n", len(allSeeded))
+	batchItems := make([]model.BatchExtractItem, len(allSeeded))
+	for i, s := range allSeeded {
+		batchItems[i] = model.BatchExtractItem{MemoryID: s.ID, Content: s.Content}
+	}
+	batchResp, batchErr := ext.ExtractBatch(ctx, &model.BatchExtractRequest{
+		Items: batchItems, Scope: "eval/longmemeval",
+	})
+	if batchErr != nil {
+		fmt.Printf("[Step 3b] Batch extraction FAILED: %v\n", batchErr)
+	} else {
+		totalEntities := 0
+		for _, r := range batchResp.Results {
+			totalEntities += len(r.Entities)
+		}
+		fmt.Printf("[Step 3b] Done: %d batches, %d tokens, %d memory-entity associations (%s)\n",
+			batchResp.BatchCount, batchResp.TotalTokens, totalEntities,
+			time.Since(stepStart).Round(time.Millisecond))
+	}
+
+	// 输出抽取的实体 / Print extracted entities
+	entities, _ := graphStore.ListEntities(ctx, "", "", 1000)
+	fmt.Printf("  Entities in graph: %d\n", len(entities))
+	for i, e := range entities {
+		fmt.Printf("  [E%d] %s (type=%s)\n", i+1, e.Name, e.EntityType)
+	}
+
+	// --- Step 4: 配置管线 / Configure pipeline ---
+	stepStart = time.Now()
+	cfg := buildRetrievalConfig("fts")
+	cfg.GraphEnabled = true
+	cfg.GraphDepth = 2
+	cfg.GraphWeight = 0.8
+	cfg.Strategy.UseLLM = true
+	cfg.Strategy.FallbackPipeline = "exploration"
+	cfg.Preprocess.Enabled = true
+	cfg.Preprocess.UseLLM = true
+	cfg.Preprocess.LLMTimeout = 10 * time.Second
+
+	preprocessor := search.NewPreprocessor(tok, graphStore, preprocessProvider, cfg)
+	retriever := search.NewRetriever(memStore, nil, nil, graphStore, rerankProvider, cfg, preprocessor, nil)
+
+	// 手动初始化管线 / Manually init pipeline
+	registry := pipeline.NewRegistry()
+	deps := builtin.Deps{
+		FTSSearcher: memStore,
+		GraphStore:  graphStore,
+		LLM:         rerankProvider,
+		Cfg:         cfg,
+	}
+	postStages := builtin.RegisterBuiltins(registry, deps)
+	executor := pipeline.NewExecutor(registry, pipeline.WithPostStages(postStages...))
+
+	rc := strategy.NewRuleClassifier(pipeline.PipelineExploration)
+	agent := strategy.NewAgent(strategyProvider, rc, 5*time.Second)
+	retriever.SetPipelineComponents(executor, agent, rc)
+	fmt.Printf("[Step 4] Pipeline configured (%s)\n", time.Since(stepStart).Round(time.Millisecond))
+
+	// --- Step 5: 执行检索（带 Debug trace）/ Execute retrieval with debug trace ---
+	stepStart = time.Now()
+	fmt.Printf("\n[Step 5] Retrieving: %q\n", qCase.Query)
+	result, err := retriever.RetrieveWithDebug(ctx, &model.RetrieveRequest{
+		Query: qCase.Query,
+		Limit: 10,
+		Debug: true,
+	})
+	if err != nil {
+		return fmt.Errorf("retrieve: %w", err)
+	}
+	fmt.Printf("[Step 5] Retrieval done (%s)\n", time.Since(stepStart).Round(time.Millisecond))
+
+	// --- Step 6: 输出 Pipeline Debug 信息 / Print pipeline debug info ---
+	if result.PipelineInfo != nil {
+		fmt.Printf("\n[Step 6] Pipeline: %s\n", result.PipelineInfo.PipelineName)
+		fmt.Printf("  Traces (%d stages):\n", len(result.PipelineInfo.Traces))
+		for i, tr := range result.PipelineInfo.Traces {
+			skipMark := ""
+			if tr.Skipped {
+				skipMark = " [SKIPPED]"
+			}
+			note := ""
+			if tr.Note != "" {
+				note = fmt.Sprintf(" (%s)", tr.Note)
+			}
+			fmt.Printf("  [T%d] %-20s in=%d out=%d %s%s%s\n",
+				i+1, tr.Name, tr.InputCount, tr.OutputCount, tr.Duration.Round(time.Millisecond), skipMark, note)
+		}
+	}
+
+	// --- Step 7: 输出检索结果 / Print retrieval results ---
+	results := result.Results
+	fmt.Printf("\n[Step 7] Results: %d items\n", len(results))
+	for i, r := range results {
+		if r == nil || r.Memory == nil {
+			fmt.Printf("  [R%d] <nil>\n", i+1)
+			continue
+		}
+		contentPreview := r.Memory.Content
+		if len([]rune(contentPreview)) > 100 {
+			contentPreview = string([]rune(contentPreview)[:100]) + "..."
+		}
+		fmt.Printf("  [R%d] score=%.4f source=%s kind=%s\n       %s\n",
+			i+1, r.Score, r.Source, r.Memory.Kind, contentPreview)
+	}
+
+	// --- Step 8: 匹配检查 / Hit check ---
+	hit, rank, score := checkHit(results, qCase.Expected)
+	if !hit && qCase.GoldAnswer != "" {
+		hit, rank, score = fuzzyCheckHit(results, qCase.GoldAnswer)
+		if hit {
+			fmt.Printf("\n[Step 8] HIT (fuzzy) rank=%d score=%.4f\n", rank, score)
+		}
+	}
+	if hit && rank > 0 {
+		fmt.Printf("\n[Step 8] HIT rank=%d score=%.4f\n", rank, score)
+	} else {
+		fmt.Printf("\n[Step 8] MISS — expected keywords not found in results\n")
+	}
+
+	// --- Step 9: LLM 用量 / LLM usage ---
+	tracker.PrintUsage()
+
+	totalDuration := time.Since(start)
+	fmt.Printf("Total duration: %s\n", totalDuration.Round(time.Millisecond))
+	fmt.Println(strings.Repeat("=", 70))
+
+	return nil
+}
+
+// RunLongMemEvalSharedDB 共享单库评测：全部记忆写入同一 DB + LLM 实体抽取 + 全局图谱
+// Shared-DB eval: all memories in one DB with LLM entity extraction and global graph
+func RunLongMemEvalSharedDB(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, error) {
+	llmProvider := resolveLLMProvider()
+	if llmProvider == nil {
+		return nil, fmt.Errorf("LLM provider required for shared-DB eval (set OPENAI_API_KEY)")
+	}
+
+	if maxQuestions > 0 && len(entries) > maxQuestions {
+		entries = entries[:maxQuestions]
+	}
+
+	start := time.Now()
+	dbPath := filepath.Join(tmpDir, "shared_eval.db")
+
+	tok := tokenizer.NewSimpleTokenizer()
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
+	if err != nil {
+		return nil, fmt.Errorf("create shared store: %w", err)
+	}
+	defer memStore.Close()
+
+	if err := memStore.Init(ctx); err != nil {
+		return nil, fmt.Errorf("init shared store: %w", err)
+	}
+
+	db := memStore.DB().(*sql.DB)
+	graphStore := store.NewSQLiteGraphStore(db)
+	graphMgr := memory.NewGraphManager(graphStore)
+	ext := memory.NewExtractor(llmProvider, graphMgr, memStore, config.ExtractConfig{})
+
+	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
+	mgr := memory.NewManager(memory.ManagerDeps{
+		MemStore:  memStore,
+		Extractor: ext,
+	})
+
+	// --- Phase 1a: seed（收集 memoryID）/ Seed and collect memory IDs ---
+	type seedKey struct{ content, kind string }
+	seeded := make(map[seedKey]bool)
+	type seededMem struct{ ID, Content string }
+	var allSeeded []seededMem
+
+	for _, entry := range entries {
+		for _, sm := range entry.SeedMemories {
+			kind := sm.Kind
+			if kind == "" {
+				kind = "conversation"
+			}
+			key := seedKey{content: sm.Content, kind: kind}
+			if seeded[key] {
+				continue
+			}
+			seeded[key] = true
+			mem, createErr := mgr.Create(ctx, &model.CreateMemoryRequest{
+				Content: sm.Content,
+				Kind:    kind,
+				SubKind: sm.SubKind,
+				Scope:   "eval/longmemeval",
+			})
+			if createErr != nil {
+				continue
+			}
+			allSeeded = append(allSeeded, seededMem{ID: mem.ID, Content: sm.Content})
+			if len(allSeeded)%50 == 0 {
+				fmt.Printf("  [seed] %d memories seeded...\n", len(allSeeded))
+			}
+		}
+	}
+	seedDuration := time.Since(start)
+	fmt.Printf("  [seed] Phase 1a done: %d memories (%s)\n", len(allSeeded), seedDuration.Round(time.Second))
+
+	// --- Phase 1b: 批量实体抽取 / Batch entity extraction ---
+	extractStart := time.Now()
+	batchItems := make([]model.BatchExtractItem, len(allSeeded))
+	for i, s := range allSeeded {
+		batchItems[i] = model.BatchExtractItem{MemoryID: s.ID, Content: s.Content}
+	}
+	batchResp, batchErr := ext.ExtractBatch(ctx, &model.BatchExtractRequest{
+		Items: batchItems, Scope: "eval/longmemeval",
+	})
+	if batchErr != nil {
+		fmt.Printf("  [extract] batch extraction failed: %v\n", batchErr)
+	} else {
+		fmt.Printf("  [extract] Phase 1b done: %d batches, %d tokens (%s)\n",
+			batchResp.BatchCount, batchResp.TotalTokens, time.Since(extractStart).Round(time.Second))
+	}
+
+	entityCount := 0
+	if ents, listErr := graphStore.ListEntities(ctx, "", "", 100000); listErr == nil {
+		entityCount = len(ents)
+	}
+	fmt.Printf("  [seed] Phase 1 total: %d memories, %d entities, %s\n", len(allSeeded), entityCount, time.Since(start).Round(time.Second))
+
+	// --- Phase 2: query ---
+	cfg := buildRetrievalConfig("fts")
+	cfg.GraphEnabled = true
+	cfg.GraphDepth = 2
+	cfg.GraphWeight = 0.8
+	retriever := search.NewRetriever(memStore, nil, nil, graphStore, llmProvider, cfg, nil, nil)
+	retriever.InitPipeline()
+
+	queryStart := time.Now()
+	cases := make([]CaseResult, 0, len(entries))
+
+	for i, entry := range entries {
+		if i > 0 && i%5 == 0 {
+			hits := 0
+			for _, c := range cases {
+				if c.Hit {
+					hits++
+				}
+			}
+			fmt.Printf("  [query %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
+		}
+
+		results, qErr := retriever.Retrieve(ctx, &model.RetrieveRequest{
+			Query: entry.Case.Query,
+			Limit: 10,
+		})
+		if qErr != nil {
+			cases = append(cases, CaseResult{
+				Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
+				Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
+				Hit: false, Rank: -1,
+			})
+			continue
+		}
+
+		hit, rank, score := checkHit(results, entry.Case.Expected)
+		if !hit && entry.Case.GoldAnswer != "" {
+			hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
+		}
+		cases = append(cases, CaseResult{
+			Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
+			Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
+			Hit: hit, Rank: rank, Score: score, ResultCount: len(results),
+		})
+	}
+
+	queryDuration := time.Since(queryStart)
+	metrics := Aggregate(cases)
+
+	report := &EvalReport{
+		Mode:         fmt.Sprintf("shared-DB (graph+llm) — %d memories, %d entities", len(allSeeded), entityCount),
+		Dataset:      "longmemeval-oracle",
+		Timestamp:    time.Now(),
+		Metrics:      metrics,
+		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
+		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
+		Cases:        cases,
+		Duration:     time.Since(start),
+		GitCommit:    resolveGitCommit(),
+	}
+
+	fmt.Printf("\n  Phase 1 (seed+extract): %s | Phase 2 (query): %s\n", seedDuration.Round(time.Second), queryDuration.Round(time.Second))
+	return report, nil
+}
+
+// RunLongMemEvalQueryOnly 纯查询评测：复用已有数据库，跳过 seed+extract 阶段
+// Query-only eval: reuse existing DB, skip seed and extraction phases
+func RunLongMemEvalQueryOnly(ctx context.Context, entries []LongMemEvalEntry, dbPath string, maxQuestions int) (*EvalReport, error) {
+	if maxQuestions > 0 && len(entries) > maxQuestions {
+		entries = entries[:maxQuestions]
+	}
+
+	start := time.Now()
+	tok := tokenizer.NewSimpleTokenizer()
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
+	if err != nil {
+		return nil, fmt.Errorf("open existing store: %w", err)
+	}
+	defer memStore.Close()
+
+	db := memStore.DB().(*sql.DB)
+	graphStore := store.NewSQLiteGraphStore(db)
+
+	// 统计已有数据 / Report existing data
+	memCount := 0
+	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM memories").Scan(&memCount)
+	entityCount := 0
+	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM entities").Scan(&entityCount)
+	relCount := 0
+	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM entity_relations").Scan(&relCount)
+	fmt.Printf("  [reuse] DB: %s — %d memories, %d entities, %d relations\n", dbPath, memCount, entityCount, relCount)
+
+	// FTS + 图谱检索，strategy agent 走规则分类器 / FTS + graph retrieval, rule-based strategy
+	cfg := buildRetrievalConfig("fts")
+	cfg.GraphEnabled = true
+	cfg.GraphDepth = 2
+	cfg.GraphWeight = 0.8
+	retriever := search.NewRetriever(memStore, nil, nil, graphStore, nil, cfg, nil, nil)
+	retriever.InitPipeline()
+
+	cases := make([]CaseResult, 0, len(entries))
+	for i, entry := range entries {
+		if i > 0 && i%10 == 0 {
+			hits := 0
+			for _, c := range cases {
+				if c.Hit {
+					hits++
+				}
+			}
+			fmt.Printf("  [query %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
+		}
+
+		qStart := time.Now()
+		debugResult, qErr := retriever.RetrieveWithDebug(ctx, &model.RetrieveRequest{
+			Query: entry.Case.Query,
+			Limit: 10,
+			Debug: true,
+		})
+		if qErr != nil {
+			fmt.Printf("  [query %d] ERROR: %v (%.1fs)\n", i, qErr, time.Since(qStart).Seconds())
+			cases = append(cases, CaseResult{
+				Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
+				Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
+				Hit: false, Rank: -1,
+			})
+			continue
+		}
+		results := debugResult.Results
+		// 打印管线调试信息 / Print pipeline debug traces
+		if debugResult.PipelineInfo != nil {
+			fmt.Printf("  [query %d] pipeline=%s (%.1fs)\n", i, debugResult.PipelineInfo.PipelineName, time.Since(qStart).Seconds())
+			for _, tr := range debugResult.PipelineInfo.Traces {
+				fmt.Printf("    stage=%-20s duration=%-10s in=%d out=%d skipped=%v note=%s\n",
+					tr.Name, tr.Duration.Round(time.Millisecond), tr.InputCount, tr.OutputCount, tr.Skipped, tr.Note)
+			}
+		}
+
+		hit, rank, score := checkHit(results, entry.Case.Expected)
+		if !hit && entry.Case.GoldAnswer != "" {
+			hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
+		}
+		cases = append(cases, CaseResult{
+			Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
+			Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
+			Hit: hit, Rank: rank, Score: score, ResultCount: len(results),
+		})
+	}
+
+	metrics := Aggregate(cases)
+	report := &EvalReport{
+		Mode:         fmt.Sprintf("query-only (reuse DB) — %d memories, %d entities", memCount, entityCount),
+		Dataset:      "longmemeval-oracle",
+		Timestamp:    time.Now(),
+		Metrics:      metrics,
+		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
+		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
+		Cases:        cases,
+		Duration:     time.Since(start),
+		GitCommit:    resolveGitCommit(),
+	}
+
+	return report, nil
 }

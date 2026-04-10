@@ -316,6 +316,26 @@ type ExtractedRelationResult struct {
 	Skipped      bool   `json:"skipped"`
 }
 
+// BatchExtractItem 批量抽取单条 / Single item in batch extraction
+type BatchExtractItem struct {
+	MemoryID string `json:"memory_id"`
+	Content  string `json:"content"`
+}
+
+// BatchExtractRequest 批量实体抽取请求 / Batch entity extraction request
+type BatchExtractRequest struct {
+	Items  []BatchExtractItem `json:"items"`
+	Scope  string             `json:"scope"`
+	TeamID string             `json:"team_id"`
+}
+
+// BatchExtractResponse 批量实体抽取响应 / Batch entity extraction response
+type BatchExtractResponse struct {
+	Results     map[string]*ExtractResponse `json:"results"`      // memoryID → 该 memory 关联到的实体 / memoryID → associated entities
+	TotalTokens int                         `json:"total_tokens"`
+	BatchCount  int                         `json:"batch_count"` // LLM 调用次数 / Number of LLM calls
+}
+
 // RetrieveResponse 检索响应（增强）/ Enhanced retrieve response
 type RetrieveResponse struct {
 	Results     []*SearchResult `json:"results"`

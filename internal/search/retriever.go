@@ -101,7 +101,12 @@ func (r *Retriever) InitPipeline() {
 
 	rc := strategy.NewRuleClassifier(pipeline.PipelineExploration)
 	r.ruleClassifier = rc
-	r.strategyAgent = strategy.NewAgent(r.llm, rc, 5*time.Second)
+	// Strategy Agent: 仅 cfg.Strategy.UseLLM=true 时使用 LLM，否则纯规则分类 / Use LLM only when explicitly enabled
+	var strategyLLM llm.Provider
+	if r.cfg.Strategy.UseLLM {
+		strategyLLM = r.llm
+	}
+	r.strategyAgent = strategy.NewAgent(strategyLLM, rc, 5*time.Second)
 }
 
 // selectPipelineWithPlan 选择管线并返回查询计划 / Select pipeline and return query plan

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -378,6 +379,115 @@ func TestLongMemEvalOracleAllLLM(t *testing.T) {
 	}
 	total := tracker.Total()
 	t.Logf("LLM TOTAL: calls=%d, tokens=%d", total.Calls, total.TotalTokens)
+}
+
+// TestLongMemEvalSingleVerbose 单问题 LLM 全链路 verbose 调试，输出每一步详细日志
+func TestLongMemEvalSingleVerbose(t *testing.T) {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		t.Skip("skip: OPENAI_API_KEY not set")
+	}
+
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	// 支持 EVAL_QUESTION_INDEX 环境变量选择第几题（默认第 0 题）
+	qIdx := 0
+	if v := os.Getenv("EVAL_QUESTION_INDEX"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			qIdx = n
+		}
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	require.True(t, qIdx < len(entries), "EVAL_QUESTION_INDEX=%d out of range (total %d)", qIdx, len(entries))
+
+	t.Logf("Running verbose debug for question #%d (of %d total)", qIdx, len(entries))
+
+	tmpDir := t.TempDir()
+	err = eval.RunLongMemEvalSingleVerbose(context.Background(), entries[qIdx], tmpDir)
+	require.NoError(t, err)
+}
+
+// TestLongMemEvalSharedDB 共享单库评测（全局图谱 + LLM 实体抽取）
+func TestLongMemEvalSharedDB(t *testing.T) {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		t.Skip("skip: OPENAI_API_KEY not set")
+	}
+
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	maxQ := 10
+	if v := os.Getenv("EVAL_MAX_QUESTIONS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			maxQ = n
+		}
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval questions (shared-DB, max %d)", len(entries), maxQ)
+
+	tmpDir := t.TempDir()
+	report, err := eval.RunLongMemEvalSharedDB(context.Background(), entries, tmpDir, maxQ)
+	require.NoError(t, err)
+
+	eval.PrintReport(report)
+
+	baseline, err := eval.LoadBaseline("longmemeval-oracle-fts-v1", "baselines")
+	if err == nil {
+		regressions := eval.CompareBaseline(report, baseline, eval.DefaultThresholds)
+		eval.PrintComparison(report, baseline, regressions)
+	}
+
+	t.Logf("SharedDB eval: HitRate %.1f%%, MRR %.3f, Duration %s",
+		report.Metrics.HitRate, report.Metrics.MRR, report.Duration.Round(time.Second))
+}
+
+// TestLongMemEvalQueryOnly 纯查询评测：复用已有数据库（EVAL_DB_PATH 指定），零 LLM 调用
+func TestLongMemEvalQueryOnly(t *testing.T) {
+	dbPath := os.Getenv("EVAL_DB_PATH")
+	if dbPath == "" {
+		t.Skip("skip: EVAL_DB_PATH not set, specify path to existing shared_eval.db")
+	}
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		t.Skipf("skip: DB not found at %s", dbPath)
+	}
+
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	maxQ := 100
+	if v := os.Getenv("EVAL_MAX_QUESTIONS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			maxQ = n
+		}
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d questions, running %d (query-only, DB: %s)", len(entries), maxQ, dbPath)
+
+	report, err := eval.RunLongMemEvalQueryOnly(context.Background(), entries, dbPath, maxQ)
+	require.NoError(t, err)
+
+	eval.PrintReport(report)
+
+	baseline, err := eval.LoadBaseline("longmemeval-oracle-pipeline-v1", "baselines")
+	if err == nil {
+		regressions := eval.CompareBaseline(report, baseline, eval.DefaultThresholds)
+		eval.PrintComparison(report, baseline, regressions)
+	}
+
+	t.Logf("QueryOnly eval: HitRate %.1f%%, MRR %.3f, Duration %s",
+		report.Metrics.HitRate, report.Metrics.MRR, report.Duration.Round(time.Second))
 }
 
 func TestRegressionCheck(t *testing.T) {

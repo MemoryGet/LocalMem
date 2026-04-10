@@ -15,6 +15,7 @@ import (
 	"iclude/internal/logger"
 	"iclude/internal/model"
 	"iclude/internal/store"
+	"iclude/pkg/tokenutil"
 
 	"go.uber.org/zap"
 )
@@ -477,4 +478,188 @@ func (e *Extractor) resolveRelation(ctx context.Context, sourceID, targetID, rel
 		RelationType: relationType,
 		Skipped:      false,
 	}
+}
+
+// ============================================================
+// 批量实体抽取 / Batch entity extraction
+// ============================================================
+
+// defaultBatchTokenThreshold 默认每批 token 阈值（适配 128K 上下文模型）/ Default batch token threshold (for 128K context models)
+const defaultBatchTokenThreshold = 32000
+
+// ExtractBatch 批量实体抽取：按 token 阈值分批 → LLM 全局抽取 → 系统侧匹配归属 → 落库
+// Batch entity extraction: split by token threshold → global LLM extraction → system-side matching → store
+func (e *Extractor) ExtractBatch(ctx context.Context, req *model.BatchExtractRequest) (*model.BatchExtractResponse, error) {
+	if len(req.Items) == 0 {
+		return &model.BatchExtractResponse{Results: make(map[string]*model.ExtractResponse)}, nil
+	}
+
+	// 超时保护 / Timeout protection
+	if e.cfg.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, e.cfg.Timeout*time.Duration(len(req.Items)))
+		defer cancel()
+	}
+
+	batches := e.formBatches(req.Items)
+	resp := &model.BatchExtractResponse{
+		Results:    make(map[string]*model.ExtractResponse, len(req.Items)),
+		BatchCount: len(batches),
+	}
+
+	for batchIdx, batch := range batches {
+		logger.Info("batch extraction started",
+			zap.Int("batch", batchIdx+1),
+			zap.Int("total_batches", len(batches)),
+			zap.Int("items", len(batch)),
+		)
+
+		output, tokens, err := e.callBatchLLM(ctx, batch)
+		resp.TotalTokens += tokens
+		if err != nil {
+			logger.Warn("batch LLM call failed, skipping batch",
+				zap.Int("batch", batchIdx+1),
+				zap.Error(err),
+			)
+			continue
+		}
+		if output == nil {
+			logger.Warn("batch LLM returned nil output, skipping batch",
+				zap.Int("batch", batchIdx+1),
+			)
+			continue
+		}
+
+		// 校验并截断 / Validate and truncate
+		e.validateAndTruncate(output)
+
+		// 系统侧匹配实体归属 / System-side entity-to-memory matching
+		entityMemMap := matchEntitiesToMemories(output.Entities, batch)
+
+		// 规范化+创建全局实体 / Normalize + create global entities
+		entityIDMap := make(map[string]string, len(output.Entities)) // name → entityID
+		for _, ent := range output.Entities {
+			result, normalized, resolveErr := e.resolveEntity(ctx, ent, req.Scope)
+			if resolveErr != nil {
+				logger.Warn("batch entity resolution failed", zap.String("name", ent.Name), zap.Error(resolveErr))
+				continue
+			}
+			entityIDMap[ent.Name] = result.EntityID
+
+			// 为匹配到的每个 memory 写入关联 / Create memory-entity associations for matched memories
+			for _, memID := range entityMemMap[ent.Name] {
+				if resp.Results[memID] == nil {
+					resp.Results[memID] = &model.ExtractResponse{}
+				}
+				resp.Results[memID].Entities = append(resp.Results[memID].Entities, *result)
+				if normalized {
+					resp.Results[memID].Normalized++
+				}
+
+				assocErr := e.graphManager.CreateMemoryEntity(ctx, &model.CreateMemoryEntityRequest{
+					MemoryID: memID,
+					EntityID: result.EntityID,
+					Role:     "mentioned",
+				})
+				if assocErr != nil {
+					logger.Warn("batch create memory-entity failed",
+						zap.String("memory_id", memID),
+						zap.String("entity_id", result.EntityID),
+						zap.Error(assocErr),
+					)
+				}
+			}
+		}
+
+		// 写入关系 / Create relations
+		for _, rel := range output.Relations {
+			sourceID, sok := entityIDMap[rel.Source]
+			targetID, tok := entityIDMap[rel.Target]
+			if !sok || !tok {
+				continue
+			}
+			e.resolveRelation(ctx, sourceID, targetID, rel.RelationType)
+		}
+	}
+
+	return resp, nil
+}
+
+// formBatches 按 token 阈值分批 / Split items into batches by token threshold
+func (e *Extractor) formBatches(items []model.BatchExtractItem) [][]model.BatchExtractItem {
+	threshold := e.cfg.BatchTokenThreshold
+	if threshold <= 0 {
+		threshold = defaultBatchTokenThreshold
+	}
+
+	var batches [][]model.BatchExtractItem
+	var current []model.BatchExtractItem
+	currentTokens := 0
+
+	for _, item := range items {
+		tokens := tokenutil.EstimateTokens(item.Content)
+		// 超阈值且当前批非空 → 封批 / Seal batch if threshold exceeded and current batch non-empty
+		if currentTokens+tokens > threshold && len(current) > 0 {
+			batches = append(batches, current)
+			current = nil
+			currentTokens = 0
+		}
+		current = append(current, item)
+		currentTokens += tokens
+	}
+	if len(current) > 0 {
+		batches = append(batches, current)
+	}
+	return batches
+}
+
+// callBatchLLM 调用 LLM 进行批量抽取（复用现有 prompt + 解析）/ Call LLM for batch extraction (reuse existing prompt + parsing)
+func (e *Extractor) callBatchLLM(ctx context.Context, items []model.BatchExtractItem) (*extractLLMOutput, int, error) {
+	// 拼接多条 content / Concatenate multiple contents
+	var sb strings.Builder
+	for i, item := range items {
+		if i > 0 {
+			sb.WriteString("\n\n---\n\n")
+		}
+		sb.WriteString(item.Content)
+	}
+
+	temp := 0.1
+	messages := []llm.ChatMessage{
+		{Role: "system", Content: e.buildExtractPrompt()},
+		{Role: "user", Content: sb.String()},
+	}
+
+	req := &llm.ChatRequest{
+		Messages:       messages,
+		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
+		Temperature:    &temp,
+	}
+
+	resp, err := e.llm.Chat(ctx, req)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	output, _ := parseExtractOutput(ctx, resp.Content, messages, e.llm)
+	return output, resp.TotalTokens, nil
+}
+
+// matchEntitiesToMemories 系统侧匹配实体归属：entity.Name ∈ memory.Content → 建立关联
+// System-side matching: if entity name appears in memory content, associate them
+func matchEntitiesToMemories(entities []extractedEntity, items []model.BatchExtractItem) map[string][]string {
+	// name → []memoryID
+	result := make(map[string][]string, len(entities))
+	for _, ent := range entities {
+		nameLower := strings.ToLower(ent.Name)
+		if nameLower == "" {
+			continue
+		}
+		for _, item := range items {
+			if strings.Contains(strings.ToLower(item.Content), nameLower) {
+				result[ent.Name] = append(result[ent.Name], item.MemoryID)
+			}
+		}
+	}
+	return result
 }

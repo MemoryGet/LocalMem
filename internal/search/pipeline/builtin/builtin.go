@@ -59,13 +59,18 @@ func buildPrecision(deps Deps) *pipeline.Pipeline {
 	}
 }
 
-// buildExploration 探索检索管线: parallel(fts, temporal) → merge(rrf) → score_filter(0.2) → rerank_overlap
-// Exploration pipeline: FTS + temporal parallel → RRF merge → filter → overlap rerank
+// buildExploration 探索检索管线: parallel(graph, fts, temporal) → merge(rrf) → score_filter(0.2) → rerank_overlap
+// Exploration pipeline: graph + FTS + temporal parallel → RRF merge → filter → overlap rerank
+// graph stage 在 graphStore 为 nil 时自动跳过 / graph stage auto-skips when graphStore is nil
 func buildExploration(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
 		Name: pipeline.PipelineExploration,
 		Stages: []pipeline.StageGroup{
 			{Parallel: true, Stages: []pipeline.Stage{
+				stage.NewGraphStage(deps.GraphStore, deps.FTSSearcher,
+					stage.WithMaxDepth(2), stage.WithLimit(30),
+					stage.WithFTSTop(5), stage.WithEntityLimit(10),
+				),
 				stage.NewFTSStage(deps.FTSSearcher, 30),
 				stage.NewTemporalStage(deps.Timeline, 30),
 			}},
