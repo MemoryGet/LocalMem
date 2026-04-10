@@ -122,8 +122,9 @@ type SearchFilters struct {
 	Tags           []string   `json:"tags,omitempty"`
 	HappenedAfter  *time.Time `json:"happened_after,omitempty"`
 	HappenedBefore *time.Time `json:"happened_before,omitempty"`
-	SourceType     string     `json:"source_type,omitempty"`
-	MinStrength    float64    `json:"min_strength,omitempty"`
+	SourceType      string     `json:"source_type,omitempty"`
+	SourceRefPrefix string    `json:"source_ref_prefix,omitempty"` // 来源 URI 前缀匹配 / Source ref prefix match
+	MinStrength     float64   `json:"min_strength,omitempty"`
 	IncludeExpired bool       `json:"include_expired,omitempty"`
 
 	// V3: 知识分级 + LLM 过滤 / Retention tier and message role filters

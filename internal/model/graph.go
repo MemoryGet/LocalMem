@@ -12,6 +12,7 @@ type Entity struct {
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   *time.Time     `json:"deleted_at,omitempty"` // 软删除时间 / Soft delete timestamp
 }
 
 // EntityRelation 实体关系 / Entity relationship
@@ -21,8 +22,11 @@ type EntityRelation struct {
 	TargetID     string         `json:"target_id"`
 	RelationType string         `json:"relation_type"` // uses / knows / belongs_to / related_to
 	Weight       float64        `json:"weight"`
+	MentionCount int            `json:"mention_count"`             // 被提及次数 / Number of times mentioned
+	LastSeenAt   *time.Time     `json:"last_seen_at,omitempty"`    // 最近出现时间 / Last time this relation was observed
 	Metadata     map[string]any `json:"metadata,omitempty"`
 	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
 }
 
 // MemoryEntity 记忆-实体关联 / Memory-entity association
