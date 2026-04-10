@@ -2,11 +2,17 @@ package store
 
 import (
 	"database/sql"
+	"strings"
 
 	"iclude/internal/logger"
 
 	"go.uber.org/zap"
 )
+
+// isNoSuchTableError 检查是否为表不存在错误 / Check if error is "no such table"
+func isNoSuchTableError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "no such table")
+}
 
 // migrateV25ToV26 实体关系生命周期字段 + 实体软删除 + source_ref 前缀索引
 // Entity relation lifecycle fields + entity soft delete + source_ref prefix index
@@ -20,40 +26,44 @@ func migrateV25ToV26(db *sql.DB) error {
 	defer tx.Rollback()
 
 	// entity_relations: 新增 mention_count / Add mention_count
+	// 表可能不存在（旧测试用部分 schema）/ Table may not exist in partial schemas
 	if _, err := tx.Exec(`ALTER TABLE entity_relations ADD COLUMN mention_count INTEGER DEFAULT 1`); err != nil {
-		if !IsColumnExistsError(err) {
+		if !IsColumnExistsError(err) && !isNoSuchTableError(err) {
 			return err
 		}
-		logger.Debug("V25→V26: mention_count column already exists")
+		if isNoSuchTableError(err) {
+			logger.Debug("V25→V26: entity_relations table does not exist, skipping column additions")
+		} else {
+			logger.Debug("V25→V26: mention_count column already exists")
+		}
 	}
 
 	// entity_relations: 新增 last_seen_at / Add last_seen_at
 	if _, err := tx.Exec(`ALTER TABLE entity_relations ADD COLUMN last_seen_at DATETIME`); err != nil {
-		if !IsColumnExistsError(err) {
+		if !IsColumnExistsError(err) && !isNoSuchTableError(err) {
 			return err
 		}
-		logger.Debug("V25→V26: last_seen_at column already exists")
 	}
 
 	// entity_relations: 新增 updated_at / Add updated_at
 	if _, err := tx.Exec(`ALTER TABLE entity_relations ADD COLUMN updated_at DATETIME`); err != nil {
-		if !IsColumnExistsError(err) {
+		if !IsColumnExistsError(err) && !isNoSuchTableError(err) {
 			return err
 		}
-		logger.Debug("V25→V26: updated_at column already exists")
 	}
 
 	// entities: 新增 deleted_at / Add soft delete
 	if _, err := tx.Exec(`ALTER TABLE entities ADD COLUMN deleted_at DATETIME DEFAULT NULL`); err != nil {
-		if !IsColumnExistsError(err) {
+		if !IsColumnExistsError(err) && !isNoSuchTableError(err) {
 			return err
 		}
-		logger.Debug("V25→V26: deleted_at column already exists")
 	}
 
 	// 回填已有 entity_relations 的 last_seen_at 和 updated_at / Backfill existing rows
 	if _, err := tx.Exec(`UPDATE entity_relations SET last_seen_at = created_at, updated_at = created_at WHERE last_seen_at IS NULL`); err != nil {
-		logger.Warn("V25→V26: backfill last_seen_at failed (non-fatal)", zap.Error(err))
+		if !isNoSuchTableError(err) {
+			logger.Warn("V25→V26: backfill last_seen_at failed (non-fatal)", zap.Error(err))
+		}
 	}
 
 	// 新增索引 / Add indexes
