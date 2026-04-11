@@ -18,21 +18,23 @@ import (
 
 // Engine HEARTBEAT 巡检引擎 / HEARTBEAT inspection engine
 type Engine struct {
-	memStore   store.MemoryStore
-	graphStore store.GraphStore  // 可为 nil / may be nil
-	vecStore   store.VectorStore // 可为 nil / may be nil
-	llm        llm.Provider     // 可为 nil / may be nil
-	hbCfg      config.HeartbeatConfig // 注入配置 / injected config
+	memStore       store.MemoryStore
+	graphStore     store.GraphStore     // 可为 nil / may be nil
+	vecStore       store.VectorStore    // 可为 nil / may be nil
+	candidateStore store.CandidateStore // 可为 nil / may be nil
+	llm            llm.Provider         // 可为 nil / may be nil
+	hbCfg          config.HeartbeatConfig // 注入配置 / injected config
 }
 
 // NewEngine 创建巡检引擎 / Create a new heartbeat engine
-func NewEngine(memStore store.MemoryStore, graphStore store.GraphStore, vecStore store.VectorStore, llmProvider llm.Provider, hbCfg config.HeartbeatConfig) *Engine {
+func NewEngine(memStore store.MemoryStore, graphStore store.GraphStore, vecStore store.VectorStore, candidateStore store.CandidateStore, llmProvider llm.Provider, hbCfg config.HeartbeatConfig) *Engine {
 	return &Engine{
-		memStore:   memStore,
-		graphStore: graphStore,
-		vecStore:   vecStore,
-		llm:        llmProvider,
-		hbCfg:      hbCfg,
+		memStore:       memStore,
+		graphStore:     graphStore,
+		vecStore:       vecStore,
+		candidateStore: candidateStore,
+		llm:            llmProvider,
+		hbCfg:          hbCfg,
 	}
 }
 
@@ -82,6 +84,13 @@ func (e *Engine) Run(ctx context.Context) error {
 	if e.graphStore != nil {
 		if err := e.runRelationCleanup(ctx); err != nil {
 			logger.Warn("heartbeat: relation cleanup error", zap.Error(err))
+		}
+	}
+
+	// 7. 候选实体晋升 / Candidate entity promotion
+	if e.candidateStore != nil {
+		if err := e.runCandidatePromotion(ctx, 3); err != nil {
+			logger.Warn("heartbeat: candidate promotion error", zap.Error(err))
 		}
 	}
 
