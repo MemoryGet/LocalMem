@@ -294,15 +294,32 @@ func initBusinessManagers(stores *store.Stores, llmProvider llm.Provider, cfg co
 
 	// 向量实体解析器 / Vector entity resolver
 	if cfg.Extract.Resolver.Enabled && stores.GraphStore != nil && stores.CandidateStore != nil {
+		var centroidMgr *memory.CentroidManager
+		if stores.VectorStore != nil && cfg.Storage.Qdrant.Enabled {
+			var err error
+			centroidMgr, err = memory.NewCentroidManager(
+				cfg.Storage.Qdrant.URL,
+				cfg.Extract.Resolver.CentroidCollection,
+				cfg.Storage.Qdrant.Dimension,
+			)
+			if err != nil {
+				logger.Warn("centroid manager init failed, Layer 2 disabled", zap.Error(err))
+			}
+		}
+
 		resolver := memory.NewEntityResolver(
 			stores.Tokenizer,
 			stores.GraphStore,
 			stores.CandidateStore,
-			nil, nil, // centroidMgr, vecStore — wired in Task E3
+			centroidMgr,
+			stores.VectorStore,
 			cfg.Extract.Resolver,
 		)
 		memManager.SetResolver(resolver)
-		logger.Info("entity resolver enabled (vector-driven)")
+		logger.Info("entity resolver enabled",
+			zap.Bool("layer2_centroid", centroidMgr != nil),
+			zap.Bool("layer3_neighbor", stores.VectorStore != nil),
+		)
 	}
 
 	// 延迟注入 Manager 到 Consolidator（避免循环依赖）/ Deferred injection to avoid circular deps
