@@ -167,6 +167,17 @@ type ReflectConfig struct {
 	AutoSave     bool          `mapstructure:"auto_save"`
 }
 
+// ResolverConfig 向量实体解析器配置 / Vector entity resolver configuration
+type ResolverConfig struct {
+	Enabled             bool    `mapstructure:"enabled"`
+	CentroidCollection  string  `mapstructure:"centroid_collection"`
+	CentroidThreshold   float64 `mapstructure:"centroid_threshold"`
+	NeighborK           int     `mapstructure:"neighbor_k"`
+	NeighborMinCount    int     `mapstructure:"neighbor_min_count"`
+	CandidatePromoteMin int     `mapstructure:"candidate_promote_min"`
+	SessionPropagation  bool    `mapstructure:"session_propagation"`
+}
+
 // ExtractConfig 实体抽取配置 / Entity extraction config
 type ExtractConfig struct {
 	MaxEntities         int           `mapstructure:"max_entities"`
@@ -177,6 +188,8 @@ type ExtractConfig struct {
 	EntityTypes         []string      `mapstructure:"entity_types"`          // 实体类型白名单 / Allowed entity types
 	RelationTypes       []string      `mapstructure:"relation_types"`        // 关系类型白名单 / Allowed relation types
 	BatchTokenThreshold int           `mapstructure:"batch_token_threshold"` // 每批最大 content token 数，默认 4000 / Max content tokens per batch
+	UseLLM              bool          `mapstructure:"use_llm"`               // LLM 抽取开关 / LLM extraction toggle (fallback)
+	Resolver            ResolverConfig `mapstructure:"resolver"`              // 向量解析器 / Vector resolver config
 }
 
 // RetrievalConfig 检索配置 / Retrieval config
@@ -399,6 +412,14 @@ func LoadConfig() error {
 	viper.SetDefault("extract.entity_types", []string{"person", "org", "concept", "tool", "location"})
 	viper.SetDefault("extract.relation_types", []string{"uses", "knows", "belongs_to", "related_to"})
 	viper.SetDefault("extract.batch_token_threshold", 32000)
+	viper.SetDefault("extract.use_llm", true)
+	viper.SetDefault("extract.resolver.enabled", false)
+	viper.SetDefault("extract.resolver.centroid_collection", "entity_centroids")
+	viper.SetDefault("extract.resolver.centroid_threshold", 0.6)
+	viper.SetDefault("extract.resolver.neighbor_k", 10)
+	viper.SetDefault("extract.resolver.neighbor_min_count", 2)
+	viper.SetDefault("extract.resolver.candidate_promote_min", 3)
+	viper.SetDefault("extract.resolver.session_propagation", true)
 	// Retrieval 默认值 / Retrieval defaults
 	viper.SetDefault("retrieval.graph_enabled", true)
 	viper.SetDefault("retrieval.graph_depth", 1)
