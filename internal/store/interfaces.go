@@ -316,6 +316,18 @@ type GraphStore interface {
 	PurgeDeletedEntities(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
+// CandidateStore 候选实体存储 / Candidate entity store
+type CandidateStore interface {
+	// UpsertCandidate 创建或更新候选实体 / Upsert candidate (increment hit_count if exists)
+	UpsertCandidate(ctx context.Context, name, scope, memoryID string) error
+
+	// ListPromotable 列出可晋升的候选 / List candidates with hit_count >= minHits
+	ListPromotable(ctx context.Context, minHits int) ([]*model.EntityCandidate, error)
+
+	// DeleteCandidate 删除候选（晋升后调用）/ Delete candidate after promotion
+	DeleteCandidate(ctx context.Context, name, scope string) error
+}
+
 // DocumentStore 文档存储接口 / Document storage interface
 type DocumentStore interface {
 	// Create 创建文档 / Create a document

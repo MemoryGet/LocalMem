@@ -25,6 +25,7 @@ type Stores struct {
 	SessionFinalizeStore SessionFinalizeStore     // 可为 nil / may be nil (V19+)
 	TranscriptCursorStore TranscriptCursorStore   // 可为 nil / may be nil (V20+)
 	IdempotencyStore     IdempotencyStore         // 可为 nil / may be nil (V21+)
+	CandidateStore       CandidateStore           // 可为 nil / may be nil (V27+)
 	ScopePolicyStore     ScopePolicyStore         // 可为 nil / may be nil (V24+)
 	Tokenizer            tokenizer.Tokenizer      // 可为 nil / may be nil (SQLite 未启用时)
 	RawDB                *sql.DB                  // 底层 SQLite 连接（供 queue 等需要直接 DB 访问的组件使用）/ Raw SQLite connection for queue etc.
@@ -72,7 +73,8 @@ func InitStores(ctx context.Context, cfg config.Config, embedder Embedder) (*Sto
 			stores.TranscriptCursorStore = NewSQLiteTranscriptCursorStore(db)
 			stores.IdempotencyStore = NewSQLiteIdempotencyStore(db)
 			stores.ScopePolicyStore = NewSQLiteScopePolicyStore(db)
-			logger.Info("additional stores initialized (context, tag, graph, document, session, idempotency, scope_policy)")
+			stores.CandidateStore = NewSQLiteCandidateStore(db)
+			logger.Info("additional stores initialized (context, tag, graph, document, session, idempotency, scope_policy, candidate)")
 		}
 	}
 
