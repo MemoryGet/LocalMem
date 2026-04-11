@@ -161,7 +161,28 @@ func (m *Manager) handleExcerptGeneration(ctx context.Context, mem *model.Memory
 
 // handleAutoExtract 自动实体抽取（异步，优先队列，回退 goroutine）/ Auto entity extraction (prefer queue, fallback goroutine)
 func (m *Manager) handleAutoExtract(ctx context.Context, mem *model.Memory, autoExtract bool) {
-	if !autoExtract || m.extractor == nil {
+	if !autoExtract {
+		return
+	}
+
+	// 优先使用向量解析器 / Prefer vector resolver over LLM extractor
+	if m.resolver != nil {
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Warn("resolver panic recovered", zap.Any("recover", r))
+				}
+			}()
+			rCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := m.resolver.Resolve(rCtx, []*model.Memory{mem}); err != nil {
+				logger.Warn("resolver failed", zap.String("memory_id", mem.ID), zap.Error(err))
+			}
+		}()
+		return
+	}
+
+	if m.extractor == nil {
 		return
 	}
 	extractReq := &model.ExtractRequest{

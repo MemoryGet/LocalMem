@@ -47,6 +47,7 @@ type Manager struct {
 	tagStore     store.TagStore     // 可为 nil / may be nil
 	contextStore store.ContextStore // 可为 nil / may be nil
 	extractor    *Extractor         // 可为 nil / may be nil
+	resolver     *EntityResolver    // 向量实体解析器 / Vector entity resolver (optional)
 	llm          llm.Provider       // 可为 nil / may be nil (used for excerpt generation)
 	taskQueue    TaskEnqueuer       // 可为 nil / may be nil
 	cfg          ManagerConfig
@@ -70,6 +71,11 @@ func NewManager(deps ManagerDeps) *Manager {
 // SetQueue 设置任务队列（支持延迟注入）/ Set task queue (supports deferred injection)
 func (m *Manager) SetQueue(q TaskEnqueuer) {
 	m.taskQueue = q
+}
+
+// SetResolver 设置向量实体解析器 / Set vector entity resolver
+func (m *Manager) SetResolver(r *EntityResolver) {
+	m.resolver = r
 }
 
 // Create 创建记忆 / Create a new memory
