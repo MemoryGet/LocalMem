@@ -31,10 +31,11 @@ type EntityRelation struct {
 
 // MemoryEntity 记忆-实体关联 / Memory-entity association
 type MemoryEntity struct {
-	MemoryID  string    `json:"memory_id"`
-	EntityID  string    `json:"entity_id"`
-	Role      string    `json:"role,omitempty"` // subject / object / mentioned
-	CreatedAt time.Time `json:"created_at"`
+	MemoryID   string    `json:"memory_id"`
+	EntityID   string    `json:"entity_id"`
+	Role       string    `json:"role,omitempty"` // subject / object / mentioned
+	Confidence float64   `json:"confidence,omitempty"` // 关联置信度 0-1 / Association confidence
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // EntityProfile 实体聚合视图 / Entity profile aggregation view
@@ -45,6 +46,17 @@ type EntityProfile struct {
 	ByTimeline    map[string][]*Memory `json:"by_timeline"`    // YYYY-MM → memories
 	ByScope       map[string]int       `json:"by_scope"`       // scope → count
 	TotalMemories int                  `json:"total_memories"`
+}
+
+// EntityCandidate 候选实体（待晋升）/ Candidate entity pending promotion
+type EntityCandidate struct {
+	Name      string    `json:"name"`
+	Scope     string    `json:"scope,omitempty"`
+	FirstSeen time.Time `json:"first_seen"`
+	HitCount  int       `json:"hit_count"`
+	MemoryIDs []string  `json:"memory_ids"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Tag 标签 / Tag for memory categorization
