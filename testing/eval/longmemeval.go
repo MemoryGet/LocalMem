@@ -1159,6 +1159,169 @@ func RunLongMemEvalSharedDB(ctx context.Context, entries []LongMemEvalEntry, tmp
 	return report, nil
 }
 
+// RunLongMemEvalResolverDB 向量解析器评测：全部记忆写入同一 DB + EntityResolver 实体抽取（无 LLM）
+// Resolver-DB eval: all memories in one DB with EntityResolver extraction (no LLM)
+func RunLongMemEvalResolverDB(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, error) {
+	if maxQuestions > 0 && len(entries) > maxQuestions {
+		entries = entries[:maxQuestions]
+	}
+
+	start := time.Now()
+	dbPath := filepath.Join(tmpDir, "resolver_eval.db")
+
+	tok := tokenizer.NewSimpleTokenizer()
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
+	if err != nil {
+		return nil, fmt.Errorf("create resolver store: %w", err)
+	}
+	defer memStore.Close()
+
+	if err := memStore.Init(ctx); err != nil {
+		return nil, fmt.Errorf("init resolver store: %w", err)
+	}
+
+	db := memStore.DB().(*sql.DB)
+	graphStore := store.NewSQLiteGraphStore(db)
+	candidateStore := store.NewSQLiteCandidateStore(db)
+
+	// Manager 不传 LLM/Extractor / No LLM, no Extractor
+	mgr := memory.NewManager(memory.ManagerDeps{MemStore: memStore})
+
+	// --- Phase 1a: seed ---
+	type seedKey struct{ content, kind string }
+	seeded := make(map[seedKey]bool)
+	type seededMem struct{ ID, Content string }
+	var allSeeded []seededMem
+
+	for _, entry := range entries {
+		for _, sm := range entry.SeedMemories {
+			kind := sm.Kind
+			if kind == "" {
+				kind = "conversation"
+			}
+			key := seedKey{content: sm.Content, kind: kind}
+			if seeded[key] {
+				continue
+			}
+			seeded[key] = true
+			mem, createErr := mgr.Create(ctx, &model.CreateMemoryRequest{
+				Content: sm.Content, Kind: kind, SubKind: sm.SubKind, Scope: "eval/longmemeval",
+			})
+			if createErr != nil {
+				continue
+			}
+			allSeeded = append(allSeeded, seededMem{ID: mem.ID, Content: sm.Content})
+			if len(allSeeded)%50 == 0 {
+				fmt.Printf("  [seed] %d memories seeded...\n", len(allSeeded))
+			}
+		}
+	}
+	seedDuration := time.Since(start)
+	fmt.Printf("  [seed] Phase 1a done: %d memories (%s)\n", len(allSeeded), seedDuration.Round(time.Second))
+
+	// --- Phase 1b: EntityResolver 两轮解析（无 LLM）/ Two-pass resolver (no LLM) ---
+	resolveStart := time.Now()
+	resolverCfg := config.ResolverConfig{Enabled: true, CandidatePromoteMin: 2}
+	resolver := memory.NewEntityResolver(tok, graphStore, candidateStore, nil, nil, resolverCfg)
+
+	mems := make([]*model.Memory, len(allSeeded))
+	for i, s := range allSeeded {
+		mems[i] = &model.Memory{ID: s.ID, Content: s.Content, Scope: "eval/longmemeval"}
+	}
+
+	// Pass 1: 全部词成为候选（无已知实体）/ All terms become candidates
+	resolver.Resolve(ctx, mems)
+
+	// 晋升候选 → 正式实体 / Promote candidates to real entities
+	candidates, _ := candidateStore.ListPromotable(ctx, 2)
+	promoted := 0
+	for _, c := range candidates {
+		entity := &model.Entity{Name: c.Name, EntityType: "concept", Scope: c.Scope}
+		if err := graphStore.CreateEntity(ctx, entity); err != nil {
+			continue
+		}
+		for _, memID := range c.MemoryIDs {
+			_ = graphStore.CreateMemoryEntity(ctx, &model.MemoryEntity{
+				MemoryID: memID, EntityID: entity.ID, Role: "mentioned", Confidence: 0.9,
+			})
+		}
+		_ = candidateStore.DeleteCandidate(ctx, c.Name, c.Scope)
+		promoted++
+	}
+	fmt.Printf("  [resolver] promoted %d candidates to entities\n", promoted)
+
+	// Pass 2: 匹配已有实体 + 建立共现关系 / Match promoted entities + build co-occurrence
+	resolver.Resolve(ctx, mems)
+
+	entityCount := 0
+	if ents, listErr := graphStore.ListEntities(ctx, "", "", 100000); listErr == nil {
+		entityCount = len(ents)
+	}
+	fmt.Printf("  [resolver] Phase 1b done: %d entities (%s)\n", entityCount, time.Since(resolveStart).Round(time.Second))
+
+	// --- Phase 2: query ---
+	cfg := buildRetrievalConfig("fts")
+	cfg.GraphEnabled = true
+	cfg.GraphDepth = 2
+	cfg.GraphWeight = 0.8
+	retriever := search.NewRetriever(memStore, nil, nil, graphStore, nil, cfg, nil, nil)
+	retriever.InitPipeline()
+
+	queryStart := time.Now()
+	cases := make([]CaseResult, 0, len(entries))
+
+	for i, entry := range entries {
+		if i > 0 && i%5 == 0 {
+			hits := 0
+			for _, c := range cases {
+				if c.Hit {
+					hits++
+				}
+			}
+			fmt.Printf("  [query %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
+		}
+
+		results, qErr := retriever.Retrieve(ctx, &model.RetrieveRequest{Query: entry.Case.Query, Limit: 10})
+		if qErr != nil {
+			cases = append(cases, CaseResult{
+				Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
+				Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
+				Hit: false, Rank: -1,
+			})
+			continue
+		}
+
+		hit, rank, score := checkHit(results, entry.Case.Expected)
+		if !hit && entry.Case.GoldAnswer != "" {
+			hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
+		}
+		cases = append(cases, CaseResult{
+			Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
+			Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
+			Hit: hit, Rank: rank, Score: score, ResultCount: len(results),
+		})
+	}
+
+	queryDuration := time.Since(queryStart)
+	metrics := Aggregate(cases)
+
+	report := &EvalReport{
+		Mode:         fmt.Sprintf("shared-DB (resolver, no LLM) — %d memories, %d entities", len(allSeeded), entityCount),
+		Dataset:      "longmemeval-oracle",
+		Timestamp:    time.Now(),
+		Metrics:      metrics,
+		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
+		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
+		Cases:        cases,
+		Duration:     time.Since(start),
+		GitCommit:    resolveGitCommit(),
+	}
+
+	fmt.Printf("\n  Phase 1 (seed+resolve): %s | Phase 2 (query): %s\n",
+		(seedDuration + time.Since(resolveStart)).Round(time.Second), queryDuration.Round(time.Second))
+	return report, nil
+}
+
 // RunLongMemEvalQueryOnly 纯查询评测：复用已有数据库，跳过 seed+extract 阶段
 // Query-only eval: reuse existing DB, skip seed and extraction phases
 func RunLongMemEvalQueryOnly(ctx context.Context, entries []LongMemEvalEntry, dbPath string, maxQuestions int) (*EvalReport, error) {

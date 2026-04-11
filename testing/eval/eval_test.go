@@ -449,6 +449,42 @@ func TestLongMemEvalSharedDB(t *testing.T) {
 		report.Metrics.HitRate, report.Metrics.MRR, report.Duration.Round(time.Second))
 }
 
+// TestLongMemEvalResolverDB 向量解析器评测：EntityResolver 实体抽取（无 LLM），100 题
+func TestLongMemEvalResolverDB(t *testing.T) {
+	datasetPath := filepath.Join("testdata", "longmemeval-oracle.json")
+	if _, err := os.Stat(datasetPath); os.IsNotExist(err) {
+		t.Skip("skip: testdata/longmemeval-oracle.json not found")
+	}
+
+	maxQ := 100
+	if v := os.Getenv("EVAL_MAX_QUESTIONS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			maxQ = n
+		}
+	}
+
+	entries, err := eval.LoadLongMemEval(datasetPath)
+	require.NoError(t, err)
+	t.Logf("Loaded %d LongMemEval questions (resolver-DB, no LLM, max %d)", len(entries), maxQ)
+
+	tmpDir := t.TempDir()
+	report, err := eval.RunLongMemEvalResolverDB(context.Background(), entries, tmpDir, maxQ)
+	require.NoError(t, err)
+
+	eval.PrintReport(report)
+
+	// 与 FTS 基线对比 / Compare against FTS baseline
+	baseline, err := eval.LoadBaseline("longmemeval-oracle-fts-v1", "baselines")
+	if err == nil {
+		regressions := eval.CompareBaseline(report, baseline, eval.DefaultThresholds)
+		eval.PrintComparison(report, baseline, regressions)
+	}
+
+	require.NoError(t, eval.SaveBaseline(report, "longmemeval-oracle-resolver-v1", "baselines"))
+	t.Logf("Resolver-DB eval: HitRate %.1f%%, MRR %.3f, Entities in report mode, Duration %s",
+		report.Metrics.HitRate, report.Metrics.MRR, report.Duration.Round(time.Second))
+}
+
 // TestLongMemEvalQueryOnly 纯查询评测：复用已有数据库（EVAL_DB_PATH 指定），零 LLM 调用
 func TestLongMemEvalQueryOnly(t *testing.T) {
 	// 默认使用持久化共享评测库，可通过 EVAL_DB_PATH 覆盖 / Default to persistent shared eval DB, override via EVAL_DB_PATH
