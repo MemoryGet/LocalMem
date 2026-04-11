@@ -173,3 +173,76 @@ func (m *GraphManager) GetMemoryEntities(ctx context.Context, memoryID string) (
 	}
 	return m.graphStore.GetMemoryEntities(ctx, memoryID)
 }
+
+// GetEntityProfile 获取实体聚合视图 / Get entity profile aggregation
+func (m *GraphManager) GetEntityProfile(ctx context.Context, entityID string, limit int) (*model.EntityProfile, error) {
+	if entityID == "" {
+		return nil, fmt.Errorf("entity id is required: %w", model.ErrInvalidInput)
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+
+	// 并行查三个 Store 方法 / Parallel store queries
+	type result[T any] struct {
+		val T
+		err error
+	}
+
+	eCh := make(chan result[*model.Entity], 1)
+	rCh := make(chan result[[]*model.EntityRelation], 1)
+	mCh := make(chan result[[]*model.Memory], 1)
+
+	go func() {
+		e, err := m.graphStore.GetEntity(ctx, entityID)
+		eCh <- result[*model.Entity]{e, err}
+	}()
+	go func() {
+		r, err := m.graphStore.GetEntityRelations(ctx, entityID)
+		rCh <- result[[]*model.EntityRelation]{r, err}
+	}()
+	go func() {
+		mem, err := m.graphStore.GetEntityMemories(ctx, entityID, limit)
+		mCh <- result[[]*model.Memory]{mem, err}
+	}()
+
+	eRes := <-eCh
+	if eRes.err != nil {
+		return nil, eRes.err
+	}
+	rRes := <-rCh
+	if rRes.err != nil {
+		return nil, fmt.Errorf("get entity relations: %w", rRes.err)
+	}
+	mRes := <-mCh
+	if mRes.err != nil {
+		return nil, fmt.Errorf("get entity memories: %w", mRes.err)
+	}
+
+	// Go 层分组 / Group in Go
+	bySource := make(map[string][]*model.Memory)
+	byTimeline := make(map[string][]*model.Memory)
+	byScope := make(map[string]int)
+
+	for _, mem := range mRes.val {
+		srcKey := mem.SourceType + ":" + mem.SourceRef
+		bySource[srcKey] = append(bySource[srcKey], mem)
+
+		ts := mem.CreatedAt
+		if mem.HappenedAt != nil {
+			ts = *mem.HappenedAt
+		}
+		byTimeline[ts.Format("2006-01")] = append(byTimeline[ts.Format("2006-01")], mem)
+
+		byScope[mem.Scope]++
+	}
+
+	return &model.EntityProfile{
+		Entity:        eRes.val,
+		Relations:     rRes.val,
+		BySource:      bySource,
+		ByTimeline:    byTimeline,
+		ByScope:       byScope,
+		TotalMemories: len(mRes.val),
+	}, nil
+}

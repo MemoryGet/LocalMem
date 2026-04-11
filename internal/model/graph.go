@@ -37,6 +37,16 @@ type MemoryEntity struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// EntityProfile 实体聚合视图 / Entity profile aggregation view
+type EntityProfile struct {
+	Entity        *Entity              `json:"entity"`
+	Relations     []*EntityRelation    `json:"relations"`
+	BySource      map[string][]*Memory `json:"by_source"`      // source_type:source_ref → memories
+	ByTimeline    map[string][]*Memory `json:"by_timeline"`    // YYYY-MM → memories
+	ByScope       map[string]int       `json:"by_scope"`       // scope → count
+	TotalMemories int                  `json:"total_memories"`
+}
+
 // Tag 标签 / Tag for memory categorization
 type Tag struct {
 	ID        string    `json:"id"`
