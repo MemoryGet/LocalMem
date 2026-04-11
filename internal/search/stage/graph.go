@@ -2,6 +2,7 @@ package stage
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -12,6 +13,18 @@ import (
 
 	"go.uber.org/zap"
 )
+
+// decayWeight 查询时计算时间衰减 / Query-time age decay
+func decayWeight(lambda float64, t time.Time) float64 {
+	if lambda <= 0 {
+		return 1.0
+	}
+	days := time.Since(t).Hours() / 24.0
+	if days < 0 {
+		days = 0
+	}
+	return math.Exp(-lambda * days)
+}
 
 // 图谱遍历常量 / Graph traversal constants
 const (
@@ -30,6 +43,7 @@ type GraphStage struct {
 	limit       int
 	ftsTop      int
 	entityLimit int
+	lambda      float64 // 时间衰减系数 / Time decay lambda
 }
 
 // GraphOption 图谱阶段配置选项 / Graph stage configuration option
@@ -69,6 +83,11 @@ func WithEntityLimit(limit int) GraphOption {
 			s.entityLimit = limit
 		}
 	}
+}
+
+// WithDecayLambda 设置时间衰减系数 / Set time decay lambda
+func WithDecayLambda(lambda float64) GraphOption {
+	return func(s *GraphStage) { s.lambda = lambda }
 }
 
 // NewGraphStage 创建图谱检索阶段 / Create a new graph retrieval stage
@@ -312,10 +331,15 @@ func (s *GraphStage) collectMemories(ctx context.Context, visited map[string]int
 		return sorted[i].depth < sorted[j].depth
 	})
 
-	// 构建结果，深度衰减评分 / Build results with depth-decay scoring
+	// 构建结果，深度衰减 × 时间衰减评分 / Build results with depth-decay × time-decay scoring
 	results := make([]*model.SearchResult, 0, len(sorted))
 	for _, dm := range sorted {
-		score := 1.0 / float64(dm.depth+1)
+		depthScore := 1.0 / float64(dm.depth+1)
+		memTime := dm.mem.CreatedAt
+		if dm.mem.HappenedAt != nil {
+			memTime = *dm.mem.HappenedAt
+		}
+		score := depthScore * decayWeight(s.lambda, memTime)
 		results = append(results, &model.SearchResult{
 			Memory: dm.mem,
 			Score:  score,

@@ -4,6 +4,7 @@ package search
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -166,12 +167,25 @@ func (r *Retriever) graphTraverseAndCollect(ctx context.Context, seedEntityIDs m
 	})
 
 	results := make([]*model.SearchResult, 0, len(sorted))
+	lambda := r.cfg.RelationDecayLambda
 	for _, dm := range sorted {
-		// [fix] 深度衰减评分: depth 0 → 1.0, depth 1 → 0.5, depth 2 → 0.33 ...
+		// 深度衰减 × 时间衰减评分 / Depth-decay × time-decay scoring
 		depthScore := 1.0 / float64(dm.depth+1)
+		memTime := dm.mem.CreatedAt
+		if dm.mem.HappenedAt != nil {
+			memTime = *dm.mem.HappenedAt
+		}
+		decay := 1.0
+		if lambda > 0 {
+			days := time.Since(memTime).Hours() / 24.0
+			if days < 0 {
+				days = 0
+			}
+			decay = math.Exp(-lambda * days)
+		}
 		results = append(results, &model.SearchResult{
 			Memory: dm.mem,
-			Score:  depthScore,
+			Score:  depthScore * decay,
 			Source: "graph",
 		})
 	}
