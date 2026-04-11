@@ -122,7 +122,8 @@ func (r *Retriever) selectPipelineWithPlan(ctx context.Context, req *model.Retri
 // RetrieveResult 检索结果（含可选调试信息）/ Retrieve result with optional debug info
 type RetrieveResult struct {
 	Results      []*model.SearchResult
-	PipelineInfo *PipelineDebugInfo // 仅 debug=true 时填充 / Only populated when debug=true
+	PipelineInfo *PipelineDebugInfo    // 仅 debug=true 时填充 / Only populated when debug=true
+	Disclosure   *model.DisclosureResult // 渐进式披露结果 / Progressive disclosure result
 }
 
 // PipelineDebugInfo 管线调试信息 / Pipeline debug information
@@ -173,6 +174,15 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 		out.PipelineInfo = &PipelineDebugInfo{
 			PipelineName: result.PipelineName,
 			Traces:       result.Traces,
+		}
+	}
+
+	// 提取渐进式披露结果 / Extract progressive disclosure result
+	if state.Metadata != nil {
+		if dr, ok := state.Metadata["disclosure"]; ok {
+			if discResult, ok := dr.(*model.DisclosureResult); ok {
+				out.Disclosure = discResult
+			}
 		}
 	}
 
