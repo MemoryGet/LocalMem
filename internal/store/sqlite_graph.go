@@ -287,11 +287,14 @@ func (s *SQLiteGraphStore) GetEntityRelations(ctx context.Context, entityID stri
 func (s *SQLiteGraphStore) CreateMemoryEntity(ctx context.Context, me *model.MemoryEntity) error {
 	now := time.Now().UTC()
 	me.CreatedAt = now
+	if me.Confidence == 0 {
+		me.Confidence = 0.9
+	}
 
-	query := `INSERT INTO memory_entities (memory_id, entity_id, role, created_at)
-		VALUES (?, ?, ?, ?)`
+	query := `INSERT INTO memory_entities (memory_id, entity_id, role, confidence, created_at)
+		VALUES (?, ?, ?, ?, ?)`
 
-	_, err := s.db.ExecContext(ctx, query, me.MemoryID, me.EntityID, me.Role, me.CreatedAt)
+	_, err := s.db.ExecContext(ctx, query, me.MemoryID, me.EntityID, me.Role, me.Confidence, me.CreatedAt)
 	if err != nil {
 		if IsUniqueConstraintError(err) {
 			return fmt.Errorf("memory-entity association already exists: %w", model.ErrConflict)
