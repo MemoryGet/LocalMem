@@ -81,9 +81,9 @@ const DefaultBM25Summary = 3.0
 
 // BM25WeightsConfig BM25 列权重配置 / BM25 column weight configuration
 type BM25WeightsConfig struct {
-	Content  float64 `mapstructure:"content"`
+	Content float64 `mapstructure:"content"`
 	Excerpt float64 `mapstructure:"excerpt"`
-	Summary  float64 `mapstructure:"summary"`
+	Summary float64 `mapstructure:"summary"`
 }
 
 // ServerConfig 服务器配置 / Server configuration
@@ -174,27 +174,27 @@ type ExtractConfig struct {
 	NormalizeEnabled    bool          `mapstructure:"normalize_enabled"`
 	NormalizeCandidates int           `mapstructure:"normalize_candidates"`
 	Timeout             time.Duration `mapstructure:"timeout"`
-	EntityTypes         []string      `mapstructure:"entity_types"`   // 实体类型白名单 / Allowed entity types
-	RelationTypes       []string      `mapstructure:"relation_types"` // 关系类型白名单 / Allowed relation types
+	EntityTypes         []string      `mapstructure:"entity_types"`          // 实体类型白名单 / Allowed entity types
+	RelationTypes       []string      `mapstructure:"relation_types"`        // 关系类型白名单 / Allowed relation types
 	BatchTokenThreshold int           `mapstructure:"batch_token_threshold"` // 每批最大 content token 数，默认 4000 / Max content tokens per batch
 }
 
 // RetrievalConfig 检索配置 / Retrieval config
 type RetrievalConfig struct {
-	GraphEnabled     bool             `mapstructure:"graph_enabled"`
-	GraphDepth       int              `mapstructure:"graph_depth"`
-	GraphWeight      float64          `mapstructure:"graph_weight"`
-	FTSWeight        float64          `mapstructure:"fts_weight"`
-	QdrantWeight     float64          `mapstructure:"qdrant_weight"`
-	GraphFTSTop      int              `mapstructure:"graph_fts_top"`
-	GraphEntityLimit int              `mapstructure:"graph_entity_limit"`
-	AccessAlpha          float64          `mapstructure:"access_alpha"`           // 访问频率阻尼系数 / Access frequency damping coefficient
-	RelationDecayLambda  float64          `mapstructure:"relation_decay_lambda"`  // 关系时间衰减系数 λ / Relation time decay lambda
-	Rerank           RerankConfig     `mapstructure:"rerank"`
-	MMR              MMRConfig        `mapstructure:"mmr"`
-	Preprocess       PreprocessConfig `mapstructure:"preprocess"`
-	Strategy         StrategyConfig              `mapstructure:"strategy"`
-	Pipelines        map[string]PipelineOverrides `mapstructure:"pipelines"`
+	GraphEnabled        bool                         `mapstructure:"graph_enabled"`
+	GraphDepth          int                          `mapstructure:"graph_depth"`
+	GraphWeight         float64                      `mapstructure:"graph_weight"`
+	FTSWeight           float64                      `mapstructure:"fts_weight"`
+	QdrantWeight        float64                      `mapstructure:"qdrant_weight"`
+	GraphFTSTop         int                          `mapstructure:"graph_fts_top"`
+	GraphEntityLimit    int                          `mapstructure:"graph_entity_limit"`
+	AccessAlpha         float64                      `mapstructure:"access_alpha"`          // 访问频率阻尼系数 / Access frequency damping coefficient
+	RelationDecayLambda float64                      `mapstructure:"relation_decay_lambda"` // 关系时间衰减系数 λ / Relation time decay lambda
+	Rerank              RerankConfig                 `mapstructure:"rerank"`
+	MMR                 MMRConfig                    `mapstructure:"mmr"`
+	Preprocess          PreprocessConfig             `mapstructure:"preprocess"`
+	Strategy            StrategyConfig               `mapstructure:"strategy"`
+	Pipelines           map[string]PipelineOverrides `mapstructure:"pipelines"`
 }
 
 // StrategyConfig 策略 Agent 配置 / Strategy agent configuration

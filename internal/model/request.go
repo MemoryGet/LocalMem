@@ -12,8 +12,8 @@ type CreateMemoryRequest struct {
 	Kind       string         `json:"kind,omitempty"`
 	SubKind    string         `json:"sub_kind,omitempty"`
 	Scope      string         `json:"scope,omitempty"`
-	Excerpt string `json:"excerpt,omitempty"`
-	Summary string `json:"summary,omitempty"`
+	Excerpt    string         `json:"excerpt,omitempty"`
+	Summary    string         `json:"summary,omitempty"`
 	HappenedAt *time.Time     `json:"happened_at,omitempty"`
 	SourceType string         `json:"source_type,omitempty"`
 	SourceRef  string         `json:"source_ref,omitempty"`
@@ -55,8 +55,8 @@ type UpdateMemoryRequest struct {
 	Kind       *string        `json:"kind,omitempty"`
 	SubKind    *string        `json:"sub_kind,omitempty"`
 	Scope      *string        `json:"scope,omitempty"`
-	Excerpt *string `json:"excerpt,omitempty"`
-	Summary *string `json:"summary,omitempty"`
+	Excerpt    *string        `json:"excerpt,omitempty"`
+	Summary    *string        `json:"summary,omitempty"`
 	HappenedAt *time.Time     `json:"happened_at,omitempty"`
 	SourceType *string        `json:"source_type,omitempty"`
 	SourceRef  *string        `json:"source_ref,omitempty"`
@@ -115,17 +115,17 @@ type ListRequest struct {
 
 // SearchFilters 检索过滤条件 / Search filter conditions
 type SearchFilters struct {
-	Scope          string     `json:"scope,omitempty"`
-	ContextID      string     `json:"context_id,omitempty"`
-	ContextPath    string     `json:"context_path,omitempty"`
-	Kind           string     `json:"kind,omitempty"`
-	Tags           []string   `json:"tags,omitempty"`
-	HappenedAfter  *time.Time `json:"happened_after,omitempty"`
-	HappenedBefore *time.Time `json:"happened_before,omitempty"`
+	Scope           string     `json:"scope,omitempty"`
+	ContextID       string     `json:"context_id,omitempty"`
+	ContextPath     string     `json:"context_path,omitempty"`
+	Kind            string     `json:"kind,omitempty"`
+	Tags            []string   `json:"tags,omitempty"`
+	HappenedAfter   *time.Time `json:"happened_after,omitempty"`
+	HappenedBefore  *time.Time `json:"happened_before,omitempty"`
 	SourceType      string     `json:"source_type,omitempty"`
-	SourceRefPrefix string    `json:"source_ref_prefix,omitempty"` // 来源 URI 前缀匹配 / Source ref prefix match
-	MinStrength     float64   `json:"min_strength,omitempty"`
-	IncludeExpired bool       `json:"include_expired,omitempty"`
+	SourceRefPrefix string     `json:"source_ref_prefix,omitempty"` // 来源 URI 前缀匹配 / Source ref prefix match
+	MinStrength     float64    `json:"min_strength,omitempty"`
+	IncludeExpired  bool       `json:"include_expired,omitempty"`
 
 	// V3: 知识分级 + LLM 过滤 / Retention tier and message role filters
 	RetentionTier string `json:"retention_tier,omitempty"`
@@ -277,7 +277,7 @@ type ReflectRound struct {
 type ReflectMeta struct {
 	RoundsUsed     int  `json:"rounds_used"`
 	TotalTokens    int  `json:"total_tokens"`
-	EvidenceTokens int  `json:"evidence_tokens"`  // B3: 检索证据 token 消耗 / Token count consumed by retrieved evidence
+	EvidenceTokens int  `json:"evidence_tokens"` // B3: 检索证据 token 消耗 / Token count consumed by retrieved evidence
 	ParseFallbacks int  `json:"parse_fallbacks"`
 	Timeout        bool `json:"timeout"`
 	QueryDeduped   bool `json:"query_deduped"`
@@ -332,7 +332,7 @@ type BatchExtractRequest struct {
 
 // BatchExtractResponse 批量实体抽取响应 / Batch entity extraction response
 type BatchExtractResponse struct {
-	Results     map[string]*ExtractResponse `json:"results"`      // memoryID → 该 memory 关联到的实体 / memoryID → associated entities
+	Results     map[string]*ExtractResponse `json:"results"` // memoryID → 该 memory 关联到的实体 / memoryID → associated entities
 	TotalTokens int                         `json:"total_tokens"`
 	BatchCount  int                         `json:"batch_count"` // LLM 调用次数 / Number of LLM calls
 }

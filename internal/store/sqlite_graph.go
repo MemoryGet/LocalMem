@@ -528,9 +528,9 @@ func (s *SQLiteGraphStore) CleanupOrphanEntities(ctx context.Context) (int64, er
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE entities SET deleted_at = ?, updated_at = ?
 		WHERE deleted_at IS NULL
-		  AND id NOT IN (SELECT DISTINCT entity_id FROM memory_entities)
-		  AND id NOT IN (SELECT DISTINCT source_id FROM entity_relations)
-		  AND id NOT IN (SELECT DISTINCT target_id FROM entity_relations)`,
+		  AND NOT EXISTS (SELECT 1 FROM memory_entities WHERE entity_id = entities.id)
+		  AND NOT EXISTS (SELECT 1 FROM entity_relations WHERE source_id = entities.id)
+		  AND NOT EXISTS (SELECT 1 FROM entity_relations WHERE target_id = entities.id)`,
 		now, now,
 	)
 	if err != nil {
@@ -682,4 +682,3 @@ func (s *SQLiteGraphStore) FindEntitiesByName(ctx context.Context, name string, 
 
 	return entities, nil
 }
-
