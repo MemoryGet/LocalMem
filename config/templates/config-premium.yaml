@@ -86,6 +86,13 @@ retrieval:
     context_weight: 0.25
     entity_weight: 0.2
     timeline_weight: 0.15
+  cascade:
+    enabled: true                  # 降级链检索（替代固定管线）
+    graph_min_results: 5           # 图谱够用阈值
+    graph_min_score: 0.3           # 图谱最低分数
+    l2_min_results: 3              # L2 够用阈值
+    intent_llm: false              # 意图分类用 LLM（关闭则走规则）
+    llm_fallback: true             # L3 LLM 兜底
 
 extract:
   max_entities: 20
