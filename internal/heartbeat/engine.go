@@ -78,6 +78,13 @@ func (e *Engine) Run(ctx context.Context) error {
 		}
 	}
 
+	// 6. 关系清理 / Relation cleanup
+	if e.graphStore != nil {
+		if err := e.runRelationCleanup(ctx); err != nil {
+			logger.Warn("heartbeat: relation cleanup error", zap.Error(err))
+		}
+	}
+
 	logger.Info("heartbeat: inspection round completed")
 	return nil
 }
