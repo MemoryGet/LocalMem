@@ -57,6 +57,7 @@ retrieval:
   graph_fts_top: 5
   graph_entity_limit: 10
   access_alpha: 0.15
+  relation_decay_lambda: 0.015
   rerank:
     enabled: true
     provider: "remote"                          # overlap (本地) | remote (Cohere/Jina/Voyage/TEI)
@@ -79,6 +80,12 @@ retrieval:
     stopword_files:
       - "config/stopwords_en.txt"
       - "config/stopwords_zh.txt"
+  disclosure:
+    enabled: true
+    core_weight: 0.4
+    context_weight: 0.25
+    entity_weight: 0.2
+    timeline_weight: 0.15
 
 extract:
   max_entities: 20
