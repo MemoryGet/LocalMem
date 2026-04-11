@@ -292,6 +292,19 @@ func initBusinessManagers(stores *store.Stores, llmProvider llm.Provider, cfg co
 		Config:       mgrCfg,
 	})
 
+	// 向量实体解析器 / Vector entity resolver
+	if cfg.Extract.Resolver.Enabled && stores.GraphStore != nil && stores.CandidateStore != nil {
+		resolver := memory.NewEntityResolver(
+			stores.Tokenizer,
+			stores.GraphStore,
+			stores.CandidateStore,
+			nil, nil, // centroidMgr, vecStore — wired in Task E3
+			cfg.Extract.Resolver,
+		)
+		memManager.SetResolver(resolver)
+		logger.Info("entity resolver enabled (vector-driven)")
+	}
+
 	// 延迟注入 Manager 到 Consolidator（避免循环依赖）/ Deferred injection to avoid circular deps
 	if consolidator != nil {
 		consolidator.SetCreator(memManager)
@@ -449,7 +462,7 @@ func initScheduler(ctx context.Context, stores *store.Stores, mgrs managers, llm
 		sched.Register("session-repair", 10*time.Minute, repairService.Run)
 	}
 	if cfg.Heartbeat.Enabled {
-		hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, llmProvider, cfg.Heartbeat)
+		hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, stores.CandidateStore, llmProvider, cfg.Heartbeat)
 		sched.Register("heartbeat", cfg.Heartbeat.Interval, hbEngine.Run)
 	}
 	// Register queue worker inside scheduler block
