@@ -154,8 +154,18 @@ func (m *Manager) resolveConversationContext(ctx context.Context, req *model.Ing
 
 // buildConversationMemories 构建对话记忆对象 / Build conversation memory objects
 func (m *Manager) buildConversationMemories(req *model.IngestConversationRequest, contextID string, identity *model.Identity) []*model.Memory {
+	nf := m.cfg.Ingest.NoiseFilter
 	memories := make([]*model.Memory, 0, len(req.Messages))
 	for i, msg := range req.Messages {
+		// 噪声预过滤：跳过过短或匹配噪声模式的内容 / Noise pre-filter: skip short or pattern-matched content
+		if IsNoiseContent(msg.Content, nf.MinContentLength, nf.Patterns) {
+			logger.Debug("skipping noise message during ingest",
+				zap.Int("turn", i+1),
+				zap.Int("content_runes", len([]rune(msg.Content))),
+			)
+			continue
+		}
+
 		turnNumber := msg.TurnNumber
 		if turnNumber == 0 {
 			turnNumber = i + 1

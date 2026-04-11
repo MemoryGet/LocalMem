@@ -279,6 +279,7 @@ func initBusinessManagers(stores *store.Stores, llmProvider llm.Provider, cfg co
 		Dedup:           cfg.Dedup,
 		Extract:         cfg.Extract,
 		Crystallization: cfg.Crystallization,
+		Ingest:          cfg.Ingest,
 	}
 	memManager := memory.NewManager(memory.ManagerDeps{
 		MemStore:     stores.MemoryStore,

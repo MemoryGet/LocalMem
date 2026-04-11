@@ -23,6 +23,7 @@ type ManagerConfig struct {
 	Dedup           config.DedupConfig
 	Extract         config.ExtractConfig
 	Crystallization config.CrystallizationConfig
+	Ingest          config.IngestConfig
 }
 
 // ManagerDeps 管理器依赖 / Manager dependencies
