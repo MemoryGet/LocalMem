@@ -193,6 +193,7 @@ type RetrievalConfig struct {
 	Rerank              RerankConfig                 `mapstructure:"rerank"`
 	MMR                 MMRConfig                    `mapstructure:"mmr"`
 	Preprocess          PreprocessConfig             `mapstructure:"preprocess"`
+	Disclosure          DisclosureConfig             `mapstructure:"disclosure"`
 	Strategy            StrategyConfig               `mapstructure:"strategy"`
 	Pipelines           map[string]PipelineOverrides `mapstructure:"pipelines"`
 }
@@ -317,6 +318,29 @@ func (p PreprocessConfig) ResolvedHyDEWeight() float64 {
 	return 0.8
 }
 
+// DisclosureConfig 渐进式披露配置 / Progressive disclosure configuration
+type DisclosureConfig struct {
+	Enabled        bool    `mapstructure:"enabled"`
+	CoreWeight     float64 `mapstructure:"core_weight"`     // 核心事实管线 / Core facts pipeline
+	ContextWeight  float64 `mapstructure:"context_weight"`  // 上下文补充管线 / Context enrichment pipeline
+	EntityWeight   float64 `mapstructure:"entity_weight"`   // 实体网络管线 / Entity network pipeline
+	TimelineWeight float64 `mapstructure:"timeline_weight"` // 时间线管线 / Timeline pipeline
+}
+
+// WeightsForStrategy 根据策略返回管线权重 / Return pipeline weights for strategy
+func (d DisclosureConfig) WeightsForStrategy(strategy string) (core, context, entity, timeline float64) {
+	switch strategy {
+	case "precision", "factual":
+		return 0.60, 0.20, 0.10, 0.10
+	case "exploration":
+		return 0.25, 0.25, 0.25, 0.25
+	case "temporal":
+		return 0.20, 0.15, 0.15, 0.50
+	default:
+		return d.CoreWeight, d.ContextWeight, d.EntityWeight, d.TimelineWeight
+	}
+}
+
 // IngestConfig 数据摄入配置 / Data ingestion configuration
 type IngestConfig struct {
 	NoiseFilter NoiseFilterConfig `mapstructure:"noise_filter"`
@@ -427,6 +451,12 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.preprocess.use_llm", false)
 	viper.SetDefault("retrieval.preprocess.llm_timeout", "5s")
 	viper.SetDefault("retrieval.preprocess.stopword_files", []string{"config/stopwords_en.txt", "config/stopwords_zh.txt"})
+	// Disclosure 默认值 / Disclosure defaults
+	viper.SetDefault("retrieval.disclosure.enabled", false)
+	viper.SetDefault("retrieval.disclosure.core_weight", 0.4)
+	viper.SetDefault("retrieval.disclosure.context_weight", 0.25)
+	viper.SetDefault("retrieval.disclosure.entity_weight", 0.2)
+	viper.SetDefault("retrieval.disclosure.timeline_weight", 0.15)
 	// MCP 默认值 / MCP defaults
 	viper.SetDefault("mcp.enabled", false)
 	viper.SetDefault("mcp.port", 8081)
