@@ -26,9 +26,9 @@
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                           读取阶段（Read Path）                              │
 │                                                                             │
-│  ⑧ 输入问题 ──→ ⑨ 意图分析 ──→ ⑩ 选择管线 ──→ ⑪ 多路检索 ──→ ⑫ 返回结果   │
-│  (query)       (LLM/规则)     (6种管线)       (FTS+向量+图谱)   (排序+披露)  │
-│                可关闭                                                        │
+│  ⑧ 输入问题 ──→ ⑨ 意图分类 ──→ ⑩ 降级链检索 ──→ ⑪ 逐级执行 ──→ ⑫ 返回结果  │
+│  (query)       (规则/LLM)     (4种意图链)       (够用就停)       (排序+披露)  │
+│                规则优先                                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -202,89 +202,129 @@ heartbeat:
 
 **代码位置**: `internal/search/retriever.go:203`
 
-### ⑨ 意图分析（Strategy Agent，可关闭）
+### ⑨ 意图分类（规则优先，LLM 可选兜底）
 
-分析查询意图，决定检索策略：
+分析查询意图，决定走哪条降级链：
 
 ```
 "张三最近在用什么编程语言？"
-  → 分类: factual（事实型）
-  → 提取: 时间意图=recent, 实体候选=[张三, 编程语言]
+  → 分词: [张三, 编程语言]
+  → 实体探测: 张三 ✓ (entity_hits=1)
+  → 时间词检测: "最近" ✓ (temporal_hint=true)
+  → 意图: temporal（时间+实体）
 ```
 
-**两种模式**:
-- `strategy.use_llm: true` → LLM 分析（更准，有延迟）
-- `strategy.use_llm: false` → 规则分类（更快，fallback 到 exploration 管线）
+**四种意图**:
+| 意图 | 触发条件 | 示例 |
+|------|---------|------|
+| **entity** | 实体命中 ≥ 1 | "张三做了什么"、"Python 性能" |
+| **temporal** | 包含时间词（+可选实体） | "最近的讨论"、"上周张三提了什么" |
+| **conceptual** | 概念词 + 无实体命中 | "什么是微服务"、"如何部署" |
+| **default** | 以上都不满足 | "hello world" |
+
+**意图分类本身也是降级的**：规则分类（零成本）→ LLM 分类（可关闭）
 
 ```yaml
-# 配置（关闭 LLM 意图分析）
+# 配置
 retrieval:
-  strategy:
-    use_llm: false
-    fallback_pipeline: exploration
+  cascade:
+    enabled: true
+    intent_llm: false     # 关闭 LLM 意图分类，纯规则
 ```
 
-**代码位置**: `internal/search/retriever.go:113` → `selectPipelineWithPlan()`
-**策略 Agent**: `internal/search/strategy/`
+**代码位置**: `internal/search/intent.go` → `IntentClassifier.Classify()`
 
-### ⑩ 选择管线
+### ⑩ 按意图走降级链（替代固定管线）
 
-根据意图分析结果选择检索管线：
-
-| 管线 | 适用场景 | 检索通道 |
-|------|---------|---------|
-| **precision** | 精确查找 | FTS + Graph 并行 → 图谱感知排序 |
-| **exploration** | 开放探索 | FTS + Graph + Temporal → RRF 融合 |
-| **semantic** | 语义理解 | Vector + FTS → RRF 融合 |
-| **association** | 关联发现 | Graph(depth=3) → 图谱重排 |
-| **fast** | 快速检索 | FTS only |
-| **full** | 全通道 | FTS + Graph + Vector → 图谱感知排序 |
-
-无意图分析时默认走 `exploration`。
-
-**代码位置**: `internal/search/pipeline/builtin/builtin.go` → `RegisterBuiltins()`
-
-### ⑪ 多路检索（Pipeline 执行）
-
-以 `exploration` 管线为例：
+**不再从 6 条管线中选一条，而是按意图走降级链，每级有质量关卡，够用就停：**
 
 ```
-并行执行:
-  ├── FTS 通道: "张三 编程语言" → BM25 全文检索 → 命中记忆列表
-  ├── Graph 通道: "张三" → FindEntitiesByName → BFS 遍历图谱 → 关联记忆
-  │     打分: depthScore × timeDecay = 1/(depth+1) × e^(-λ×days)
-  └── Temporal 通道: 时间范围过滤（如有时间意图）
+entity 意图（"张三做了什么"）:
+  L1: Graph 检索 → 结果 ≥ 5 条且 top_score > 0.3? → YES: 返回 ✓
+  L2: + FTS 补充 → 结果 ≥ 3 条? → YES: 返回 ✓
+  L3: + Vector 补充 → 返回
 
-合并: RRF 融合三路结果
-  score = Σ weight × 1/(k + rank + 1)
+temporal 意图（"上周讨论了什么"）:
+  L1: Temporal + Graph → 够用? → 返回 ✓
+  L2: + FTS → 返回 ✓
+  L3: + Vector → 返回
 
-后处理:
-  → 去重
+conceptual 意图（"什么是微服务"）:
+  L1: FTS + Vector（图谱对概念帮助小）→ 够用? → 返回 ✓
+  L2: + Graph 补充 → 返回
+
+default 意图:
+  L1: Graph → 够用? → 返回 ✓
+  L2: + FTS + Vector → 返回
+```
+
+```yaml
+# 降级阈值配置
+retrieval:
+  cascade:
+    graph_min_results: 5    # L1 够用: 至少 5 条结果
+    graph_min_score: 0.3    # L1 够用: top_score > 0.3
+    l2_min_results: 3       # L2 够用: 至少 3 条结果
+    llm_fallback: true      # L3 LLM 兜底（可关闭）
+```
+
+**代码位置**: `internal/search/cascade.go` → `CascadeRetriever.Retrieve()`
+
+**与旧管线系统的关系**：
+- `cascade.enabled: true` → 走降级链（推荐）
+- `cascade.enabled: false` → 走旧的 6 管线系统（回退）
+- 优先级：Cascade > Pipeline > Legacy
+
+### ⑪ 检索执行（降级链内部）
+
+以 entity 意图 L1（Graph）为例：
+
+```
+Graph 检索:
+  实体探测: "张三" → FindEntitiesByName → entity_id
+  BFS 遍历: 从张三出发，depth=2，收集关联记忆
+  打分: depthScore × timeDecay = 1/(depth+1) × e^(-λ×days)
+  结果: 8 条记忆，top_score=0.85
+  质量关卡: 8 ≥ 5 且 0.85 > 0.3 → 够用，跳过 FTS/Vector ✓
+```
+
+如果 L1 不够（图谱覆盖不到的查询），降级到 L2：
+
+```
+L1 结果: 2 条，top_score=0.4 → 不够
+L2: + FTS 关键词检索 → 追加 6 条 → 共 8 条 → 够用 ✓
+```
+
+后处理（所有意图共享）:
   → 强度加权 (strength × score)
-  → Rerank (可选)
   → MMR 多样性重排 (可选)
   → Token 预算裁剪 / 渐进式披露
   → 实体发现: 批量加载结果记忆的关联实体
 ```
 
 ```yaml
-# 配置
+# 配置（降级链模式）
 retrieval:
+  cascade:
+    enabled: true
+    graph_min_results: 5
+    graph_min_score: 0.3
+    l2_min_results: 3
+    intent_llm: false
+    llm_fallback: true
   graph_enabled: true
   graph_depth: 2
-  graph_weight: 0.8
-  fts_weight: 1.0
-  qdrant_weight: 0.6
   relation_decay_lambda: 0.015    # 图谱时间衰减
 ```
 
 **代码位置**:
+- 降级链: `internal/search/cascade.go` → `CascadeRetriever`
+- 意图分类: `internal/search/intent.go` → `IntentClassifier`
 - FTS: `internal/search/stage/fts.go`
 - Graph: `internal/search/stage/graph.go`（含时间衰减 `decayWeight()`）
 - Vector: `internal/search/stage/vector.go`
-- 融合: `internal/search/stage/merge.go`
 - 披露: `internal/search/stage/disclosure.go`
-- 实体发现: `internal/search/retriever.go:168` → `enrichWithEntities()`
+- 实体发现: `internal/search/retriever.go` → `enrichWithEntities()`
 
 ### ⑫ 返回结果
 
