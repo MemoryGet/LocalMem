@@ -117,7 +117,8 @@ type Memory struct {
 
 // SearchResult 检索结果 / Search result with score
 type SearchResult struct {
-	Memory *Memory `json:"memory"`
-	Score  float64 `json:"score"`
-	Source string  `json:"source"` // "sqlite", "qdrant", "hybrid"
+	Memory   *Memory   `json:"memory"`
+	Score    float64   `json:"score"`
+	Source   string    `json:"source"`             // "sqlite", "qdrant", "hybrid"
+	Entities []*Entity `json:"entities,omitempty"` // 关联实体 / Associated entities
 }

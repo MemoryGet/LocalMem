@@ -164,8 +164,11 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 		}
 	}
 
+	// 5. 实体发现：批量加载命中记忆的关联实体 / Entity discovery: batch-load entities for result memories
+	r.enrichWithEntities(ctx, result.Candidates)
+
 	out := &RetrieveResult{Results: result.Candidates}
-	// 5. 填充调试信息 / Populate debug info if requested
+	// 6. 填充调试信息 / Populate debug info if requested
 	if req.Debug {
 		out.PipelineInfo = &PipelineDebugInfo{
 			PipelineName: result.PipelineName,
@@ -530,6 +533,9 @@ func (r *Retriever) retrieveLegacy(ctx context.Context, req *model.RetrieveReque
 		results = r.injectCoreMemories(ctx, req, results)
 	}
 
+	// 实体发现：批量加载命中记忆的关联实体 / Entity discovery: batch-load entities for result memories
+	r.enrichWithEntities(ctx, results)
+
 	// 异步记录访问 / Async-track access hits
 	if r.tracker != nil {
 		for _, res := range results {
@@ -540,6 +546,37 @@ func (r *Retriever) retrieveLegacy(ctx context.Context, req *model.RetrieveReque
 	}
 
 	return results, nil
+}
+
+// enrichWithEntities 批量加载命中记忆的关联实体 / Batch-load entities for result memories
+// 非阻塞：GraphStore 不可用或查询失败时静默跳过 / Non-blocking: silently skips if GraphStore unavailable or query fails
+func (r *Retriever) enrichWithEntities(ctx context.Context, results []*model.SearchResult) {
+	if r.graphStore == nil || len(results) == 0 {
+		return
+	}
+
+	memIDs := make([]string, 0, len(results))
+	for _, sr := range results {
+		if sr.Memory != nil {
+			memIDs = append(memIDs, sr.Memory.ID)
+		}
+	}
+	if len(memIDs) == 0 {
+		return
+	}
+
+	entitiesMap, err := r.graphStore.GetMemoriesEntities(ctx, memIDs)
+	if err != nil {
+		logger.Debug("enrichWithEntities: batch load failed, skipping",
+			zap.Int("memory_count", len(memIDs)), zap.Error(err))
+		return
+	}
+
+	for _, sr := range results {
+		if sr.Memory != nil {
+			sr.Entities = entitiesMap[sr.Memory.ID]
+		}
+	}
 }
 
 // Timeline 时间线查询 / Timeline query
