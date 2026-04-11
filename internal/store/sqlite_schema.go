@@ -10,9 +10,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// createFreshSchema 为新数据库一步创建 V26 终态 schema / Create final V26 schema for new databases in one step
-// 等效于 V0→V26 全部迁移的最终结果，但跳过中间步骤
-// Equivalent to running all V0→V26 migrations, but skips intermediate steps
+// createFreshSchema 为新数据库一步创建 V27 终态 schema / Create final V27 schema for new databases in one step
+// 等效于 V0→V27 全部迁移的最终结果，但跳过中间步骤
+// Equivalent to running all V0→V27 migrations, but skips intermediate steps
 func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -155,15 +155,30 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		return fmt.Errorf("fresh schema: create entity_relations: %w", err)
 	}
 
-	// --- memory_entities 关联表 (V15 FK CASCADE + CHECK) / memory_entities junction table ---
+	// --- memory_entities 关联表 (V15 FK CASCADE + CHECK, V27 confidence) / memory_entities junction table ---
 	if _, err := tx.Exec(`CREATE TABLE memory_entities (
 		memory_id  TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
 		entity_id  TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
 		role       TEXT DEFAULT '' CHECK (role IN ('', 'subject', 'object', 'mentioned')),
+		confidence REAL DEFAULT 0.9,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (memory_id, entity_id)
 	)`); err != nil {
 		return fmt.Errorf("fresh schema: create memory_entities: %w", err)
+	}
+
+	// --- entity_candidates 表 (V27) / entity_candidates table ---
+	if _, err := tx.Exec(`CREATE TABLE entity_candidates (
+		name       TEXT NOT NULL,
+		scope      TEXT DEFAULT '',
+		first_seen DATETIME NOT NULL,
+		hit_count  INTEGER DEFAULT 1,
+		memory_ids TEXT DEFAULT '[]',
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		UNIQUE(name, scope)
+	)`); err != nil {
+		return fmt.Errorf("fresh schema: create entity_candidates: %w", err)
 	}
 
 	// --- documents 表 (14 列, V10 扩展字段) / documents table (14 columns) ---
@@ -323,6 +338,11 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		}
 	}
 
+	// entity_candidates 表索引 / entity_candidates table indexes
+	if _, err := tx.Exec(`CREATE INDEX idx_entity_candidates_hit ON entity_candidates(hit_count)`); err != nil {
+		return fmt.Errorf("fresh schema: entity_candidates hit index: %w", err)
+	}
+
 	// memory_tags 表索引 / memory_tags table indexes
 	if _, err := tx.Exec(`CREATE INDEX idx_memory_tags_tag_id ON memory_tags(tag_id)`); err != nil {
 		return fmt.Errorf("fresh schema: memory_tags tag_id index: %w", err)
@@ -461,12 +481,12 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		return fmt.Errorf("fresh schema: scope_policies table: %w", err)
 	}
 
-	// --- 记录 schema 版本 = 26 / Record schema version = 26 ---
-	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (26)`); err != nil {
+	// --- 记录 schema 版本 = 27 / Record schema version = 27 ---
+	if _, err := tx.Exec(`INSERT INTO schema_version (version) VALUES (27)`); err != nil {
 		return fmt.Errorf("fresh schema: record version: %w", err)
 	}
 
-	logger.Info("fresh schema V26 created successfully",
+	logger.Info("fresh schema V27 created successfully",
 		zap.String("tokenizer", tokName),
 	)
 

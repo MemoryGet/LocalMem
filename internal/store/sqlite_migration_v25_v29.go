@@ -89,3 +89,47 @@ func migrateV25ToV26(db *sql.DB) error {
 	logger.Info("migration V25→V26 completed: entity lifecycle fields + source_ref index")
 	return nil
 }
+
+// migrateV26ToV27 memory_entities 置信度 + entity_candidates 表
+// memory_entities confidence + entity_candidates table
+func migrateV26ToV27(db *sql.DB) error {
+	logger.Info("executing migration V26→V27: confidence + entity_candidates")
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// memory_entities: 新增 confidence / Add confidence
+	if _, err := tx.Exec(`ALTER TABLE memory_entities ADD COLUMN confidence REAL DEFAULT 0.9`); err != nil {
+		if !IsColumnExistsError(err) && !isNoSuchTableError(err) {
+			return err
+		}
+	}
+
+	// entity_candidates 表 / Create entity_candidates table
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS entity_candidates (
+		name       TEXT NOT NULL,
+		scope      TEXT DEFAULT '',
+		first_seen DATETIME NOT NULL,
+		hit_count  INTEGER DEFAULT 1,
+		memory_ids TEXT DEFAULT '[]',
+		created_at DATETIME NOT NULL,
+		updated_at DATETIME NOT NULL,
+		UNIQUE(name, scope)
+	)`); err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_entity_candidates_hit ON entity_candidates(hit_count)`); err != nil {
+		logger.Warn("V26→V27: candidate index failed (non-fatal)", zap.Error(err))
+	}
+
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (27, datetime('now'))`); err != nil {
+		return err
+	}
+
+	logger.Info("migration V26→V27 completed: confidence + entity_candidates")
+	return tx.Commit()
+}
