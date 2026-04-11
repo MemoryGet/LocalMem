@@ -160,10 +160,18 @@ func buildFull(deps Deps) *pipeline.Pipeline {
 
 // buildPostStages 构建共享后处理 stage 列表 / Build shared post-processing stages
 func buildPostStages(deps Deps) []pipeline.Stage {
-	return []pipeline.Stage{
+	stages := []pipeline.Stage{
 		stage.NewWeightStage(deps.Cfg.AccessAlpha),
 		stage.NewMMRStage(deps.VectorStore, deps.Cfg.MMR.Lambda, 0), // 0 = 使用输入长度 / 0 = use input length
 		stage.NewCoreStage(deps.CoreProvider),
-		stage.NewTrimStage(defaultTrimTokens),
 	}
+
+	// 渐进式披露替代简单裁剪 / Progressive disclosure replaces simple trim
+	if deps.Cfg.Disclosure.Enabled {
+		stages = append(stages, stage.NewDisclosureStage(deps.Cfg.Disclosure, defaultTrimTokens))
+	} else {
+		stages = append(stages, stage.NewTrimStage(defaultTrimTokens))
+	}
+
+	return stages
 }
