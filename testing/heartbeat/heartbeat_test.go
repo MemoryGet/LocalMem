@@ -76,7 +76,7 @@ func makeHBConfig(enabled bool, contradictionEnabled bool, maxComp int) config.H
 func TestHeartbeat_Run_Disabled(t *testing.T) {
 	hbCfg := makeHBConfig(false, false, 0)
 	stores, _ := setupHeartbeatStores(t)
-	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, nil, hbCfg)
+	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, nil, nil, hbCfg)
 	err := engine.Run(context.Background())
 	assert.NoError(t, err)
 }
@@ -85,7 +85,7 @@ func TestHeartbeat_Run_Disabled(t *testing.T) {
 func TestHeartbeat_Run_EmptyDB(t *testing.T) {
 	hbCfg := makeHBConfig(true, false, 0)
 	stores, _ := setupHeartbeatStores(t)
-	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, nil, hbCfg)
+	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, nil, nil, hbCfg)
 	err := engine.Run(context.Background())
 	assert.NoError(t, err)
 }
@@ -102,7 +102,7 @@ func TestHeartbeat_Run_NoLLM_ContradictionSkipped(t *testing.T) {
 	require.NoError(t, memStore.Create(context.Background(), m2))
 
 	// nil LLM → contradiction_enabled=true 但跳过（engine.go:56 的 nil guard）
-	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, nil, hbCfg)
+	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, nil, nil, hbCfg)
 	err := engine.Run(context.Background())
 	assert.NoError(t, err)
 }
@@ -112,7 +112,7 @@ func TestHeartbeat_ContradictionLLMError(t *testing.T) {
 	hbCfg := makeHBConfig(true, false, 5) // contradiction=false → LLM not called at all
 	mockLLM := &hbMockLLM{err: assert.AnError}
 	stores, _ := setupHeartbeatStores(t)
-	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, mockLLM, hbCfg)
+	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, nil, mockLLM, hbCfg)
 	err := engine.Run(context.Background())
 	assert.NoError(t, err, "LLM errors should be logged, not returned")
 }
@@ -131,7 +131,7 @@ func TestHeartbeat_DecayAudit(t *testing.T) {
 	}
 	require.NoError(t, memStore.Create(context.Background(), m))
 
-	engine := heartbeat.NewEngine(stores.MemoryStore, nil, nil, nil, hbCfg)
+	engine := heartbeat.NewEngine(stores.MemoryStore, nil, nil, nil, nil, hbCfg)
 	err := engine.Run(context.Background())
 	assert.NoError(t, err)
 }
@@ -140,7 +140,7 @@ func TestHeartbeat_DecayAudit(t *testing.T) {
 func TestHeartbeat_ContextCancel(t *testing.T) {
 	hbCfg := makeHBConfig(true, false, 0)
 	stores, _ := setupHeartbeatStores(t)
-	engine := heartbeat.NewEngine(stores.MemoryStore, nil, nil, nil, hbCfg)
+	engine := heartbeat.NewEngine(stores.MemoryStore, nil, nil, nil, nil, hbCfg)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
@@ -161,7 +161,7 @@ func TestHeartbeat_MaxComparisons_Zero(t *testing.T) {
 	hbCfg := makeHBConfig(true, true, 0)
 	mockLLM := &hbMockLLM{answer: "no"}
 	stores, _ := setupHeartbeatStores(t)
-	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, mockLLM, hbCfg)
+	engine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, nil, nil, mockLLM, hbCfg)
 	err := engine.Run(context.Background())
 	assert.NoError(t, err)
 	// vecStore=nil → contradiction check skipped before hitting maxComp limit
