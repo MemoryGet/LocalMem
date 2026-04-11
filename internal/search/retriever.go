@@ -52,6 +52,8 @@ type Retriever struct {
 	executor       *pipeline.Executor
 	strategyAgent  *strategy.Agent
 	ruleClassifier *strategy.RuleClassifier
+
+	cascade *CascadeRetriever // 降级链检索器 / Cascade retriever (optional)
 }
 
 // NewRetriever 创建检索器 / Create a new retriever
@@ -71,6 +73,11 @@ func NewRetriever(memStore store.MemoryStore, vecStore store.VectorStore, embedd
 // SetCoreProvider 设置核心记忆提供者（可选）/ Set core memory provider (optional)
 func (r *Retriever) SetCoreProvider(cp CoreProvider) {
 	r.coreProvider = cp
+}
+
+// SetCascade 设置降级链检索器 / Set cascade retriever
+func (r *Retriever) SetCascade(c *CascadeRetriever) {
+	r.cascade = c
 }
 
 // SetPipelineComponents 手动注入管线组件（用于评测等需要自定义 LLM Provider 的场景）
@@ -199,10 +206,21 @@ func (r *Retriever) resolveIdentity(req *model.RetrieveRequest) *model.Identity 
 }
 
 // Retrieve 执行检索 / Execute retrieval
-// 管线模式优先，未初始化时走旧逻辑 / Pipeline mode preferred, falls back to legacy if not initialized
+// 降级链 > 管线 > 旧逻辑 / Cascade > Pipeline > Legacy
 func (r *Retriever) Retrieve(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	if req.Query == "" && len(req.Embedding) == 0 {
 		return nil, fmt.Errorf("query or embedding is required: %w", model.ErrInvalidInput)
+	}
+
+	// 降级链模式 / Cascade mode
+	if r.cascade != nil {
+		results, err := r.cascade.Retrieve(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		// 实体发现 / Entity enrichment
+		r.enrichWithEntities(ctx, results)
+		return results, nil
 	}
 
 	// 管线模式 / Pipeline mode
