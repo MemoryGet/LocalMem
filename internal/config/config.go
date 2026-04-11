@@ -274,8 +274,9 @@ type HeartbeatConfig struct {
 	ContradictionMaxComp int           `mapstructure:"contradiction_max_comparisons"` // 每轮最大比较数 / Max comparisons per run
 	DecayAuditMinAgeDays int           `mapstructure:"decay_audit_min_age_days"`      // 衰减审计最小天数 / Min age for decay audit
 	DecayAuditThreshold  float64       `mapstructure:"decay_audit_threshold"`         // 衰减审计强度阈值 / Strength threshold for decay audit
-	PromotionEnabled     bool          `mapstructure:"promotion_enabled"`             // 晋升检查开关 / Promotion check toggle
-	PromotionThreshold   int           `mapstructure:"promotion_threshold"`           // 晋升阈值 / Reinforced count threshold for promotion
+	PromotionEnabled        bool    `mapstructure:"promotion_enabled"`           // 晋升检查开关 / Promotion check toggle
+	PromotionThreshold      int     `mapstructure:"promotion_threshold"`         // 晋升阈值 / Reinforced count threshold for promotion
+	CandidatePromoteMinHits int     `mapstructure:"candidate_promote_min_hits"` // 候选实体晋升最小命中数 / Min hits for candidate entity promotion
 }
 
 // MCPConfig MCP 服务器配置 / MCP server configuration
@@ -467,6 +468,7 @@ func LoadConfig() error {
 	viper.SetDefault("heartbeat.decay_audit_threshold", 0.1)
 	viper.SetDefault("heartbeat.promotion_enabled", true)
 	viper.SetDefault("heartbeat.promotion_threshold", 5)
+	viper.SetDefault("heartbeat.candidate_promote_min_hits", 3)
 	// Preprocess 默认值 / Preprocess defaults
 	viper.SetDefault("retrieval.preprocess.enabled", true)
 	viper.SetDefault("retrieval.preprocess.use_llm", false)

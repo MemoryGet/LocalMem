@@ -89,7 +89,11 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	// 7. 候选实体晋升 / Candidate entity promotion
 	if e.candidateStore != nil {
-		if err := e.runCandidatePromotion(ctx, 3); err != nil {
+		minHits := e.hbCfg.CandidatePromoteMinHits
+		if minHits <= 0 {
+			minHits = 3
+		}
+		if err := e.runCandidatePromotion(ctx, minHits); err != nil {
 			logger.Warn("heartbeat: candidate promotion error", zap.Error(err))
 		}
 	}

@@ -2,7 +2,9 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"strings"
+	"sync"
 
 	"iclude/internal/config"
 	"iclude/internal/logger"
@@ -202,8 +204,7 @@ func (r *EntityResolver) writeAssociations(ctx context.Context, memoryID string,
 			Role: "mentioned", Confidence: assoc.Confidence,
 		}
 		if err := r.graphStore.CreateMemoryEntity(ctx, me); err != nil {
-			// 忽略已存在错误 / Ignore already-exists errors
-			if !strings.Contains(err.Error(), "already exists") {
+			if !errors.Is(err, model.ErrConflict) {
 				logger.Debug("resolver: create memory_entity failed", zap.Error(err))
 			}
 		}
@@ -225,11 +226,33 @@ func (r *EntityResolver) ResolveWithEmbeddings(ctx context.Context, memories []*
 			embedding = embeddings[i]
 		}
 
-		l1, _ := r.ResolveLayer1(ctx, mem)
+		l1, err := r.ResolveLayer1(ctx, mem)
+		if err != nil {
+			logger.Debug("resolver: layer1 failed", zap.String("id", mem.ID), zap.Error(err))
+		}
+
 		var l2, l3 []EntityAssociation
 		if len(embedding) > 0 {
-			l2, _ = r.ResolveLayer2(ctx, embedding)
-			l3, _ = r.ResolveLayer3(ctx, embedding)
+			// Layer 2/3 并行 / Parallel Layer 2 & 3
+			var wg sync.WaitGroup
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				var err error
+				l2, err = r.ResolveLayer2(ctx, embedding)
+				if err != nil {
+					logger.Debug("resolver: layer2 failed", zap.String("id", mem.ID), zap.Error(err))
+				}
+			}()
+			go func() {
+				defer wg.Done()
+				var err error
+				l3, err = r.ResolveLayer3(ctx, embedding)
+				if err != nil {
+					logger.Debug("resolver: layer3 failed", zap.String("id", mem.ID), zap.Error(err))
+				}
+			}()
+			wg.Wait()
 		}
 
 		merged := mergeAssociations(l1, l2, l3)
