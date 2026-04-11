@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"iclude/internal/config"
+	"iclude/internal/embed"
 	"iclude/internal/llm"
 	"iclude/internal/memory"
 	"iclude/internal/model"
@@ -1320,6 +1321,311 @@ func RunLongMemEvalResolverDB(ctx context.Context, entries []LongMemEvalEntry, t
 	fmt.Printf("\n  Phase 1 (seed+resolve): %s | Phase 2 (query): %s\n",
 		(seedDuration + time.Since(resolveStart)).Round(time.Second), queryDuration.Round(time.Second))
 	return report, nil
+}
+
+// RunLongMemEvalResolverFull 完整三层向量解析器评测：SQLite + Qdrant + Embedding + EntityResolver（无 LLM）
+// Full three-layer resolver eval: SQLite + Qdrant + Embedding + EntityResolver (no LLM)
+// 需要: EMBEDDING_API_KEY + Qdrant (localhost:6333) / Requires: EMBEDDING_API_KEY + Qdrant
+func RunLongMemEvalResolverFull(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, error) {
+	// 解析环境变量 / Parse environment variables
+	embeddingAPIKey := os.Getenv("EMBEDDING_API_KEY")
+	if embeddingAPIKey == "" {
+		embeddingAPIKey = os.Getenv("OPENAI_API_KEY")
+	}
+	if embeddingAPIKey == "" {
+		return nil, fmt.Errorf("EMBEDDING_API_KEY or OPENAI_API_KEY required for full resolver eval")
+	}
+	embeddingModel := os.Getenv("EMBEDDING_MODEL")
+	if embeddingModel == "" {
+		embeddingModel = "text-embedding-3-small"
+	}
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		qdrantURL = "http://localhost:6333"
+	}
+	qdrantCollection := "eval_resolver_" + time.Now().Format("20060102_150405")
+	qdrantDimension := 1536 // text-embedding-3-small default
+	if d := os.Getenv("EMBEDDING_DIMENSION"); d != "" {
+		if n, err := fmt.Sscanf(d, "%d", &qdrantDimension); n == 0 || err != nil {
+			qdrantDimension = 1536
+		}
+	}
+
+	if maxQuestions > 0 && len(entries) > maxQuestions {
+		entries = entries[:maxQuestions]
+	}
+
+	start := time.Now()
+	dbPath := filepath.Join(tmpDir, "resolver_full_eval.db")
+
+	// --- 初始化存储 / Initialize stores ---
+	tok := tokenizer.NewSimpleTokenizer()
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
+	if err != nil {
+		return nil, fmt.Errorf("create store: %w", err)
+	}
+	defer memStore.Close()
+	if err := memStore.Init(ctx); err != nil {
+		return nil, fmt.Errorf("init store: %w", err)
+	}
+
+	db := memStore.DB().(*sql.DB)
+	graphStore := store.NewSQLiteGraphStore(db)
+	candidateStore := store.NewSQLiteCandidateStore(db)
+
+	// Qdrant 向量存储 / Qdrant vector store
+	vecStore := store.NewQdrantVectorStore(qdrantURL, qdrantCollection, qdrantDimension)
+	if err := vecStore.Init(ctx); err != nil {
+		return nil, fmt.Errorf("init qdrant: %w (is Qdrant running at %s?)", err, qdrantURL)
+	}
+	defer vecStore.Close()
+	fmt.Printf("  [init] Qdrant collection: %s (dim=%d)\n", qdrantCollection, qdrantDimension)
+
+	// Embedding 模型 / Embedding model
+	embedder := embed.NewOpenAIEmbedder(embeddingAPIKey, embeddingModel)
+	fmt.Printf("  [init] Embedding model: %s\n", embeddingModel)
+
+	// CentroidManager / Centroid manager
+	centroidCollection := qdrantCollection + "_centroids"
+	centroidMgr, err := memory.NewCentroidManager(qdrantURL, centroidCollection, qdrantDimension)
+	if err != nil {
+		fmt.Printf("  [init] CentroidManager failed (Layer 2 disabled): %v\n", err)
+		centroidMgr = nil
+	} else {
+		fmt.Printf("  [init] CentroidManager: %s\n", centroidCollection)
+	}
+
+	// Manager 带 vecStore + embedder / Manager with vector store + embedder
+	mgr := memory.NewManager(memory.ManagerDeps{
+		MemStore: memStore,
+		VecStore: vecStore,
+		Embedder: embedder,
+	})
+
+	// --- Phase 1a: seed（写入 SQLite + Qdrant）/ Seed into SQLite + Qdrant ---
+	type seedKey struct{ content, kind string }
+	seeded := make(map[seedKey]bool)
+	type seededMem struct {
+		ID, Content string
+		Embedding   []float32
+	}
+	var allSeeded []seededMem
+
+	for _, entry := range entries {
+		for _, sm := range entry.SeedMemories {
+			kind := sm.Kind
+			if kind == "" {
+				kind = "conversation"
+			}
+			key := seedKey{content: sm.Content, kind: kind}
+			if seeded[key] {
+				continue
+			}
+			seeded[key] = true
+			mem, createErr := mgr.Create(ctx, &model.CreateMemoryRequest{
+				Content: sm.Content, Kind: kind, SubKind: sm.SubKind, Scope: "eval/longmemeval",
+			})
+			if createErr != nil {
+				continue
+			}
+			allSeeded = append(allSeeded, seededMem{ID: mem.ID, Content: sm.Content})
+			if len(allSeeded)%50 == 0 {
+				fmt.Printf("  [seed] %d memories seeded (SQLite + Qdrant)...\n", len(allSeeded))
+			}
+		}
+	}
+	seedDuration := time.Since(start)
+	fmt.Printf("  [seed] Phase 1a done: %d memories (%s)\n", len(allSeeded), seedDuration.Round(time.Second))
+
+	// --- Phase 1b: 批量获取 embedding + 三层解析 / Batch embedding + three-layer resolution ---
+	resolveStart := time.Now()
+
+	// 批量获取 embedding / Batch embed all seeded memories
+	fmt.Printf("  [embed] Embedding %d memories...\n", len(allSeeded))
+	texts := make([]string, len(allSeeded))
+	for i, s := range allSeeded {
+		texts[i] = s.Content
+	}
+
+	batchSize := 100
+	var allEmbeddings [][]float32
+	for i := 0; i < len(texts); i += batchSize {
+		end := i + batchSize
+		if end > len(texts) {
+			end = len(texts)
+		}
+		batch, embErr := embedder.EmbedBatch(ctx, texts[i:end])
+		if embErr != nil {
+			return nil, fmt.Errorf("embed batch %d-%d: %w", i, end, embErr)
+		}
+		allEmbeddings = append(allEmbeddings, batch...)
+		fmt.Printf("  [embed] %d/%d embedded\n", len(allEmbeddings), len(texts))
+	}
+	fmt.Printf("  [embed] Done: %d embeddings (%s)\n", len(allEmbeddings), time.Since(resolveStart).Round(time.Second))
+
+	// EntityResolver 三层 / Three-layer EntityResolver
+	resolverCfg := config.ResolverConfig{
+		Enabled:             true,
+		CentroidThreshold:   0.6,
+		NeighborK:           10,
+		NeighborMinCount:    2,
+		CandidatePromoteMin: 2,
+	}
+	resolver := memory.NewEntityResolver(tok, graphStore, candidateStore, centroidMgr, vecStore, resolverCfg)
+
+	mems := make([]*model.Memory, len(allSeeded))
+	for i, s := range allSeeded {
+		mems[i] = &model.Memory{ID: s.ID, Content: s.Content, Scope: "eval/longmemeval"}
+	}
+
+	// Pass 1: 三层解析（Layer 1 分词 + Layer 2 质心 + Layer 3 近邻）/ Three-layer pass 1
+	fmt.Printf("  [resolver] Pass 1: three-layer resolution...\n")
+	resolver.ResolveWithEmbeddings(ctx, mems, allEmbeddings)
+
+	// 晋升候选 / Promote candidates
+	promCandidates, _ := candidateStore.ListPromotable(ctx, 2)
+	promoted := 0
+	for _, c := range promCandidates {
+		entity := &model.Entity{Name: c.Name, EntityType: "concept", Scope: c.Scope}
+		if err := graphStore.CreateEntity(ctx, entity); err != nil {
+			continue
+		}
+		for _, memID := range c.MemoryIDs {
+			_ = graphStore.CreateMemoryEntity(ctx, &model.MemoryEntity{
+				MemoryID: memID, EntityID: entity.ID, Role: "mentioned", Confidence: 0.9,
+			})
+		}
+		_ = candidateStore.DeleteCandidate(ctx, c.Name, c.Scope)
+		promoted++
+
+		// 计算晋升实体的质心 / Compute centroid for promoted entity
+		if centroidMgr != nil {
+			var centroidVecs [][]float32
+			for _, memID := range c.MemoryIDs {
+				for j, s := range allSeeded {
+					if s.ID == memID && j < len(allEmbeddings) {
+						centroidVecs = append(centroidVecs, allEmbeddings[j])
+					}
+				}
+			}
+			if len(centroidVecs) > 0 {
+				centroid := averageVectors(centroidVecs)
+				_ = centroidMgr.UpsertCentroid(ctx, entity.ID, entity.Name, entity.Scope, centroid, len(centroidVecs))
+			}
+		}
+	}
+	fmt.Printf("  [resolver] promoted %d candidates to entities\n", promoted)
+
+	// Pass 2: 二次解析 / Second pass
+	fmt.Printf("  [resolver] Pass 2: re-resolution with promoted entities...\n")
+	resolver.ResolveWithEmbeddings(ctx, mems, allEmbeddings)
+
+	entityCount := 0
+	if ents, listErr := graphStore.ListEntities(ctx, "", "", 100000); listErr == nil {
+		entityCount = len(ents)
+	}
+	relCount := 0
+	for _, ent := range func() []*model.Entity {
+		ents, _ := graphStore.ListEntities(ctx, "", "", 100000)
+		return ents
+	}() {
+		rels, _ := graphStore.GetEntityRelations(ctx, ent.ID)
+		relCount += len(rels)
+	}
+	relCount /= 2 // 双向计数 / Double-counted
+
+	fmt.Printf("  [resolver] Phase 1b done: %d entities, ~%d relations (%s)\n",
+		entityCount, relCount, time.Since(resolveStart).Round(time.Second))
+
+	// --- Phase 2: query ---
+	cfg := buildRetrievalConfig("fts")
+	cfg.GraphEnabled = true
+	cfg.GraphDepth = 2
+	cfg.GraphWeight = 0.8
+	cfg.QdrantWeight = 0.6
+	retriever := search.NewRetriever(memStore, vecStore, embedder, graphStore, nil, cfg, nil, nil)
+	retriever.InitPipeline()
+
+	queryStart := time.Now()
+	cases := make([]CaseResult, 0, len(entries))
+
+	for i, entry := range entries {
+		if i > 0 && i%5 == 0 {
+			hits := 0
+			for _, c := range cases {
+				if c.Hit {
+					hits++
+				}
+			}
+			fmt.Printf("  [query %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
+		}
+
+		results, qErr := retriever.Retrieve(ctx, &model.RetrieveRequest{Query: entry.Case.Query, Limit: 10})
+		if qErr != nil {
+			cases = append(cases, CaseResult{
+				Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
+				Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
+				Hit: false, Rank: -1,
+			})
+			continue
+		}
+
+		hit, rank, score := checkHit(results, entry.Case.Expected)
+		if !hit && entry.Case.GoldAnswer != "" {
+			hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
+		}
+		cases = append(cases, CaseResult{
+			Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
+			Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
+			Hit: hit, Rank: rank, Score: score, ResultCount: len(results),
+		})
+	}
+
+	queryDuration := time.Since(queryStart)
+	metrics := Aggregate(cases)
+
+	layerInfo := "L1"
+	if centroidMgr != nil {
+		layerInfo += "+L2"
+	}
+	if vecStore != nil {
+		layerInfo += "+L3"
+	}
+
+	report := &EvalReport{
+		Mode:         fmt.Sprintf("full-resolver (%s, no LLM) — %d memories, %d entities, ~%d relations", layerInfo, len(allSeeded), entityCount, relCount),
+		Dataset:      "longmemeval-oracle",
+		Timestamp:    time.Now(),
+		Metrics:      metrics,
+		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
+		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
+		Cases:        cases,
+		Duration:     time.Since(start),
+		GitCommit:    resolveGitCommit(),
+	}
+
+	fmt.Printf("\n  Phase 1 (seed+embed+resolve): %s | Phase 2 (query): %s\n",
+		time.Since(start).Round(time.Second)-queryDuration.Round(time.Second), queryDuration.Round(time.Second))
+	return report, nil
+}
+
+// averageVectors 计算向量平均值 / Compute average of vectors
+func averageVectors(vecs [][]float32) []float32 {
+	if len(vecs) == 0 {
+		return nil
+	}
+	dim := len(vecs[0])
+	avg := make([]float32, dim)
+	for _, v := range vecs {
+		for i, val := range v {
+			avg[i] += val
+		}
+	}
+	n := float32(len(vecs))
+	for i := range avg {
+		avg[i] /= n
+	}
+	return avg
 }
 
 // RunLongMemEvalQueryOnly 纯查询评测：复用已有数据库，跳过 seed+extract 阶段
