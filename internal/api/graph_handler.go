@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strconv"
 
 	"iclude/internal/memory"
 	"iclude/internal/model"
@@ -266,4 +267,51 @@ func (h *GraphHandler) DeleteMemoryEntity(c *gin.Context, identity *model.Identi
 		return
 	}
 	Success(c, nil)
+}
+
+// GetEntityProfile 获取实体聚合视图 / Get entity profile
+func (h *GraphHandler) GetEntityProfile(c *gin.Context, identity *model.Identity) {
+	id := c.Param("id")
+	if id == "" {
+		Error(c, fmt.Errorf("entity id is required: %w", model.ErrInvalidInput))
+		return
+	}
+	limitStr := c.DefaultQuery("limit", "50")
+	limit := 50
+	if v, err := strconv.Atoi(limitStr); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	profile, err := h.manager.GetEntityProfile(c.Request.Context(), id, limit)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	Success(c, profile)
+}
+
+// SearchEntities 按名称搜索实体 / Search entities by name
+func (h *GraphHandler) SearchEntities(c *gin.Context, identity *model.Identity) {
+	q := c.Query("q")
+	if q == "" {
+		Error(c, fmt.Errorf("query parameter 'q' is required: %w", model.ErrInvalidInput))
+		return
+	}
+	scope := c.Query("scope")
+	limitStr := c.DefaultQuery("limit", "20")
+	limit := 20
+	if v, err := strconv.Atoi(limitStr); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	entities, err := h.manager.FindEntitiesByName(c.Request.Context(), q, scope, limit)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	Success(c, entities)
 }
