@@ -99,8 +99,10 @@ func (e *Engine) Run(ctx context.Context) error {
 	}
 
 	// 8. 保留层级晋升 / Retention tier promotion (short_term→standard, standard→long_term)
-	if err := e.runTierPromotion(ctx); err != nil {
-		logger.Warn("heartbeat: tier promotion failed", zap.Error(err))
+	if cfg.PromotionEnabled {
+		if err := e.runTierPromotion(ctx); err != nil {
+			logger.Warn("heartbeat: tier promotion failed", zap.Error(err))
+		}
 	}
 
 	// 9. 过期清理 / Expiry cleanup: soft-delete ephemeral past expires_at
