@@ -119,13 +119,15 @@ func minTierForClass(class string) string {
 	}
 }
 
-// TierIndex returns the rank of a tier (higher index = more permanent).
+// TierIndex 返回等级的排序索引（越大越持久）/ Returns the rank of a tier (higher index = more permanent).
+// 未知 tier 默认为 standard 的 rank，防止异常提升 / Unknown tier defaults to standard rank
 func TierIndex(tier string) int {
 	for i, t := range tierOrder {
 		if t == tier {
 			return i
 		}
 	}
+	// 未知 tier 默认为 standard 的 rank，防止异常提升 / Unknown tier defaults to standard rank
 	return 2
 }
 

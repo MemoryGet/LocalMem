@@ -37,3 +37,12 @@ func TestResolveTierFromClass(t *testing.T) {
 		})
 	}
 }
+
+func TestTierIndex(t *testing.T) {
+	assert.Equal(t, 0, memory.TierIndex("ephemeral"))
+	assert.Equal(t, 1, memory.TierIndex("short_term"))
+	assert.Equal(t, 2, memory.TierIndex("standard"))
+	assert.Equal(t, 3, memory.TierIndex("long_term"))
+	assert.Equal(t, 4, memory.TierIndex("permanent"))
+	assert.Equal(t, 2, memory.TierIndex("unknown_tier"))
+}
