@@ -153,7 +153,8 @@ func buildMemoryFromRequest(req *model.CreateMemoryRequest, contentHash string) 
 		CandidateFor:  req.CandidateFor,
 	}
 
-	// 应用等级默认值
+	// 先从 class 推断 tier，再填充衰减参数
+	ResolveTierFromClass(mem)
 	ResolveTierDefaults(mem)
 
 	// 自动填充 visibility（仅当未显式指定时）/ Auto-fill visibility when not explicitly set

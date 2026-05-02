@@ -46,3 +46,25 @@ func TestTierIndex(t *testing.T) {
 	assert.Equal(t, 4, memory.TierIndex("permanent"))
 	assert.Equal(t, 2, memory.TierIndex("unknown_tier"))
 }
+
+func TestResolveTierFromClass_DecayRateSync(t *testing.T) {
+	tests := []struct {
+		name          string
+		class         string
+		wantTier      string
+		wantDecayRate float64
+	}{
+		{"episodic gets short_term decay", "episodic", "short_term", 0.05},
+		{"semantic gets standard decay", "semantic", "standard", 0.01},
+		{"procedural gets long_term decay", "procedural", "long_term", 0.001},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mem := &model.Memory{MemoryClass: tt.class}
+			memory.ResolveTierFromClass(mem)
+			memory.ResolveTierDefaults(mem)
+			assert.Equal(t, tt.wantTier, mem.RetentionTier)
+			assert.Equal(t, tt.wantDecayRate, mem.DecayRate)
+		})
+	}
+}
