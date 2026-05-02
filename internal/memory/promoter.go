@@ -70,6 +70,12 @@ func (p *Promoter) Run(ctx context.Context) error {
 		// 执行晋升：更新 memory_class + 清除 candidate_for / Promote: update class + clear candidate
 		mem.MemoryClass = targetClass
 		mem.CandidateFor = ""
+		// 同步 tier：若当前 tier 低于新 class 的最低要求，升级 tier
+		if minT := minTierForClass(targetClass); TierIndex(mem.RetentionTier) < TierIndex(minT) {
+			mem.RetentionTier = minT
+			dr, _ := model.DefaultDecayParams(minT)
+			mem.DecayRate = dr
+		}
 
 		if err := p.memStore.Update(ctx, mem); err != nil {
 			logger.Warn("promotion failed",
@@ -119,6 +125,12 @@ func (p *Promoter) PromoteByID(ctx context.Context, memoryID, targetClass string
 
 	mem.MemoryClass = targetClass
 	mem.CandidateFor = ""
+	// 同步 tier：若当前 tier 低于新 class 的最低要求，升级 tier
+	if minT := minTierForClass(targetClass); TierIndex(mem.RetentionTier) < TierIndex(minT) {
+		mem.RetentionTier = minT
+		dr, _ := model.DefaultDecayParams(minT)
+		mem.DecayRate = dr
+	}
 
 	if err := p.memStore.Update(ctx, mem); err != nil {
 		return fmt.Errorf("promote memory: %w", err)

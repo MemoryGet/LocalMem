@@ -68,3 +68,11 @@ func TestResolveTierFromClass_DecayRateSync(t *testing.T) {
 		})
 	}
 }
+
+func TestTierIndex_Order(t *testing.T) {
+	assert.Less(t, memory.TierIndex("ephemeral"), memory.TierIndex("short_term"))
+	assert.Less(t, memory.TierIndex("short_term"), memory.TierIndex("standard"))
+	assert.Less(t, memory.TierIndex("standard"), memory.TierIndex("long_term"))
+	assert.Less(t, memory.TierIndex("long_term"), memory.TierIndex("permanent"))
+	assert.Equal(t, 2, memory.TierIndex("unknown"))
+}
