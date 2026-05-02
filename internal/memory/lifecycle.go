@@ -102,3 +102,43 @@ func PromoteTier(currentTier string) (newTier string, newDecayRate float64) {
 	dr, _ := model.DefaultDecayParams(currentTier)
 	return currentTier, dr
 }
+
+// minTierForClass returns the minimum RetentionTier for a given MemoryClass.
+func minTierForClass(class string) string {
+	switch class {
+	case "episodic":
+		return model.TierShortTerm
+	case "semantic":
+		return model.TierStandard
+	case "procedural":
+		return model.TierLongTerm
+	case "core":
+		return model.TierPermanent
+	default:
+		return model.TierStandard
+	}
+}
+
+// TierIndex returns the rank of a tier (higher index = more permanent).
+func TierIndex(tier string) int {
+	for i, t := range tierOrder {
+		if t == tier {
+			return i
+		}
+	}
+	return 2
+}
+
+// ResolveTierFromClass 根据 MemoryClass 和 Kind 自动推断 RetentionTier / Auto-assigns RetentionTier from MemoryClass and Kind.
+// Must be called before ResolveTierDefaults in the write path.
+// If RetentionTier is already set, it is respected and not overridden.
+func ResolveTierFromClass(mem *model.Memory) {
+	if mem.RetentionTier != "" {
+		return
+	}
+	if mem.Kind == "conversation" {
+		mem.RetentionTier = model.TierEphemeral
+		return
+	}
+	mem.RetentionTier = minTierForClass(mem.MemoryClass)
+}
