@@ -103,6 +103,11 @@ func (e *Engine) Run(ctx context.Context) error {
 		logger.Warn("heartbeat: tier promotion failed", zap.Error(err))
 	}
 
+	// 9. 过期清理 / Expiry cleanup: soft-delete ephemeral past expires_at
+	if err := e.runExpiryCleanup(ctx); err != nil {
+		logger.Warn("heartbeat: expiry cleanup failed", zap.Error(err))
+	}
+
 	logger.Info("heartbeat: inspection round completed")
 	return nil
 }

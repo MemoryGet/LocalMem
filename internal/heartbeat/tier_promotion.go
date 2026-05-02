@@ -61,8 +61,7 @@ func (e *Engine) runTierPromotion(ctx context.Context) error {
 		}
 
 		mem.RetentionTier = newTier
-		dr, _ := model.DefaultDecayParams(newTier)
-		mem.DecayRate = dr
+		memory.ResolveTierDefaults(mem)
 
 		if err := e.memStore.Update(ctx, mem); err != nil {
 			logger.Warn("heartbeat: tier promotion update failed",
