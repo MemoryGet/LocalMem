@@ -1,0 +1,115 @@
+# ============================================================
+# 评测模版 A — FTS + Vector (Qdrant)
+# ============================================================
+# 适用场景: 验证 Qdrant 向量搜索对基线 (FTS+Graph 90%) 的提升
+# 依赖:
+#   - Qdrant:  docker compose -f deploy/docker-compose.yml up qdrant -d
+#   - OpenAI:  export OPENAI_API_KEY=sk-...
+#
+# 与 config.yaml 的主要差异:
+#   + qdrant.enabled = true  (启用第三检索通道)
+#   + qdrant.dimension = 1536 (text-embedding-3-small)
+#   - rerank.enabled = false  (不启用重排，单独测 Vector 增益)
+# ============================================================
+
+storage:
+  sqlite:
+    enabled: true
+    path: "./data/iclude.db"
+    search:
+      bm25_weights:
+        content: 10.0
+        abstract: 5.0
+        summary: 3.0
+    tokenizer:
+      provider: "simple"
+  qdrant:
+    enabled: true                    # ← 启用向量通道
+    url: "http://localhost:6333"
+    collection: "memories"
+    dimension: 1536                  # text-embedding-3-small
+
+partitions:
+  enabled: false
+  catalog_path: "./data/partitions.db"
+
+llm:
+  default_provider: "openai"
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: ""
+    model: "gpt-4o-mini"            # 用 mini 降低评测成本
+  embedding:
+    provider: "openai"
+    model: "text-embedding-3-small"
+
+auth:
+  enabled: false                     # 评测环境关闭鉴权
+
+server:
+  port: 8080
+  auth_enabled: false
+
+reflect:
+  max_rounds: 3
+  token_budget: 4096
+  round_timeout: 30s
+  auto_save: false
+
+extract:
+  max_entities: 20
+  max_relations: 30
+  normalize_enabled: true
+  normalize_candidates: 20
+  timeout: 30s
+
+retrieval:
+  graph_enabled: true
+  graph_depth: 1
+  graph_weight: 0.8
+  fts_weight: 1.0
+  qdrant_weight: 1.0               # 三路等权 RRF 融合
+  graph_fts_top: 5
+  graph_entity_limit: 10
+  access_alpha: 0.15
+
+  rerank:
+    enabled: false                 # Path A 不启用重排
+    provider: "overlap"
+
+  mmr:
+    enabled: false
+
+  preprocess:
+    enabled: true
+    use_llm: true
+    llm_timeout: 8s
+    stopword_files:
+      - "config/stopwords_en.txt"
+      - "config/stopwords_zh.txt"
+    synonym_files:
+      - "config/synonym_zh.txt"
+
+  cascade:
+    enabled: true
+    temporal_score_threshold: 0.3
+    graph_min_results: 3
+    graph_min_score: 0.2
+
+scheduler:
+  enabled: false
+
+consolidation:
+  enabled: false
+
+heartbeat:
+  enabled: false
+
+mcp:
+  enabled: false
+
+hooks:
+  enabled: false
+
+document:
+  enabled: false

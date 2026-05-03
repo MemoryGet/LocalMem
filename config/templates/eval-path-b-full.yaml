@@ -1,0 +1,138 @@
+# ============================================================
+# 评测模版 B — FTS + Vector + BGE-Reranker + 时序优化 (全路)
+# ============================================================
+# 适用场景: 验证三路合并最终质量目标 (93-95% HitRate)
+# 依赖:
+#   1. Qdrant:
+#      docker compose -f deploy/docker-compose.yml up qdrant -d
+#
+#   2. BGE-Reranker sidecar (二选一):
+#      方式 A — Docker (推荐, 自动下载模型):
+#        docker compose -f deploy/docker-compose.yml --profile reranker up reranker -d
+#      方式 B — 本地 Python:
+#        pip install FlagEmbedding flask
+#        python tools/reranker_server.py &
+#
+#   3. OpenAI:
+#      export OPENAI_API_KEY=sk-...
+#
+# 健康检查:
+#   curl http://localhost:6333/healthz   # Qdrant
+#   curl http://localhost:8868/healthz   # BGE-Reranker
+#
+# 与模版 A 的主要差异:
+#   + rerank.enabled = true  (启用 BGE cross-encoder 精排)
+#   + rerank.provider = remote → http://localhost:8868
+#   + preprocess.llm_timeout = 8s (时序解析防超时)
+#   + cascade.temporal_score_threshold = 0.3 (Path C 时序优化)
+# ============================================================
+
+storage:
+  sqlite:
+    enabled: true
+    path: "./data/iclude.db"
+    search:
+      bm25_weights:
+        content: 10.0
+        abstract: 5.0
+        summary: 3.0
+    tokenizer:
+      provider: "simple"
+  qdrant:
+    enabled: true                    # ← 向量通道
+    url: "http://localhost:6333"
+    collection: "memories"
+    dimension: 1536                  # text-embedding-3-small
+
+partitions:
+  enabled: false
+  catalog_path: "./data/partitions.db"
+
+llm:
+  default_provider: "openai"
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: ""
+    model: "gpt-4o-mini"
+  embedding:
+    provider: "openai"
+    model: "text-embedding-3-small"
+
+auth:
+  enabled: false
+
+server:
+  port: 8080
+  auth_enabled: false
+
+reflect:
+  max_rounds: 3
+  token_budget: 4096
+  round_timeout: 30s
+  auto_save: false
+
+extract:
+  max_entities: 20
+  max_relations: 30
+  normalize_enabled: true
+  normalize_candidates: 20
+  timeout: 30s
+
+retrieval:
+  graph_enabled: true
+  graph_depth: 1
+  graph_weight: 0.8
+  fts_weight: 1.0
+  qdrant_weight: 1.0
+  graph_fts_top: 5
+  graph_entity_limit: 10
+  access_alpha: 0.15
+
+  # BGE cross-encoder 精排 / BGE cross-encoder re-ranking
+  rerank:
+    enabled: true                    # ← 启用精排
+    provider: "remote"
+    base_url: "http://localhost:8868"
+    api_key: ""
+    model: "BAAI/bge-reranker-v2-m3"
+    top_k: 20
+    score_weight: 0.7
+    timeout: 10s
+
+  mmr:
+    enabled: false
+
+  preprocess:
+    enabled: true
+    use_llm: true
+    llm_timeout: 8s                  # ← 防时序解析超时
+    stopword_files:
+      - "config/stopwords_en.txt"
+      - "config/stopwords_zh.txt"
+    synonym_files:
+      - "config/synonym_zh.txt"
+
+  # 时序召回优化 / Temporal retrieval tuning (Path C)
+  cascade:
+    enabled: true
+    temporal_score_threshold: 0.3   # ← 降低触发门槛
+    graph_min_results: 3
+    graph_min_score: 0.2
+
+scheduler:
+  enabled: false
+
+consolidation:
+  enabled: false
+
+heartbeat:
+  enabled: false
+
+mcp:
+  enabled: false
+
+hooks:
+  enabled: false
+
+document:
+  enabled: false
