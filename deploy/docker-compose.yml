@@ -44,8 +44,8 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.7.4
-    expose:
-      - "6333"
+    ports:
+      - "6333:6333"     # 暴露到宿主机，供本地 go test 直接访问
     volumes:
       - qdrant-data:/qdrant/storage
     healthcheck:
@@ -53,7 +53,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
+
+  # BGE-Reranker HTTP sidecar (Path B)
+  # 启动方式: docker compose --profile reranker up -d
+  # 或单独: docker compose up reranker -d
+  reranker:
+    image: python:3.11-slim
+    profiles: ["reranker"]          # opt-in: 默认不启动，需要显式指定 profile
+    ports:
+      - "8868:8868"
+    volumes:
+      - ../tools/reranker_server.py:/app/reranker_server.py:ro
+      - reranker-cache:/root/.cache  # HuggingFace 模型缓存（避免重复下载）
+    environment:
+      - RERANKER_MODEL=${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      - RERANKER_PORT=8868
+    working_dir: /app
+    command: >
+      bash -c "pip install --quiet FlagEmbedding flask && python reranker_server.py"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8868/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12          # 模型首次下载需要较长时间
+      start_period: 120s
+    restart: unless-stopped
 
 volumes:
   iclude-data:
   qdrant-data:
+  reranker-cache:
