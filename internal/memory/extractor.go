@@ -71,16 +71,17 @@ Output strict JSON: {"match": true, "matched_entity": "candidate name"} or {"mat
 
 // Extractor 自动实体抽取器 / Auto entity extractor
 type Extractor struct {
-	llm           llm.Provider
-	graphManager  *GraphManager
-	memStore      store.MemoryStore
-	cfg           config.ExtractConfig
-	entityTypes   map[string]bool // 从配置加载 / Loaded from config
-	relationTypes map[string]bool // 从配置加载 / Loaded from config
+	llm            llm.Provider
+	graphManager   *GraphManager
+	memStore       store.MemoryStore
+	candidateStore store.CandidateStore
+	cfg            config.ExtractConfig
+	entityTypes    map[string]bool // 从配置加载 / Loaded from config
+	relationTypes  map[string]bool // 从配置加载 / Loaded from config
 }
 
 // NewExtractor 创建实体抽取器 / Create entity extractor
-func NewExtractor(llmProvider llm.Provider, graphManager *GraphManager, memStore store.MemoryStore, cfg config.ExtractConfig) *Extractor {
+func NewExtractor(llmProvider llm.Provider, graphManager *GraphManager, memStore store.MemoryStore, candidateStore store.CandidateStore, cfg config.ExtractConfig) *Extractor {
 	// 从配置构建类型白名单 / Build type allow-lists from config
 	entityTypes := make(map[string]bool, len(cfg.EntityTypes))
 	for _, t := range cfg.EntityTypes {
@@ -99,11 +100,12 @@ func NewExtractor(llmProvider llm.Provider, graphManager *GraphManager, memStore
 	}
 
 	return &Extractor{
-		llm:           llmProvider,
-		graphManager:  graphManager,
-		memStore:      memStore,
-		cfg:           cfg,
-		entityTypes:   entityTypes,
+		llm:            llmProvider,
+		graphManager:   graphManager,
+		memStore:       memStore,
+		candidateStore: candidateStore,
+		cfg:            cfg,
+		entityTypes:    entityTypes,
 		relationTypes: relationTypes,
 	}
 }
@@ -175,9 +177,13 @@ func (e *Extractor) Extract(ctx context.Context, req *model.ExtractRequest) (*mo
 	// 2) 实体规范化 + 创建 / Entity normalization + creation
 	entityIDMap := make(map[string]string) // name → entityID
 	for _, ent := range output.Entities {
-		result, normalized, err := e.resolveEntity(ctx, ent, req.Scope)
+		result, normalized, err := e.resolveEntity(ctx, ent, req.Scope, req.MemoryID)
 		if err != nil {
 			logger.Warn("entity resolution failed", zap.String("name", ent.Name), zap.Error(err))
+			continue
+		}
+		// nil 表示实体已进入候选队列，跳过主图写入 / nil means entity is pending candidate promotion
+		if result == nil {
 			continue
 		}
 		entityIDMap[ent.Name] = result.EntityID
@@ -326,7 +332,8 @@ func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
 }
 
 // resolveEntity 实体规范化（两阶段）/ Entity normalization (two-phase)
-func (e *Extractor) resolveEntity(ctx context.Context, ent extractedEntity, scope string) (*model.ExtractedEntityResult, bool, error) {
+// 返回 nil result 表示实体已写入候选队列，尚未进入主图 / nil result means entity is queued as candidate
+func (e *Extractor) resolveEntity(ctx context.Context, ent extractedEntity, scope, memoryID string) (*model.ExtractedEntityResult, bool, error) {
 	// 阶段 1: 精确匹配（索引查询）/ Phase 1: Exact match via indexed query
 	exactMatches, err := e.graphManager.FindEntitiesByName(ctx, ent.Name, scope, 5)
 	if err != nil {
@@ -371,7 +378,15 @@ func (e *Extractor) resolveEntity(ctx context.Context, ent extractedEntity, scop
 		}
 	}
 
-	// 创建新实体 / Create new entity
+	// 新实体：有候选存储则先进候选队列，否则直接入主图
+	// New entity: route to candidate store if available, else create directly
+	if e.candidateStore != nil {
+		if err := e.candidateStore.UpsertCandidate(ctx, ent.Name, scope, memoryID); err != nil {
+			logger.Warn("upsert candidate failed", zap.String("name", ent.Name), zap.Error(err))
+		}
+		return nil, false, nil
+	}
+
 	entity, err := e.graphManager.CreateEntity(ctx, &model.CreateEntityRequest{
 		Name:        ent.Name,
 		EntityType:  ent.EntityType,
@@ -539,9 +554,13 @@ func (e *Extractor) ExtractBatch(ctx context.Context, req *model.BatchExtractReq
 		// 规范化+创建全局实体 / Normalize + create global entities
 		entityIDMap := make(map[string]string, len(output.Entities)) // name → entityID
 		for _, ent := range output.Entities {
-			result, normalized, resolveErr := e.resolveEntity(ctx, ent, req.Scope)
+			result, normalized, resolveErr := e.resolveEntity(ctx, ent, req.Scope, "")
 			if resolveErr != nil {
 				logger.Warn("batch entity resolution failed", zap.String("name", ent.Name), zap.Error(resolveErr))
+				continue
+			}
+			// nil 表示已进候选队列，跳过主图写入 / nil means queued as candidate
+			if result == nil {
 				continue
 			}
 			entityIDMap[ent.Name] = result.EntityID

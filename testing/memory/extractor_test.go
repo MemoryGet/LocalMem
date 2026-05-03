@@ -101,7 +101,7 @@ func setupExtractor(t *testing.T, mockLLM *mockLLMProvider, cfg *config.ExtractC
 		extractCfg = *cfg
 	}
 
-	ext := memory.NewExtractor(mockLLM, graphManager, stores.MemoryStore, extractCfg)
+	ext := memory.NewExtractor(mockLLM, graphManager, stores.MemoryStore, nil, extractCfg)
 	return ext, graphManager, stores.MemoryStore, stores
 }
 

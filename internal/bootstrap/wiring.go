@@ -263,7 +263,7 @@ func initBusinessManagers(stores *store.Stores, llmProvider llm.Provider, cfg co
 	// Extractor
 	var extractor *memory.Extractor
 	if llmProvider != nil && graphManager != nil {
-		extractor = memory.NewExtractor(llmProvider, graphManager, stores.MemoryStore, cfg.Extract)
+		extractor = memory.NewExtractor(llmProvider, graphManager, stores.MemoryStore, stores.CandidateStore, cfg.Extract)
 	}
 
 	// Access tracker

@@ -420,7 +420,7 @@ func runSingleQuestionGraphPipeline(ctx context.Context, entry LongMemEvalEntry,
 	db := memStore.DB().(*sql.DB)
 	graphStore := store.NewSQLiteGraphStore(db)
 	graphMgr := memory.NewGraphManager(graphStore)
-	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, config.ExtractConfig{})
+	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, nil, config.ExtractConfig{})
 
 	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
 	mgr := memory.NewManager(memory.ManagerDeps{
@@ -499,7 +499,7 @@ func runSingleQuestionFullPipeline(ctx context.Context, entry LongMemEvalEntry, 
 	db := memStore.DB().(*sql.DB)
 	graphStore := store.NewSQLiteGraphStore(db)
 	graphMgr := memory.NewGraphManager(graphStore)
-	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, config.ExtractConfig{})
+	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, nil, config.ExtractConfig{})
 
 	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
 	mgr := memory.NewManager(memory.ManagerDeps{
@@ -694,7 +694,7 @@ func runSingleQuestionAllLLM(ctx context.Context, entry LongMemEvalEntry, tmpDir
 	db := memStore.DB().(*sql.DB)
 	graphStore := store.NewSQLiteGraphStore(db)
 	graphMgr := memory.NewGraphManager(graphStore)
-	extractor := memory.NewExtractor(extractProvider, graphMgr, memStore, config.ExtractConfig{})
+	extractor := memory.NewExtractor(extractProvider, graphMgr, memStore, nil, config.ExtractConfig{})
 
 	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
 	mgr := memory.NewManager(memory.ManagerDeps{
@@ -829,7 +829,7 @@ func RunLongMemEvalSingleVerbose(ctx context.Context, entry LongMemEvalEntry, tm
 	db := memStore.DB().(*sql.DB)
 	graphStore := store.NewSQLiteGraphStore(db)
 	graphMgr := memory.NewGraphManager(graphStore)
-	ext := memory.NewExtractor(extractProvider, graphMgr, memStore, config.ExtractConfig{})
+	ext := memory.NewExtractor(extractProvider, graphMgr, memStore, nil, config.ExtractConfig{})
 
 	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
 	mgr := memory.NewManager(memory.ManagerDeps{
@@ -1030,7 +1030,7 @@ func RunLongMemEvalSharedDB(ctx context.Context, entries []LongMemEvalEntry, tmp
 	db := memStore.DB().(*sql.DB)
 	graphStore := store.NewSQLiteGraphStore(db)
 	graphMgr := memory.NewGraphManager(graphStore)
-	ext := memory.NewExtractor(llmProvider, graphMgr, memStore, config.ExtractConfig{})
+	ext := memory.NewExtractor(llmProvider, graphMgr, memStore, nil, config.ExtractConfig{})
 
 	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
 	mgr := memory.NewManager(memory.ManagerDeps{

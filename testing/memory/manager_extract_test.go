@@ -61,7 +61,7 @@ func setupManagerWithExtractor(t *testing.T, mockLLM *mockLLMProvider) (*memory.
 
 	var extractor *memory.Extractor
 	if mockLLM != nil {
-		extractor = memory.NewExtractor(mockLLM, graphManager, stores.MemoryStore, extractCfg)
+		extractor = memory.NewExtractor(mockLLM, graphManager, stores.MemoryStore, nil, extractCfg)
 	}
 
 	mgr := memory.NewManager(memory.ManagerDeps{MemStore: stores.MemoryStore, Extractor: extractor})
