@@ -318,6 +318,8 @@ func (p *Preprocessor) llmEnhance(ctx context.Context, plan *QueryPlan) {
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
+	// 保留原始 ctx 供 HyDE 独立使用，避免增强调用耗尽超时 / Keep original ctx for HyDE so it gets its own full timeout
+	origCtx := ctx
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -376,10 +378,19 @@ Respond ONLY with valid JSON, no markdown.`,
 		}
 	}
 
-	// HyDE: 生成假设性回答文档 / Generate Hypothetical Document Embedding
+	// HyDE 仅对语义/通用意图有效 / HyDE only helps for semantic/general intent
+	if p.cfg.Preprocess.HyDEEnabled &&
+		(plan.Intent == IntentSemantic || plan.Intent == IntentGeneral) {
+		p.generateHyDE(origCtx, plan, timeout)
+	}
+}
+
+// generateHyDE 用 LLM 生成假设性文档用于向量召回 / Generate a hypothetical document for HyDE vector retrieval
+func (p *Preprocessor) generateHyDE(ctx context.Context, plan *QueryPlan, timeout time.Duration) {
 	hydeCtx, hydeCancel := context.WithTimeout(ctx, timeout)
 	defer hydeCancel()
 
+	temp := 0.1
 	hydeResp, hydeErr := p.llm.Chat(hydeCtx, &llm.ChatRequest{
 		Messages: []llm.ChatMessage{
 			{Role: "system", Content: "你是一个记忆系统。根据用户的问题，写出一段可能存在于记忆库中的文档片段（50-100字）。直接输出内容，不加前缀。用中文回答。"},

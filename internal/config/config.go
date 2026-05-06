@@ -318,6 +318,7 @@ type ConsolidationConfig struct {
 type PreprocessConfig struct {
 	Enabled       bool          `mapstructure:"enabled"`
 	UseLLM        bool          `mapstructure:"use_llm"`
+	HyDEEnabled   bool          `mapstructure:"hyde_enabled"`   // 是否启用 HyDE / Enable Hypothetical Document Embedding
 	LLMTimeout    time.Duration `mapstructure:"llm_timeout"`
 	StopwordFiles []string      `mapstructure:"stopword_files"` // 外部停用词文件路径 / External stopword file paths
 	SynonymFiles  []string      `mapstructure:"synonym_files"`  // 同义词词典文件路径 / Synonym dictionary file paths
@@ -472,6 +473,7 @@ func LoadConfig() error {
 	// Preprocess 默认值 / Preprocess defaults
 	viper.SetDefault("retrieval.preprocess.enabled", true)
 	viper.SetDefault("retrieval.preprocess.use_llm", false)
+	viper.SetDefault("retrieval.preprocess.hyde_enabled", false)
 	viper.SetDefault("retrieval.preprocess.llm_timeout", "5s")
 	viper.SetDefault("retrieval.preprocess.stopword_files", []string{"config/stopwords_en.txt", "config/stopwords_zh.txt"})
 	// Disclosure 默认值 / Disclosure defaults

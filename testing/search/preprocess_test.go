@@ -198,3 +198,139 @@ func TestPreprocessor_LLMBadJSON(t *testing.T) {
 	// 解析失败，应保留规则式结果 / Parse fails, should keep rule-based result
 	assert.Equal(t, "K8s deploy broken", plan.SemanticQuery)
 }
+
+// seqLLMProvider 顺序调用 LLM 模拟 / Sequential mock LLM returning responses in order
+type seqLLMProvider struct {
+	responses []string
+	errors    []error
+	idx       int
+}
+
+func (m *seqLLMProvider) Chat(_ context.Context, _ *llm.ChatRequest) (*llm.ChatResponse, error) {
+	if m.idx >= len(m.responses) {
+		return &llm.ChatResponse{Content: ""}, nil
+	}
+	resp := m.responses[m.idx]
+	var err error
+	if m.errors != nil && m.idx < len(m.errors) {
+		err = m.errors[m.idx]
+	}
+	m.idx++
+	if err != nil {
+		return nil, err
+	}
+	return &llm.ChatResponse{Content: resp}, nil
+}
+
+func TestPreprocessor_HyDE_DisabledByConfig(t *testing.T) {
+	tok := tokenizer.NewSimpleTokenizer()
+	// Mock returns semantic JSON — intent would allow HyDE, but config disables it
+	mockLLM := &mockLLMProvider{
+		response: `{"rewritten_query": "authentication token refresh flow", "intent": "semantic", "keywords": ["auth", "token"]}`,
+	}
+	cfg := config.RetrievalConfig{
+		FTSWeight:    1.0,
+		QdrantWeight: 1.0,
+		GraphWeight:  0.8,
+		Preprocess: config.PreprocessConfig{
+			Enabled:     true,
+			UseLLM:      true,
+			HyDEEnabled: false,
+			LLMTimeout:  5 * time.Second,
+		},
+	}
+	pp := search.NewPreprocessor(tok, nil, mockLLM, cfg)
+
+	query := "how does the authentication system handle token refresh when the session expires"
+	plan, err := pp.Process(context.Background(), query, "")
+	require.NoError(t, err)
+	assert.Equal(t, search.IntentSemantic, plan.Intent)
+	assert.Empty(t, plan.HyDEDoc, "HyDE doc must be empty when hyde_enabled=false")
+}
+
+func TestPreprocessor_HyDE_SkippedForKeywordIntent(t *testing.T) {
+	tok := tokenizer.NewSimpleTokenizer()
+	// Mock returns keyword intent — gate should block HyDE even when hyde_enabled=true
+	mockLLM := &mockLLMProvider{
+		response: `{"rewritten_query": "K8s deploy error", "intent": "keyword", "keywords": ["kubernetes", "deploy"]}`,
+	}
+	cfg := config.RetrievalConfig{
+		FTSWeight:    1.0,
+		QdrantWeight: 1.0,
+		GraphWeight:  0.8,
+		Preprocess: config.PreprocessConfig{
+			Enabled:     true,
+			UseLLM:      true,
+			HyDEEnabled: true,
+			LLMTimeout:  5 * time.Second,
+		},
+	}
+	pp := search.NewPreprocessor(tok, nil, mockLLM, cfg)
+
+	plan, err := pp.Process(context.Background(), "K8s error", "")
+	require.NoError(t, err)
+	assert.Equal(t, search.IntentKeyword, plan.Intent)
+	assert.Empty(t, plan.HyDEDoc, "HyDE doc must be empty for keyword intent")
+}
+
+func TestPreprocessor_HyDE_RunsForSemanticIntent(t *testing.T) {
+	tok := tokenizer.NewSimpleTokenizer()
+	// First call: LLM enhance → second call: HyDE generation
+	mockLLM := &seqLLMProvider{
+		responses: []string{
+			`{"rewritten_query": "authentication token refresh flow", "intent": "semantic", "keywords": ["auth"]}`,
+			"这是一段关于认证令牌刷新机制的假设性文档。",
+		},
+	}
+	cfg := config.RetrievalConfig{
+		FTSWeight:    1.0,
+		QdrantWeight: 1.0,
+		GraphWeight:  0.8,
+		Preprocess: config.PreprocessConfig{
+			Enabled:     true,
+			UseLLM:      true,
+			HyDEEnabled: true,
+			LLMTimeout:  5 * time.Second,
+		},
+	}
+	pp := search.NewPreprocessor(tok, nil, mockLLM, cfg)
+
+	query := "how does the authentication system handle token refresh when the session expires"
+	plan, err := pp.Process(context.Background(), query, "")
+	require.NoError(t, err)
+	assert.Equal(t, search.IntentSemantic, plan.Intent)
+	assert.Equal(t, "这是一段关于认证令牌刷新机制的假设性文档。", plan.HyDEDoc)
+}
+
+func TestPreprocessor_HyDE_LLMFailureFallback(t *testing.T) {
+	tok := tokenizer.NewSimpleTokenizer()
+	// First call (enhance): success — second call (HyDE): fails
+	mockLLM := &seqLLMProvider{
+		responses: []string{
+			`{"rewritten_query": "authentication token refresh flow", "intent": "semantic", "keywords": ["auth"]}`,
+			"",
+		},
+		errors: []error{
+			nil,
+			fmt.Errorf("LLM unavailable"),
+		},
+	}
+	cfg := config.RetrievalConfig{
+		FTSWeight:    1.0,
+		QdrantWeight: 1.0,
+		GraphWeight:  0.8,
+		Preprocess: config.PreprocessConfig{
+			Enabled:     true,
+			UseLLM:      true,
+			HyDEEnabled: true,
+			LLMTimeout:  5 * time.Second,
+		},
+	}
+	pp := search.NewPreprocessor(tok, nil, mockLLM, cfg)
+
+	query := "how does the authentication system handle token refresh when the session expires"
+	plan, err := pp.Process(context.Background(), query, "")
+	require.NoError(t, err)
+	assert.Equal(t, search.IntentSemantic, plan.Intent)
+	assert.Empty(t, plan.HyDEDoc, "HyDE doc must be empty when HyDE LLM call fails")
+}
