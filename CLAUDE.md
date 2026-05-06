@@ -12,10 +12,11 @@ LocalMem is a local-first, hybrid storage enterprise memory system for AI applic
 
 ```bash
 go mod download              # install dependencies
+make build                   # build iclude-mcp + iclude-cli → dist/
+make release                 # cross-compile all 6 platforms → dist/
+make test                    # run all tests
 go run ./cmd/server/         # run the API service (port 8080)
 go run ./cmd/mcp/            # run the MCP server (port 8081, SSE transport)
-./server                     # run pre-built API binary (if available)
-./mcp                        # run pre-built MCP binary (if available)
 go fmt ./...                 # format code
 go vet ./...                 # static analysis
 go test ./testing/...        # run all tests
@@ -40,30 +41,40 @@ docker-compose -f deploy/docker-compose.yml up              # 容器化运行
 Layered Go backend using `cmd/` + `internal/` + `pkg/` Go-idiomatic layout.
 
 ```
-cmd/server/main.go            → Entry point (config → logger → embed → stores → managers → api)
-internal/config/               → Viper + godotenv config (global singleton)
-internal/logger/               → Zap structured logging (package-level functions)
-internal/model/                → Data models (Memory 33 fields), DTOs, sentinel errors, retention tiers
-internal/store/                → Storage interfaces (8) + all SQLite/Qdrant implementations + factory (flat)
-internal/embed/                → Embedding adapters (OpenAI, Ollama)
-internal/memory/               → Manager (CRUD + dual-write), ContextManager, GraphManager, lifecycle
-internal/search/               → Retriever (3-mode: SQLite/Qdrant/Hybrid) + RRF fusion (k=60)
-internal/llm/                  → LLM Chat abstraction (OpenAI-compatible provider, covers DeepSeek/Ollama/etc.)
-internal/reflect/              → Reflect Engine (multi-round LLM reasoning over memories, 3-level fallback parsing)
-internal/document/             → Document processor (upload → chunk → embed → store)
-internal/heartbeat/            → Autonomous inspection engine: decay audit, orphan cleanup, contradiction detection
-internal/scheduler/            → In-process goroutine+ticker scheduler with overlap prevention and graceful shutdown
-internal/api/                  → Gin HTTP handlers, router, middleware, response helpers
-pkg/qdrant/client.go           → Reusable Qdrant HTTP client (stdlib only)
-pkg/tokenizer/                 → Pluggable FTS5 tokenizer (Simple CJK / Jieba HTTP / Gse native / Noop)
-pkg/sqlbuilder/                → Lightweight WHERE/SELECT builder (replaces string concat)
-pkg/testreport/                → Test report recorder + HTML generator (embed template)
-sdks/python/iclude/            → Python SDK client for the LocalMem API
-deploy/                        → Docker + docker-compose deployment configs
-config/templates/              → 3-tier config templates (basic/standard/premium)
-tools/config-generator/        → Web-based config.yaml generator (pure HTML, no deps)
-integrations/claude/           → One-click install scripts for Claude Code (bash + PowerShell)
-integrations/codex/            → One-click install scripts for Codex CLI (bash + PowerShell)
+cmd/server/main.go            → API server entry point
+cmd/mcp/main.go               → MCP server entry point (--stdio or SSE)
+cmd/cli/                      → Claude Code integration hooks (hook_session_start, hook_session_stop, hook_capture)
+cmd/retrieval-benchmark/      → Retrieval benchmark tool
+internal/bootstrap/           → Shared wiring (Deps struct aggregates all initialized components)
+internal/config/              → Viper + godotenv config (global singleton)
+internal/logger/              → Zap structured logging (package-level functions)
+internal/model/               → Data models (Memory 35+ fields), DTOs, sentinel errors, retention tiers
+internal/store/               → Storage interfaces (14) + all SQLite/Qdrant implementations + factory (flat)
+internal/embed/               → Embedding adapters (OpenAI, Ollama)
+internal/memory/              → Manager (CRUD + dual-write), ContextManager, GraphManager, EntityResolver, LineageTracer, SessionSummarizer, TagManager
+internal/search/              → Retriever + CascadeRetriever + IntentClassifier + ExperienceRecaller + RRF fusion
+  ├─ pipeline/                → Modular stage pipeline (registry, named stages)
+  ├─ stage/                   → Individual stages (FTSStage, VectorStage, GraphStage, TemporalStage, etc.)
+  └─ strategy/                → Strategy pattern (agent, rules)
+internal/llm/                 → LLM Chat abstraction (OpenAI-compatible provider, covers DeepSeek/Ollama/etc.)
+internal/reflect/             → Reflect Engine (multi-round LLM reasoning over memories, 3-level fallback parsing)
+internal/document/            → Document processor (upload → chunk → embed → store)
+internal/queue/               → SQLite-backed persistent async task queue (pending/processing/completed/failed states)
+internal/runtime/             → Session runtime services (SessionService, FinalizeService, RepairService, ExecLauncher)
+internal/heartbeat/           → Autonomous inspection engine: decay audit, orphan cleanup, contradiction detection
+internal/scheduler/           → In-process goroutine+ticker scheduler with overlap prevention and graceful shutdown
+internal/hooks/               → Hooks system (format.go)
+internal/api/                 → Gin HTTP handlers, router, middleware, response helpers
+pkg/qdrant/client.go          → Reusable Qdrant HTTP client (stdlib only)
+pkg/tokenizer/                → Pluggable FTS5 tokenizer (Simple CJK / Jieba HTTP / Gse native / Noop)
+pkg/sqlbuilder/               → Lightweight WHERE/SELECT builder (replaces string concat)
+pkg/testreport/               → Test report recorder + HTML generator (embed template)
+sdks/python/iclude/           → Python SDK client for the LocalMem API
+deploy/                       → Docker + docker-compose deployment configs
+config/templates/             → 3-tier config templates (basic/standard/premium)
+tools/config-generator/       → Web-based config.yaml generator (pure HTML, no deps)
+integrations/claude/          → One-click install scripts for Claude Code (bash + PowerShell)
+integrations/codex/           → One-click install scripts for Codex CLI (bash + PowerShell)
 internal/mcp/
   ├─ server.go     → HTTP+SSE server with session lifecycle
   ├─ session.go    → Per-client session: identity, handshake, tool dispatch, star reminder
@@ -71,7 +82,7 @@ internal/mcp/
   ├─ protocol.go   → JSON-RPC types, MCP method constants, helper builders
   ├─ registry.go   → Thread-safe tool/resource/prompt handler registry
   ├─ handler.go    → Handler interfaces (ToolHandler, ResourceHandler, PromptHandler)
-  ├─ tools/        → 8 tool implementations (retain, recall, scan, fetch, reflect, timeline, ingest, create_session)
+  ├─ tools/        → 11 tool implementations (retain, recall, scan, fetch, reflect, timeline, ingest, create_session, finalize_session, + 2 more)
   ├─ resources/    → 2 resources (recent memories, session context)
   └─ prompts/      → 1 prompt (memory_context)
 internal/document/
@@ -84,36 +95,38 @@ internal/document/
   └─ file_store.go   → FileStore interface + LocalFileStore (future: SMB/NFS)
 ```
 
-**Dependency flow** (acyclic): `cmd/server → api → reflect, memory, search, document → store(interfaces) → model, pkg/*`
+**Dependency flow** (acyclic): `cmd/* → bootstrap → api → reflect, memory, search, document → store(interfaces) → model, pkg/*`
+
+**`internal/bootstrap/wiring.go`** is the central dependency assembler. It exports the `Deps` struct that aggregates every initialized business component (`MemManager`, `Retriever`, `SessionService`, `FinalizeService`, `RepairService`, `Queue`, `Scheduler`, `ExperienceRecaller`, `LineageTracer`, `Summarizer`, `TagManager`, `Extractor`, etc.). Both `cmd/server` and `cmd/mcp` call `bootstrap.InitDeps()` and pass the result to their respective servers.
 
 **MCP server** (`cmd/mcp/`) is an independent binary. It exposes the same memory system over Model Context Protocol with two transports:
 - **stdio** (primary, for Codex/Claude Code): NDJSON over stdin/stdout. Logs go to stderr via `logger.SetStdioMode(true)`. Launch: `iclude-mcp --stdio --config config.yaml`
 - **SSE** (HTTP): `GET /sse` opens the event stream, `POST /messages` sends tool calls.
 
-MCP tools: `iclude_retain`, `iclude_recall`, `iclude_scan`, `iclude_fetch`, `iclude_reflect`, `iclude_timeline`, `iclude_ingest_conversation`, `iclude_create_session`. Resources: `Recent Memories`, `Session Context`. Prompts: `memory_context`.
+MCP tools: `iclude_retain`, `iclude_recall`, `iclude_scan`, `iclude_fetch`, `iclude_reflect`, `iclude_timeline`, `iclude_ingest_conversation`, `iclude_create_session`, `iclude_finalize_session` (+ 2 more). Resources: `Recent Memories`, `Session Context`. Prompts: `memory_context`.
 
-Session lifecycle: initialize handshake required (session marked ready after successful `initialize` response; `notifications/initialized` accepted but not required for compatibility with clients like Codex CLI). Star reminder triggers once after 50 tool calls per session.
+Session lifecycle: 7-state machine (created → active → finalizing → finalized / abandoned). Initialize handshake required. Star reminder triggers once after 50 tool calls per session.
 
 Configured via `mcp` section in `config.yaml` (`port`, `api_token`, `cors_allowed_origin`, `default_team_id`, `default_owner_id`).
 
-**LLM dependency**: `llm.Provider` is consumed by reflect, memory (Extractor), and search (graph fallback). It is initialized early in `main.go` and injected into all consumers.
+**LLM dependency**: `llm.Provider` is consumed by reflect, memory (Extractor, Summarizer), and search (graph fallback, HyDE). It is initialized early in `bootstrap.InitDeps()` and injected into all consumers.
 
 > **Note:** `internal/reflect/` is a separate package (not inside `memory/`) because `search` already imports `memory` (`ApplyStrengthWeighting`). Placing reflect in `memory` would create a circular dependency since reflect needs `search.Retriever`.
 
-### Startup wiring order (main.go)
+### Startup wiring order (bootstrap.InitDeps)
 
-Config → Logger → Embedder (if Qdrant) → Stores → LLM Provider → GraphManager → Extractor → Manager → Retriever → ContextManager → DocProcessor → ReflectEngine → Router. Order matters: Extractor needs LLM + GraphManager; ReflectEngine needs Retriever + Manager + LLM.
+Config → Logger → Embedder (if Qdrant) → Stores → Queue → LLM Provider → GraphManager → EntityResolver → CentroidManager → Extractor → Manager → CascadeRetriever → Retriever → ExperienceRecaller → ContextManager → LineageTracer → TagManager → Summarizer → DocProcessor → ReflectEngine → SessionService → FinalizeService → RepairService → Scheduler. Order matters: Extractor needs LLM + GraphManager; ReflectEngine needs Retriever + Manager + LLM.
 
-> **Note:** `internal/heartbeat/` and `internal/scheduler/` are config-gated (`heartbeat.enabled`, `scheduler.enabled`, both default `false`) and are wired into `main.go`. The scheduler starts unconditionally; heartbeat registers itself only when `heartbeat.enabled: true`.
+> **Note:** `internal/heartbeat/` and `internal/scheduler/` are config-gated (`heartbeat.enabled`, `scheduler.enabled`, both default `false`) and are wired into `bootstrap`. The scheduler starts unconditionally; heartbeat registers itself only when `heartbeat.enabled: true`. The `session-repair` task is registered on a 10-minute interval.
 
 ### Feature gating via nil checks
 
-The `store.Stores` struct aggregates all backends. Optional stores (`VectorStore`, `ContextStore`, `TagStore`, `GraphStore`, `DocumentStore`) may be nil. The router conditionally registers endpoint groups based on nil checks. Business managers (GraphManager, ContextManager, DocProcessor, ReflectEngine, Extractor) are only constructed when their backing store + dependencies are non-nil.
+The `store.Stores` struct aggregates all backends. Optional stores (`VectorStore`, `ContextStore`, `TagStore`, `GraphStore`, `DocumentStore`, `SessionStore`, `SessionFinalizeStore`, `TranscriptCursorStore`, `IdempotencyStore`, `CandidateStore`, `ScopePolicyStore`) may be nil. The router conditionally registers endpoint groups based on nil checks. Business managers are only constructed when their backing store + dependencies are non-nil.
 
 ### Storage design
 
 Three modes via `config.yaml` `storage` section:
-1. **SQLite only** (`sqlite.enabled: true`) — structured queries + FTS5 full-text search (3-column: content/abstract/summary, BM25 weighted). Enables all sub-stores (context, tag, graph, document) sharing the same `*sql.DB`.
+1. **SQLite only** (`sqlite.enabled: true`) — structured queries + FTS5 full-text search (3-column: content/abstract/summary, BM25 weighted). Enables all sub-stores (context, tag, graph, document, session, etc.) sharing the same `*sql.DB`.
 2. **Qdrant only** (`qdrant.enabled: true`) — vector semantic search
 3. **Hybrid** (both enabled) — results merged via Reciprocal Rank Fusion (RRF)
 
@@ -121,18 +134,28 @@ Best-effort dual-write: SQLite is primary, Qdrant failure is logged but does not
 
 `NewSQLiteMemoryStore(dbPath, bm25Weights, tokenizer)` accepts a pluggable `tokenizer.Tokenizer` for FTS5 pre-tokenization. The factory (`store.InitStores`) creates the tokenizer based on `config.yaml` `storage.sqlite.tokenizer.provider` (jieba / simple / noop).
 
-### Three-way retrieval
+**Dual migration paths**: New databases use `createFreshSchema()` (single-shot terminal schema). Existing databases use versioned incremental migrations (V0→V27). When adding new tables/columns, both paths must be updated.
 
-The `search.Retriever` merges up to 3 channels via weighted RRF (`MergeWeightedRRF`, k=60):
+### Search architecture
+
+The `search.Retriever` is the primary retrieval entry point, merging up to 3 channels via weighted RRF (`MergeWeightedRRF`, k=60):
 1. **SQLite FTS5** (BM25) — weight configurable via `retrieval.fts_weight`
 2. **Qdrant vector** — weight via `retrieval.qdrant_weight`
 3. **Graph association** — weight via `retrieval.graph_weight`; uses LLM fallback when FTS5 finds no matching entities
+
+The `search.CascadeRetriever` wraps `Retriever` with **intent-driven degradation**: `IntentClassifier` classifies queries into 4 intent types (`entity`, `temporal`, `conceptual`, `default`) and routes to the appropriate stage sequence. Each retrieval stage (`FTSStage`, `VectorStage`, `GraphStage`, `TemporalStage`) is defined in `internal/search/stage/`.
+
+Query preprocessing pipeline (5 layers): tokenization → synonym expansion → HyDE (weight configurable via `preprocess.hyde_weight`, default 0.8) → LLM query enhancement → intent classification.
+
+`ExperienceRecaller` proactively finds similar `procedural` memories when new memories are created (B7 feature).
 
 Formula: `score = Σ weight × 1/(k + rank + 1)` per channel. Results are then strength-weighted and token-budget-trimmed.
 
 ### Entity extraction (Extractor)
 
-`memory.Extractor` auto-extracts entities/relations from memory content via LLM. Integrated best-effort into `Manager.Create()` (non-blocking). Also exposed as explicit `POST /v1/memories/:id/extract`. Uses 3-level fallback parsing: JSON unmarshal → regex extract → LLM retry → raw fallback.
+`memory.Extractor` auto-extracts entities/relations from memory content via LLM. Integrated best-effort into `Manager.Create()` (non-blocking via Queue). Also exposed as explicit `POST /v1/memories/:id/extract`. Uses 3-level fallback parsing: JSON unmarshal → regex extract → LLM retry → raw fallback.
+
+`memory.EntityResolver` (vector-driven, optional) resolves entity aliases using tokenization + vector centroids + nearest-neighbor search (`CandidateStore` stores candidates).
 
 ### Reflect Engine
 
@@ -140,7 +163,14 @@ Multi-round LLM reasoning over retrieved memories. Configured via `reflect` conf
 
 ### Database schema
 
-SQLite has 10 tables + 1 FTS5 virtual table. The `memories` table has 35 columns (including memory_class for episodic/semantic/procedural evolution tracking). `derived_from` was migrated from a JSON column to a proper `memory_derivations(source_id, target_id)` junction table in V16. Migrations are versioned (V0→V1→V2→V3→...→V16) in `sqlite_migration*.go`, idempotent and transaction-safe. PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write (Create/Update/PurgeDeleted) to guarantee consistency.
+SQLite has 15+ tables + 1 FTS5 virtual table. Migrations are versioned (V0→V27) in `sqlite_migration*.go`, idempotent and transaction-safe. Key tables by version group:
+- **V0-V16**: memories, memory_derivations (junction), entities, entity_relations, memory_entities, contexts, tags, memory_tags, documents, memory_chunks
+- **V17-V20**: sessions, session_finalize_state, transcript_cursors
+- **V21**: idempotency_keys
+- **V24**: scope_policies
+- **V27**: candidate_entities, memory_entity confidence field
+
+PRAGMAs: WAL, foreign_keys=ON, busy_timeout=5000, mmap_size=256MB. Connection pool: MaxOpen=5, MaxIdle=2, ConnMaxLifetime=5min. FTS5 writes are always in the same transaction as their parent table write to guarantee consistency.
 
 ### MCP identity flow
 
@@ -161,24 +191,30 @@ Web generator: `tools/config-generator/index.html` (open in browser, select edit
 
 ### Key config sections
 
-`storage` (sqlite/qdrant), `server` (port, auth), `llm` (openai/claude/ollama provider + embedding + fallback chain), `reflect` (max_rounds, token_budget, round_timeout, auto_save), `extract` (max_entities, max_relations, normalize_enabled, timeout), `retrieval` (graph_enabled, graph_depth, fts_weight, qdrant_weight, graph_weight, mmr, preprocess), `scheduler` (enabled, cleanup_interval, access_flush_interval, consolidation_interval), `heartbeat` (enabled, interval, contradiction_enabled, decay_audit_min_age_days), `consolidation` (enabled, min_age_days, similarity_threshold), `document` (enabled, docling/tika URLs, chunking), `mcp` (enabled, port, default_team_id, default_owner_id), `hooks` (enabled, mcp_url, skip_tools), `auth` (enabled, api_keys), `partitions` (enabled, catalog_path).
+`storage` (sqlite/qdrant), `server` (port, auth), `llm` (openai/claude/ollama provider + embedding + fallback chain), `reflect` (max_rounds, token_budget, round_timeout, auto_save), `extract` (max_entities, max_relations, normalize_enabled, timeout), `retrieval` (graph_enabled, graph_depth, fts_weight, qdrant_weight, graph_weight, mmr, preprocess), `preprocess` (hyde_weight, query_expand, synonym), `cascade` (intent classification thresholds), `resolver` (vector entity resolver), `crystallization` (auto-crystallization), `dedup` (deduplication), `queue` (enabled, poll_interval, max_retries, stale_timeout), `ingest` (data ingestion), `scheduler` (enabled, cleanup_interval, access_flush_interval, consolidation_interval), `heartbeat` (enabled, interval, contradiction_enabled, decay_audit_min_age_days), `consolidation` (enabled, min_age_days, similarity_threshold), `document` (enabled, docling/tika URLs, chunking), `mcp` (enabled, port, default_team_id, default_owner_id), `hooks` (enabled, mcp_url, skip_tools, capture_mode, host_tool), `auth` (enabled, api_keys), `partitions` (enabled, catalog_path).
 
 ### Memory model
 
-The `model.Memory` struct supports retention tiers (`permanent` / `long_term` / `standard` / `short_term` / `ephemeral`) with configurable decay rates. Memories have lifecycle fields: `Strength`, `DecayRate`, `DeletedAt` (soft delete), `ExpiresAt`, `ReinforcedCount`, and memory evolution fields: `MemoryClass` (episodic/semantic/procedural). `DerivedFrom` (source tracking for consolidation/reflection outputs) is stored in the `memory_derivations` junction table (V16) and loaded separately via `DerivationStore` interface methods.
+The `model.Memory` struct supports retention tiers (`permanent` / `long_term` / `standard` / `short_term` / `ephemeral`) with configurable decay rates. Memories have lifecycle fields: `Strength`, `DecayRate`, `DeletedAt` (soft delete), `ExpiresAt`, `ReinforcedCount`, and memory evolution fields: `MemoryClass` (episodic/semantic/procedural/core). `DerivedFrom` (source tracking for consolidation/reflection outputs) is stored in the `memory_derivations` junction table and loaded separately via `DerivationStore` interface methods. `candidate_for` field supports promotion pipeline (V23+). `scope_priority` applied via `ApplyScopePriority()` (session>project>user/core>other).
 
 ### API routes
 
 All endpoints under `/v1/`. Core groups:
-- `/v1/memories` — CRUD + soft-delete/restore + reinforce + tag associations
+- `/v1/memories` — CRUD + soft-delete/restore + reinforce + tag associations + lineage
+- `/v1/memories/by-source/:sourceRef` — Source-ref based batch operations (list/soft-delete/restore)
+- `/v1/memories/batch` — Batch get by IDs
+- `/v1/memories/:id/derived-from`, `/consolidated-into`, `/lineage` — Derivation tracing
+- `/v1/sessions/:contextId/summarize`, `/sessions/by-source/:sourceRef/summarize` — Session summarization (LLM)
 - `/v1/retrieve`, `/v1/timeline` — search (three-way retrieval with weighted RRF, strength weighting)
 - `/v1/conversations` — conversation ingest (batch) + retrieval by context
 - `/v1/contexts` — hierarchical context tree (materialized path) with behavioral fields (mission/directives/disposition)
 - `/v1/tags` — tag CRUD + memory-tag associations
 - `/v1/entities`, `/v1/entity-relations`, `/v1/memory-entities` — knowledge graph
+- `/v1/entities/:id/profile` — entity profile view (aggregated relations + memories)
 - `/v1/documents` — document upload/process/list
 - `/v1/reflect` — multi-round LLM reasoning over memories
 - `/v1/memories/:id/extract` — explicit entity extraction from a memory
+- `/v1/scope-policies` — scope policy CRUD (list/create)
 - `/v1/maintenance/cleanup` — expire/purge operations
 
 ### Document Ingestion Pipeline
@@ -188,6 +224,17 @@ File upload → async processing → Memory ingestion. Three-layer fallback: Doc
 **Chunking pipeline**: Structure-aware split (headings/tables/code blocks) → recursive character split (512 token, 50 overlap) → context prefix enrichment. Markdown input uses MarkdownChunker, plaintext falls back to TextChunker.
 
 **Processing stages**: `pending → parsing → chunking → embedding → ready` (or `→ failed`). Async via goroutine + semaphore (default 3 concurrent). Config-gated: `document.enabled: true` required + docling/tika Docker sidecars.
+
+### Session & Runtime Services (`internal/runtime/`)
+
+- **SessionService** — 7-state session lifecycle (created/active/finalizing/finalized/abandoned/error/unknown)
+- **FinalizeService** — Idempotent session finalization (ingest conversation + generate summary memory) with `session_finalize_state` for at-least-once delivery
+- **RepairService** — Detects stale/stuck sessions, transfers abandoned sessions, tracks repair attempts
+- **ExecLauncher** — Launches 4 host types (claude_code/codex/opencode/generic) as processes
+
+### Async Task Queue (`internal/queue/`)
+
+SQLite-backed persistent task queue. Tasks: `pending → processing → completed / failed`. Supports retry (configurable `max_retries`) and `scheduled_at` for delayed execution. `Manager.Create()` enqueues entity extraction tasks asynchronously via the `TaskEnqueuer` interface (decoupled from queue package).
 
 ## AI 日报 Skill
 
@@ -207,7 +254,7 @@ python .claude/skills/daily-ai-report/scripts/send_to_feishu.py    # 发送飞�
 ## Development Rules
 
 - Test files go in `testing/` directory, not alongside source. Name: `{module}_test.go`.
-- Test subdirectories mirror the source: `testing/{api,llm,memory,reflect,report,search,store}/`.
+- Test subdirectories mirror the source: `testing/{api,compliance,eval,llm,memory,reflect,report,search,store}/`.
 - The project uses a multi-agent development pattern with scoped agents per layer (see `.opencode/agents/`).
 
 ### 代码风格 / Code Style
@@ -233,6 +280,7 @@ python .claude/skills/daily-ai-report/scripts/send_to_feishu.py    # 发送飞�
 - **风格**: 强制表驱动测试，命名 `Test{函数名}_{场景}`
 - **Mock**: `mockery` 自动生成，放 `testing/mocks/`
 - **Dashboard**: 新功能须在 `testing/report/` 创建 `{feature}_test.go`，用 `testreport.NewCase()` 包装
+- **Compliance**: `testing/compliance/` 包含 L1-L4 runtime 合规 + policy + identity + 4 宿主 HostProfile 合规测试
 
 ### 编写规则 / Coding Rules
 
@@ -260,19 +308,20 @@ python .claude/skills/daily-ai-report/scripts/send_to_feishu.py    # 发送飞�
 9. **删除父记录必须级联子记录** — 无 CASCADE 时应用层显式处理。（事故：DeleteDocument 遗留孤儿 chunk）
 10. **元数据必须反映实际执行结果** — 操作完成后从结果提取，禁止预测。（事故：ParserUsed 预测返回 docling 实际用 tika）
 11. **数据库迁移必须幂等** — ALTER TABLE 用 `IsColumnExistsError` 守护，可安全重跑。（事故：V10 非幂等重跑崩溃）
+12. **双轨迁移同步** — 新增表/列时，`createFreshSchema()`（新库）和对应增量迁移（老库）必须同步更新两条路径。
 
 #### 三、Store 层规范
 
-12. **scanDest 模式** — 所有 DB 模型（Memory/Entity/Tag/Context/Document）必须用 `scanDest` + `scanFields()` + `toModel()` 三件套，禁止手写逐字段 Scan。新增列只改一处。（经验：R2 统一后消除 15+ 处重复 Scan）
-13. **错误分类集中 `store/errors.go`** — `IsColumnExistsError`/`IsUniqueConstraintError` 统一导出，禁止内联 `strings.Contains`。（经验：R3 集中后消除 4 文件不一致）
-14. **迁移文件按版本拆分** — 单文件 <500 行，主文件只保留调度 + helper。（经验：R1 拆分 972→4 文件）
-15. **同一计算逻辑只允许一套实现** — 相同语义的函数必须提取到 `pkg/`。（事故：两个 EstimateTokens 算法不一致）
+13. **scanDest 模式** — 所有 DB 模型（Memory/Entity/Tag/Context/Document）必须用 `scanDest` + `scanFields()` + `toModel()` 三件套，禁止手写逐字段 Scan。新增列只改一处。（经验：R2 统一后消除 15+ 处重复 Scan）
+14. **错误分类集中 `store/errors.go`** — `IsColumnExistsError`/`IsUniqueConstraintError` 统一导出，禁止内联 `strings.Contains`。（经验：R3 集中后消除 4 文件不一致）
+15. **迁移文件按版本拆分** — 单文件 <500 行，主文件只保留调度 + helper。（经验：R1 拆分 972→4 文件）
+16. **同一计算逻辑只允许一套实现** — 相同语义的函数必须提取到 `pkg/`。（事故：两个 EstimateTokens 算法不一致）
 
 #### 四、API 层规范
 
-16. **handler 用 `withIdentity` 包装** — 签名 `(c *gin.Context, identity *model.Identity)`，路由注册 `withIdentity(h.Method)`。禁止内联 requireIdentity。（经验：R4 消除 47 处样板代码）
+17. **handler 用 `withIdentity` 包装** — 签名 `(c *gin.Context, identity *model.Identity)`，路由注册 `withIdentity(h.Method)`。禁止内联 requireIdentity。（经验：R4 消除 47 处样板代码）
 
 #### 五、业务层规范
 
-17. **Manager 方法单一职责** — 公开方法只做调度，去重/嵌入/抽取委托给子方法。超 50 行时拆分。（经验：R5 抽取 dedupCheck 后 Create 减 30 行）
-18. **修复代码同等评审** — 自检清单：全路径覆盖？白名单无兜底？函数无重复？写操作经 Manager？CJK 安全？（事故：修复引入 5 个新问题）
+18. **Manager 方法单一职责** — 公开方法只做调度，去重/嵌入/抽取委托给子方法。超 50 行时拆分。（经验：R5 抽取 dedupCheck 后 Create 减 30 行）
+19. **修复代码同等评审** — 自检清单：全路径覆盖？白名单无兜底？函数无重复？写操作经 Manager？CJK 安全？（事故：修复引入 5 个新问题）
