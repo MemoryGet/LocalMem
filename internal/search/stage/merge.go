@@ -4,10 +4,12 @@ import (
 	"context"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"iclude/internal/model"
 	"iclude/internal/search/pipeline"
+	"iclude/pkg/scoring"
 )
 
 // defaultRRFK RRF 默认 k 值 / Default RRF k parameter
@@ -24,13 +26,14 @@ const (
 
 // MergeStage RRF 融合阶段 / RRF merge pipeline stage
 type MergeStage struct {
-	strategy string
-	k        int
-	limit    int
+	strategy    string
+	k           int
+	limit       int
+	accessAlpha float64
 }
 
 // NewMergeStage 创建 RRF 融合阶段 / Create a new RRF merge stage
-func NewMergeStage(strategy string, k int, limit int) *MergeStage {
+func NewMergeStage(strategy string, k int, limit int, accessAlpha float64) *MergeStage {
 	if strategy == "" {
 		strategy = MergeStrategyRRF
 	}
@@ -40,11 +43,58 @@ func NewMergeStage(strategy string, k int, limit int) *MergeStage {
 	if limit <= 0 {
 		limit = 100
 	}
-	return &MergeStage{
-		strategy: strategy,
-		k:        k,
-		limit:    limit,
+	if accessAlpha <= 0 {
+		accessAlpha = defaultAccessAlpha
 	}
+	return &MergeStage{
+		strategy:    strategy,
+		k:           k,
+		limit:       limit,
+		accessAlpha: accessAlpha,
+	}
+}
+
+// computeStructuralWeight 计算结构化权重（kind/class/scope/strength）/ Compute structural weight from kind, class, scope, and effective strength
+func (s *MergeStage) computeStructuralWeight(m *model.Memory) float64 {
+	if m == nil {
+		return 1.0
+	}
+
+	kw := kindWeights[m.Kind]
+	if kw == 0 {
+		kw = 1.0
+	}
+	if sw, ok := subKindWeights[m.SubKind]; ok {
+		kw *= sw
+	}
+	if cw, ok := classWeights[m.MemoryClass]; ok {
+		kw *= cw
+	}
+
+	boost := 1.0
+	if m.Scope != "" {
+		prefix := strings.SplitN(m.Scope, "/", 2)[0]
+		if b, ok := scopePriorityBoost[prefix]; ok {
+			boost = b
+		}
+	}
+	if strings.HasPrefix(m.Scope, "user/") && m.MemoryClass == "core" {
+		boost *= 1.15
+	}
+
+	effective := scoring.CalculateEffectiveStrength(
+		m.Strength, m.DecayRate, m.LastAccessedAt,
+		m.RetentionTier, m.AccessCount, s.accessAlpha,
+	)
+	if effective < minEffectiveStrength {
+		effective = minEffectiveStrength
+	}
+
+	w := kw * boost * effective
+	if w > weightCap {
+		w = weightCap
+	}
+	return w
 }
 
 // Name 返回阶段名称 / Return stage name
@@ -55,6 +105,18 @@ func (s *MergeStage) Name() string {
 // Execute 执行 RRF 融合 / Execute RRF merge stage
 func (s *MergeStage) Execute(ctx context.Context, state *pipeline.PipelineState) (*pipeline.PipelineState, error) {
 	start := time.Now()
+
+	// 过滤已过期候选 / Filter expired candidates
+	now := time.Now()
+	var alive []*model.SearchResult
+	for _, r := range state.Candidates {
+		if r.Memory != nil && r.Memory.ExpiresAt != nil && r.Memory.ExpiresAt.Before(now) {
+			continue
+		}
+		alive = append(alive, r)
+	}
+	state.Candidates = alive
+
 	inputCount := len(state.Candidates)
 
 	if len(state.Candidates) == 0 {
@@ -76,16 +138,22 @@ func (s *MergeStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 
 	// 单源直接去重返回 / Single source: deduplicate and return
 	if len(groups) == 1 {
-		merged := s.dedup(state.Candidates)
-		if len(merged) > s.limit {
-			merged = merged[:s.limit]
+		deduped := s.dedup(state.Candidates)
+		for _, r := range deduped {
+			r.Score *= s.computeStructuralWeight(r.Memory)
 		}
-		state.Candidates = merged
+		sort.Slice(deduped, func(i, j int) bool {
+			return deduped[i].Score > deduped[j].Score
+		})
+		if len(deduped) > s.limit {
+			deduped = deduped[:s.limit]
+		}
+		state.Candidates = deduped
 		state.AddTrace(pipeline.StageTrace{
 			Name:        s.Name(),
 			Duration:    time.Since(start),
 			InputCount:  inputCount,
-			OutputCount: len(merged),
+			OutputCount: len(deduped),
 			Note:        "single source passthrough",
 		})
 		return state, nil
@@ -124,7 +192,7 @@ func (s *MergeStage) mergeRRF(groups map[string][]*model.SearchResult) []*model.
 				continue
 			}
 			id := r.Memory.ID
-			scores[id] += 1.0 / float64(s.k+rank+1)
+			scores[id] += s.computeStructuralWeight(r.Memory) / float64(s.k+rank+1)
 			// 保留最完整的 Memory 对象 / Keep the most complete Memory object
 			if existing, ok := memMap[id]; !ok || existing.Content == "" {
 				memMap[id] = r.Memory
@@ -199,7 +267,7 @@ func (s *MergeStage) mergeGraphAware(groups map[string][]*model.SearchResult) []
 			}
 			id := r.Memory.ID
 			trust := trustFactors[id]
-			scores[id] += trust * 1.0 / float64(s.k+rank+1)
+			scores[id] += trust * s.computeStructuralWeight(r.Memory) / float64(s.k+rank+1)
 			if existing, ok := memMap[id]; !ok || existing.Content == "" {
 				memMap[id] = r.Memory
 			}

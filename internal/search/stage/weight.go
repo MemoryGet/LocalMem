@@ -22,34 +22,37 @@ const weightCap = 2.0
 
 // kindWeights 记忆类型权重 / Memory kind weights
 var kindWeights = map[string]float64{
-	"skill":   1.5,
-	"profile": 1.2,
-	"fact":    1.0,
-	"note":    1.0,
+	"skill":        1.5,
+	"rule":         1.4,
+	"mental_model": 1.3,
+	"preference":   1.2,
+	"goal":         1.2,
+	"note":         1.0,
+	"event":        0.9,
+	"error":        0.8,
 }
 
 // subKindWeights 子类型权重加成 / Sub-kind weight boost
 var subKindWeights = map[string]float64{
-	"pattern": 1.3,
-	"case":    1.3,
+	"core_belief":    1.4,
+	"working_memory": 0.7,
 }
 
 // classWeights 记忆层级权重 / Memory class weights
 var classWeights = map[string]float64{
 	"procedural": 1.5,
 	"semantic":   1.2,
+	"core":       1.4,
 	"episodic":   1.0,
 }
 
-// scopePriorityBoost scope 优先级加成 / Scope priority boost factors
-var scopePriorityBoost = []struct {
-	prefix string
-	boost  float64
-}{
-	{"session/", 1.3},
-	{"project/", 1.2},
-	{"user/", 1.1},
-	{"agent/", 1.0},
+// scopePriorityBoost scope 优先级加成 / Scope priority boost factors (keyed by prefix without trailing slash)
+var scopePriorityBoost = map[string]float64{
+	"session": 1.3,
+	"project": 1.1,
+	"user":    1.0,
+	"agent":   1.0,
+	"global":  0.9,
 }
 
 // WeightStage 综合加权阶段 / Combined weight pipeline stage
@@ -152,11 +155,9 @@ func (s *WeightStage) applyScopePriority(r *model.SearchResult) float64 {
 		return 1.0
 	}
 	boost := 1.0
-	for _, sp := range scopePriorityBoost {
-		if strings.HasPrefix(r.Memory.Scope, sp.prefix) {
-			boost = sp.boost
-			break
-		}
+	prefix := strings.SplitN(r.Memory.Scope, "/", 2)[0]
+	if b, ok := scopePriorityBoost[prefix]; ok {
+		boost = b
 	}
 	// core memory 在 user/ scope 下额外提权 / Extra boost for core class under user/ scope
 	if strings.HasPrefix(r.Memory.Scope, "user/") && r.Memory.MemoryClass == "core" {

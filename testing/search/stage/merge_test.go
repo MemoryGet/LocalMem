@@ -3,6 +3,10 @@ package stage_test
 import (
 	"context"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"iclude/internal/model"
 	"iclude/internal/search/pipeline"
@@ -10,14 +14,14 @@ import (
 )
 
 func TestMergeStage_Name(t *testing.T) {
-	s := stage.NewMergeStage("rrf", 0, 0)
+	s := stage.NewMergeStage("rrf", 0, 0, 0.1)
 	if s.Name() != "merge" {
 		t.Errorf("Name() = %q, want %q", s.Name(), "merge")
 	}
 }
 
 func TestMergeStage_Implements_Stage(t *testing.T) {
-	var _ pipeline.Stage = stage.NewMergeStage("", 0, 0)
+	var _ pipeline.Stage = stage.NewMergeStage("", 0, 0, 0.1)
 }
 
 func TestMergeStage_Execute(t *testing.T) {
@@ -72,7 +76,7 @@ func TestMergeStage_Execute(t *testing.T) {
 			if limit == 0 {
 				limit = 100
 			}
-			s := stage.NewMergeStage("rrf", 60, limit)
+			s := stage.NewMergeStage("rrf", 60, limit, 0.1)
 			state := pipeline.NewState("test", &model.Identity{TeamID: "t", OwnerID: "o"})
 			state.Candidates = tt.candidates
 
@@ -104,7 +108,7 @@ func TestMergeStage_Execute_RRFScoreAccumulates(t *testing.T) {
 		{Memory: &model.Memory{ID: "only_vec", Content: "z"}, Score: 0.6, Source: "vector"},
 	}
 
-	s := stage.NewMergeStage("rrf", 60, 100)
+	s := stage.NewMergeStage("rrf", 60, 100, 0.1)
 	state := pipeline.NewState("test", &model.Identity{TeamID: "t", OwnerID: "o"})
 	state.Candidates = candidates
 
@@ -129,7 +133,7 @@ func TestMergeStage_Execute_StableSortByID(t *testing.T) {
 		{Memory: &model.Memory{ID: "a"}, Score: 0.9, Source: "vector"},
 	}
 
-	s := stage.NewMergeStage("rrf", 60, 100)
+	s := stage.NewMergeStage("rrf", 60, 100, 0.1)
 	state := pipeline.NewState("test", &model.Identity{TeamID: "t", OwnerID: "o"})
 	state.Candidates = candidates
 
@@ -217,7 +221,7 @@ func TestMergeStage_GraphAware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := stage.NewMergeStage("graph_aware", 60, 100)
+			s := stage.NewMergeStage("graph_aware", 60, 100, 0.1)
 			state := pipeline.NewState("q", nil)
 			state.Candidates = tt.candidates
 
@@ -242,16 +246,24 @@ func TestMergeStage_GraphAware(t *testing.T) {
 
 func TestMergeStage_GraphAware_ScoreValues(t *testing.T) {
 	// 验证 graph_aware 实际应用信任因子而非普通 RRF / Verify graph_aware applies trust factors, not plain RRF
-	// With k=60: rank 0 base RRF = 1/(60+0+1) = 1/61 ≈ 0.016393
-	// graph_aware for cross-validated (trust 1.5): 1.5 * 1/61 ≈ 0.024590 per source
-	// graph_aware for fts-only (trust 0.8): 0.8 * 1/61 ≈ 0.013115
+	// Test memories have Strength=0 and no LastAccessedAt → CalculateEffectiveStrength returns 0.0,
+	// then minEffectiveStrength floor (0.05) applies. No kind/scope set → kw=1.0, boost=1.0.
+	// structuralWeight = 1.0 * 1.0 * 0.05 = 0.05
+	//
+	// With k=60, structural weight w=0.05:
+	//   m1 cross-validated (trust 1.5), rank 0 in both sources:
+	//     score = 1.5*w/61 + 1.5*w/61 = 1.5*0.05/61 + 1.5*0.05/61 ≈ 0.002459
+	//   m2 fts-only (trust 0.8), rank 1 in fts (m1 is rank 0 but only in one source — actually m2
+	//     has Score 0.95 so it's rank 0, m1 fts is rank 1):
+	//     m2 score = 0.8*0.05/61 ≈ 0.000656; m1 fts (rank1) = 1.5*0.05/62
+	//   Overall m1 = 1.5*0.05/61 + 1.5*0.05/62; m2 = 0.8*0.05/61
 	candidates := []*model.SearchResult{
 		{Memory: &model.Memory{ID: "m1", Content: "cross"}, Score: 0.9, Source: "graph"},
 		{Memory: &model.Memory{ID: "m1", Content: "cross"}, Score: 0.9, Source: "fts"},
 		{Memory: &model.Memory{ID: "m2", Content: "fts-only"}, Score: 0.95, Source: "fts"},
 	}
 
-	s := stage.NewMergeStage("graph_aware", 60, 100)
+	s := stage.NewMergeStage("graph_aware", 60, 100, 0.1)
 	state := pipeline.NewState("q", nil)
 	state.Candidates = candidates
 
@@ -264,33 +276,33 @@ func TestMergeStage_GraphAware_ScoreValues(t *testing.T) {
 		t.Fatalf("expected 2 candidates, got %d", len(result.Candidates))
 	}
 
-	// m1: cross-validated → trust 1.5, appears in 2 sources (rank 0 each)
-	// m1 score = 1.5 * 1/61 + 1.5 * 1/61 ≈ 0.049180
-	// m2: fts-only → trust 0.8, rank 1 in fts
-	// m2 score = 0.8 * 1/62 ≈ 0.012903
+	// m2 Score=0.95 is rank 0 in fts; m1 Score=0.9 is rank 1 in fts; m1 Score=0.9 is rank 0 in graph.
+	// structural weight for all = 0.05 (minEffectiveStrength floor, no kind/scope set)
+	// m1 = trust(1.5)*0.05/62 [fts rank1] + trust(1.5)*0.05/61 [graph rank0]
+	// m2 = trust(0.8)*0.05/61 [fts rank0]
+	const sw = 0.05 // structural weight floor
+	expectedM1 := 1.5*sw/62 + 1.5*sw/61
+	expectedM2 := 0.8 * sw / 61
+	// plain RRF (no structural weight) m1 would be 1/62 + 1/61 ≈ 0.032610 — trust factor differentiates
+	expectedM1PlainRRF := 1.0/62 + 1.0/61
+	tolerance := 0.0005
+
 	m1Score := result.Candidates[0].Score
 	m2Score := result.Candidates[1].Score
 
 	if result.Candidates[0].Memory.ID != "m1" {
-		t.Fatalf("expected m1 first, got %s", result.Candidates[0].Memory.ID)
+		t.Fatalf("expected m1 first, got %s (m1=%.6f m2=%.6f)", result.Candidates[0].Memory.ID, m1Score, m2Score)
 	}
 
-	// m1 should have trust-weighted score, not plain RRF
-	// Plain RRF m1 = 1/61 + 1/61 ≈ 0.032787
-	// graph_aware m1 = 1.5/61 + 1.5/61 ≈ 0.049180
-	expectedM1GraphAware := 1.5/61 + 1.5/61
-	expectedM1PlainRRF := 1.0/61 + 1.0/61
-	tolerance := 0.001
-
-	if m1Score < expectedM1GraphAware-tolerance || m1Score > expectedM1GraphAware+tolerance {
-		t.Errorf("m1 score = %f, want ~%f (graph_aware), plain RRF would give ~%f",
-			m1Score, expectedM1GraphAware, expectedM1PlainRRF)
+	// m1 should have trust-weighted + structural-weight score, not plain RRF
+	if m1Score < expectedM1-tolerance || m1Score > expectedM1+tolerance {
+		t.Errorf("m1 score = %.6f, want ~%.6f (graph_aware+structural), plain RRF would give ~%.6f",
+			m1Score, expectedM1, expectedM1PlainRRF)
 	}
 
-	// m2 should have 0.8 trust penalty
-	expectedM2 := 0.8 / 62
+	// m2 should have 0.8 trust penalty × structural weight
 	if m2Score < expectedM2-tolerance || m2Score > expectedM2+tolerance {
-		t.Errorf("m2 score = %f, want ~%f (fts-only trust 0.8)", m2Score, expectedM2)
+		t.Errorf("m2 score = %.6f, want ~%.6f (fts-only trust 0.8 × structural)", m2Score, expectedM2)
 	}
 }
 
@@ -301,7 +313,7 @@ func TestMergeStage_Execute_KeepsMostCompleteMemory(t *testing.T) {
 		{Memory: &model.Memory{ID: "x", Content: "full content"}, Score: 0.8, Source: "fts"},
 	}
 
-	s := stage.NewMergeStage("rrf", 60, 100)
+	s := stage.NewMergeStage("rrf", 60, 100, 0.1)
 	state := pipeline.NewState("test", &model.Identity{TeamID: "t", OwnerID: "o"})
 	state.Candidates = candidates
 
@@ -315,4 +327,100 @@ func TestMergeStage_Execute_KeepsMostCompleteMemory(t *testing.T) {
 	if got.Candidates[0].Memory.Content != "full content" {
 		t.Errorf("Memory.Content = %q, want %q", got.Candidates[0].Memory.Content, "full content")
 	}
+}
+
+func TestMergeStage_StructuralWeight_ExpiredFiltered(t *testing.T) {
+	now := time.Now()
+	past := now.Add(-1 * time.Hour)
+	future := now.Add(1 * time.Hour)
+
+	expired := &model.Memory{ID: "expired", Kind: "note", ExpiresAt: &past, Strength: 1.0}
+	live := &model.Memory{ID: "live", Kind: "note", ExpiresAt: &future, Strength: 1.0}
+
+	s := stage.NewMergeStage("rrf", 60, 100, 0.1)
+	state := &pipeline.PipelineState{
+		Candidates: []*model.SearchResult{
+			{Memory: expired, Score: 0.9},
+			{Memory: live, Score: 0.8},
+		},
+	}
+	out, err := s.Execute(context.Background(), state)
+	require.NoError(t, err)
+	require.Len(t, out.Candidates, 1)
+	assert.Equal(t, "live", out.Candidates[0].Memory.ID)
+}
+
+func TestMergeStage_StructuralWeight_SkillRanksAboveNote(t *testing.T) {
+	skillMem := &model.Memory{ID: "skill", Kind: "skill", Strength: 0.8, MemoryClass: "procedural"}
+	noteMem := &model.Memory{ID: "note", Kind: "note", Strength: 0.8, MemoryClass: "episodic"}
+
+	s := stage.NewMergeStage("rrf", 60, 100, 0.1)
+	state := &pipeline.PipelineState{
+		Candidates: []*model.SearchResult{
+			{Memory: noteMem, Score: 1.0, Source: "fts"},
+			{Memory: skillMem, Score: 1.0, Source: "fts"},
+		},
+	}
+	out, err := s.Execute(context.Background(), state)
+	require.NoError(t, err)
+	require.Len(t, out.Candidates, 2)
+	assert.Equal(t, "skill", out.Candidates[0].Memory.ID, "skill (1.5x kind weight) should rank above note (1.0x)")
+}
+
+func TestMergeStage_StructuralWeight_SessionScopeBoost(t *testing.T) {
+	sessionMem := &model.Memory{ID: "session", Kind: "note", Scope: "session/abc", Strength: 0.8}
+	agentMem := &model.Memory{ID: "agent", Kind: "note", Scope: "agent/xyz", Strength: 0.8}
+
+	s := stage.NewMergeStage("rrf", 60, 100, 0.1)
+	state := &pipeline.PipelineState{
+		Candidates: []*model.SearchResult{
+			{Memory: agentMem, Score: 1.0, Source: "fts"},
+			{Memory: sessionMem, Score: 1.0, Source: "fts"},
+		},
+	}
+	out, err := s.Execute(context.Background(), state)
+	require.NoError(t, err)
+	require.Len(t, out.Candidates, 2)
+	assert.Equal(t, "session", out.Candidates[0].Memory.ID, "session/ scope (1.3x) should rank above agent/ (1.0x)")
+}
+
+func TestMergeStage_StructuralWeight_ProceduralClass(t *testing.T) {
+	proceduralMem := &model.Memory{ID: "proc", Kind: "note", MemoryClass: "procedural", Strength: 0.8}
+	episodicMem := &model.Memory{ID: "epis", Kind: "note", MemoryClass: "episodic", Strength: 0.8}
+
+	s := stage.NewMergeStage("rrf", 60, 100, 0.1)
+	state := &pipeline.PipelineState{
+		Candidates: []*model.SearchResult{
+			{Memory: episodicMem, Score: 1.0, Source: "fts"},
+			{Memory: proceduralMem, Score: 1.0, Source: "fts"},
+		},
+	}
+	out, err := s.Execute(context.Background(), state)
+	require.NoError(t, err)
+	require.Len(t, out.Candidates, 2)
+	assert.Equal(t, "proc", out.Candidates[0].Memory.ID, "procedural class (1.5x) should rank above episodic (1.0x)")
+}
+
+func TestMergeStage_StructuralWeight_PermanentNoDecay(t *testing.T) {
+	oldTime := time.Now().Add(-720 * time.Hour)
+	permanentMem := &model.Memory{
+		ID: "perm", Kind: "note", Strength: 0.8,
+		RetentionTier: model.TierPermanent, LastAccessedAt: &oldTime,
+	}
+	standardMem := &model.Memory{
+		ID: "std", Kind: "note", Strength: 0.8,
+		RetentionTier: model.TierStandard, DecayRate: 0.01, LastAccessedAt: &oldTime,
+	}
+
+	s := stage.NewMergeStage("rrf", 60, 100, 0.1)
+	state := &pipeline.PipelineState{
+		Candidates: []*model.SearchResult{
+			{Memory: standardMem, Score: 1.0, Source: "fts"},
+			{Memory: permanentMem, Score: 1.0, Source: "fts"},
+		},
+	}
+	out, err := s.Execute(context.Background(), state)
+	require.NoError(t, err)
+	require.Len(t, out.Candidates, 2)
+	assert.Equal(t, "perm", out.Candidates[0].Memory.ID, "permanent tier should outrank standard after 720h decay")
 }
