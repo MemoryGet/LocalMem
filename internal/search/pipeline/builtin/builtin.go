@@ -161,7 +161,6 @@ func buildFull(deps Deps) *pipeline.Pipeline {
 // buildPostStages 构建共享后处理 stage 列表 / Build shared post-processing stages
 func buildPostStages(deps Deps) []pipeline.Stage {
 	stages := []pipeline.Stage{
-		stage.NewWeightStage(deps.Cfg.AccessAlpha),
 		stage.NewMMRStage(deps.VectorStore, deps.Cfg.MMR.Lambda, 0), // 0 = 使用输入长度 / 0 = use input length
 		stage.NewCoreStage(deps.CoreProvider),
 	}

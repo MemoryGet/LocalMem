@@ -24,6 +24,50 @@ const (
 	MergeStrategyGraphAware = "graph_aware"
 )
 
+// defaultAccessAlpha 默认访问频率阻尼系数 / Default access frequency damping coefficient
+const defaultAccessAlpha = 0.1
+
+// minEffectiveStrength 最低有效强度下限 / Minimum effective strength floor
+const minEffectiveStrength = 0.05
+
+// weightCap 最大权重上限 / Max weight cap to prevent over-amplification
+const weightCap = 2.0
+
+// kindWeights 记忆类型权重 / Memory kind weights
+var kindWeights = map[string]float64{
+	"skill":        1.5,
+	"rule":         1.4,
+	"mental_model": 1.3,
+	"preference":   1.2,
+	"goal":         1.2,
+	"note":         1.0,
+	"event":        0.9,
+	"error":        0.8,
+}
+
+// subKindWeights 子类型权重加成 / Sub-kind weight boost
+var subKindWeights = map[string]float64{
+	"core_belief":    1.4,
+	"working_memory": 0.7,
+}
+
+// classWeights 记忆层级权重 / Memory class weights
+var classWeights = map[string]float64{
+	"procedural": 1.5,
+	"semantic":   1.2,
+	"core":       1.4,
+	"episodic":   1.0,
+}
+
+// scopePriorityBoost scope 优先级加成 / Scope priority boost factors (keyed by prefix without trailing slash)
+var scopePriorityBoost = map[string]float64{
+	"session": 1.3,
+	"project": 1.2,
+	"user":    1.0,
+	"agent":   1.0,
+	"global":  0.9,
+}
+
 // MergeStage RRF 融合阶段 / RRF merge pipeline stage
 type MergeStage struct {
 	strategy    string
@@ -106,18 +150,21 @@ func (s *MergeStage) Name() string {
 func (s *MergeStage) Execute(ctx context.Context, state *pipeline.PipelineState) (*pipeline.PipelineState, error) {
 	start := time.Now()
 
+	inputCount := len(state.Candidates)
+
 	// 过滤已过期候选 / Filter expired candidates
 	now := time.Now()
 	var alive []*model.SearchResult
 	for _, r := range state.Candidates {
+		if r == nil {
+			continue
+		}
 		if r.Memory != nil && r.Memory.ExpiresAt != nil && r.Memory.ExpiresAt.Before(now) {
 			continue
 		}
 		alive = append(alive, r)
 	}
 	state.Candidates = alive
-
-	inputCount := len(state.Candidates)
 
 	if len(state.Candidates) == 0 {
 		state.AddTrace(pipeline.StageTrace{
