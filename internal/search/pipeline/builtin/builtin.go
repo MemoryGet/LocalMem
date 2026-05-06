@@ -3,13 +3,22 @@ package builtin
 
 import (
 	"iclude/internal/config"
-	"iclude/internal/llm"
 	"iclude/internal/search/pipeline"
 	"iclude/internal/search/stage"
 )
 
-// defaultTrimTokens 默认 token 截断上限 / Default token trim budget
-const defaultTrimTokens = 4000
+const (
+	// defaultTrimTokens 默认 token 截断上限 / Default token trim budget
+	defaultTrimTokens = 4000
+	// defaultMergeK RRF k 值 / RRF k parameter
+	defaultMergeK = 60
+	// defaultMergeLimit 候选合并上限 / Merge candidate limit
+	defaultMergeLimit = 100
+	// defaultOverlapTopK overlap rerank 返回上限 / Overlap rerank top-k
+	defaultOverlapTopK = 20
+	// defaultOverlapScoreWeight overlap rerank 分数权重 / Overlap rerank score weight
+	defaultOverlapScoreWeight = 0.7
+)
 
 // Deps 管线构建所需的依赖集 / Dependencies for pipeline construction
 type Deps struct {
@@ -19,7 +28,6 @@ type Deps struct {
 	Embedder     stage.Embedder
 	Timeline     stage.TimelineSearcher
 	CoreProvider stage.CoreProvider
-	LLM          llm.Provider
 	Cfg          config.RetrievalConfig
 }
 
@@ -52,7 +60,7 @@ func buildPrecision(deps Deps) *pipeline.Pipeline {
 				),
 				stage.NewFTSStage(deps.FTSSearcher, 30),
 			}},
-			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyGraphAware, 60, 100, deps.Cfg.AccessAlpha)}},
+			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyGraphAware, defaultMergeK, defaultMergeLimit, deps.Cfg.AccessAlpha)}},
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
 			{Stages: []pipeline.Stage{stage.NewRerankGraphStage(deps.GraphStore, 0.6, 0.2)}},
 		},
@@ -76,9 +84,9 @@ func buildExploration(deps Deps) *pipeline.Pipeline {
 				stage.NewFTSStage(deps.FTSSearcher, 30),
 				stage.NewTemporalStage(deps.Timeline, 30),
 			}},
-			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyRRF, 60, 100, deps.Cfg.AccessAlpha)}},
+			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyRRF, defaultMergeK, defaultMergeLimit, deps.Cfg.AccessAlpha)}},
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.05)}},
-			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(20, 0.7)}},
+			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(defaultOverlapTopK, defaultOverlapScoreWeight)}},
 		},
 		// 无 fallback — 终端降级管线 / No fallback — terminal fallback pipeline
 	}
@@ -94,9 +102,9 @@ func buildSemantic(deps Deps) *pipeline.Pipeline {
 				stage.NewVectorStage(deps.VectorStore, deps.Embedder, 30, 0.3),
 				stage.NewFTSStage(deps.FTSSearcher, 30),
 			}},
-			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyRRF, 60, 100, deps.Cfg.AccessAlpha)}},
+			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyRRF, defaultMergeK, defaultMergeLimit, deps.Cfg.AccessAlpha)}},
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
-			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(20, 0.7)}},
+			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(defaultOverlapTopK, defaultOverlapScoreWeight)}},
 		},
 		Fallback: pipeline.PipelineExploration,
 	}
@@ -122,7 +130,7 @@ func buildAssociation(deps Deps) *pipeline.Pipeline {
 	}
 }
 
-// buildFast 快速检索管线: fts(limit=10) → score_filter(0.3)
+// buildFast 快速检索管线: fts(limit=10) → score_filter(0.05)
 // Fast pipeline: FTS only with low limit → filter
 func buildFast(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
@@ -150,9 +158,9 @@ func buildFull(deps Deps) *pipeline.Pipeline {
 				stage.NewFTSStage(deps.FTSSearcher, 30),
 				stage.NewVectorStage(deps.VectorStore, deps.Embedder, 30, 0.3),
 			}},
-			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyGraphAware, 60, 100, deps.Cfg.AccessAlpha)}},
+			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyGraphAware, defaultMergeK, defaultMergeLimit, deps.Cfg.AccessAlpha)}},
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
-			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(20, 0.7)}},
+			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(defaultOverlapTopK, defaultOverlapScoreWeight)}},
 		},
 		Fallback: pipeline.PipelinePrecision,
 	}

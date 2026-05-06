@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"iclude/internal/config"
-	"iclude/internal/llm"
 	"iclude/internal/model"
 	"iclude/internal/search/pipeline"
 	"iclude/internal/search/pipeline/builtin"
@@ -124,15 +123,6 @@ type integrationEmbedder struct{}
 
 func (m *integrationEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
 	return []float32{0.1, 0.2, 0.3}, nil
-}
-
-// integrationLLMProvider LLM mock for rerank_llm / LLM mock
-type integrationLLMProvider struct {
-	response string
-}
-
-func (m *integrationLLMProvider) Chat(_ context.Context, _ *llm.ChatRequest) (*llm.ChatResponse, error) {
-	return &llm.ChatResponse{Content: m.response}, nil
 }
 
 // --- Helper functions ---
@@ -376,13 +366,10 @@ func TestIntegration_FallbackChain(t *testing.T) {
 		memoryEntities: map[string][]*model.Entity{},
 	}
 
-	// FTS 对 exploration 的降级查询也返回结果 / FTS returns results for the fallback exploration pipeline
+	// FTS 对所有查询均返回空结果，迫使 precision 管线无候选、触发降级
+	// FTS returns nothing for all queries, forcing precision to find 0 candidates and fall back
 	ftsSearcher := &integrationFTSSearcher{
-		resultsByQuery: map[string][]*model.SearchResult{
-			"unknown topic": {
-				{Memory: newIntegrationMemory("mem-fallback-1", "General knowledge about unknown topics", "note"), Score: 0.5, Source: "fts"},
-			},
-		},
+		resultsByQuery: map[string][]*model.SearchResult{},
 	}
 
 	timeline := &integrationTimelineSearcher{
@@ -415,12 +402,10 @@ func TestIntegration_FallbackChain(t *testing.T) {
 		t.Fatalf("Execute() returned error: %v", err)
 	}
 
-	// 管线名称应仍为 precision（执行器设置的是初始管线名称）
-	// Pipeline name stays as initial pipeline name set by executor
-	if result.PipelineName != "exploration" {
-		// 降级后 PipelineName 被更新为 exploration / After fallback, PipelineName is updated to exploration
-		// 注意: Clone() 保留原始 Traces 但 PipelineName 会被降级管线覆盖
-		t.Logf("PipelineName = %q (may be either precision or exploration depending on clone semantics)", result.PipelineName)
+	// 执行器在 executeWithDepth 入口写入初始管线名，降级后不更新
+	// Executor writes initial pipeline name at entry of executeWithDepth; not updated after fallback
+	if result.PipelineName != "precision" {
+		t.Errorf("PipelineName = %q, want %q (initial pipeline name, not overwritten by fallback)", result.PipelineName, "precision")
 	}
 
 	// 验证降级管线的 stage trace 存在 / Verify fallback pipeline stage traces exist
@@ -431,17 +416,10 @@ func TestIntegration_FallbackChain(t *testing.T) {
 		t.Error("missing parallel_group trace from precision pipeline")
 	}
 
-	// 降级后 exploration 的 FTS trace 也应存在 / Exploration FTS trace from fallback should exist
-	ftsTraceCount := 0
-	for _, tr := range result.Traces {
-		if tr.Name == "fts" {
-			ftsTraceCount++
-		}
-	}
-	// 至少应有 2 个 fts trace（precision 的 fts + exploration 的 fts）
-	// Should have at least 2 fts traces (precision's fts + exploration's fts)
-	if ftsTraceCount < 2 {
-		t.Logf("fts trace count = %d (expected >= 2 from precision + fallback)", ftsTraceCount)
+	// exploration 管线含 temporal stage，其 trace 仅在降级后出现，是降级发生的可靠证据
+	// temporal trace only appears in exploration; its presence proves the fallback actually ran
+	if !traceNames["temporal"] {
+		t.Error("missing temporal trace: fallback to exploration pipeline did not run")
 	}
 
 	// 关键: 降级应产出候选结果 / Key: fallback should produce candidates
@@ -450,9 +428,9 @@ func TestIntegration_FallbackChain(t *testing.T) {
 	}
 }
 
-// TestIntegration_FullPipeline_WithMockLLM 全量管线端到端: graph+fts+vector parallel → merge → filter → rerank_overlap → post-stages
+// TestIntegration_FullPipeline 全量管线端到端: graph+fts+vector parallel → merge → filter → rerank_overlap → post-stages
 // Full pipeline E2E with graph + FTS + vector parallel through rerank_overlap
-func TestIntegration_FullPipeline_WithMockLLM(t *testing.T) {
+func TestIntegration_FullPipeline(t *testing.T) {
 	graphStore := &integrationGraphRetriever{
 		entitiesByName: map[string][]*model.Entity{
 			"API": {{ID: "ent-api", Name: "API"}},
@@ -493,18 +471,12 @@ func TestIntegration_FullPipeline_WithMockLLM(t *testing.T) {
 		},
 	}
 
-	// LLM mock 返回所有候选的高分 / LLM mock returns high scores for all candidates
-	llmProvider := &integrationLLMProvider{
-		response: `[{"index":0,"score":0.9},{"index":1,"score":0.8},{"index":2,"score":0.7},{"index":3,"score":0.6},{"index":4,"score":0.5}]`,
-	}
-
 	reg := pipeline.NewRegistry()
 	deps := builtin.Deps{
 		FTSSearcher:  ftsSearcher,
 		GraphStore:   graphStore,
 		VectorStore:  vecSearcher,
 		Embedder:     &integrationEmbedder{},
-		LLM:          llmProvider,
 		CoreProvider: &integrationCoreProvider{},
 		Cfg:          defaultCfg(),
 	}
@@ -835,7 +807,6 @@ var (
 	_ stage.GraphRetriever   = (*integrationGraphRetriever)(nil)
 	_ stage.TimelineSearcher = (*integrationTimelineSearcher)(nil)
 	_ stage.CoreProvider     = (*integrationCoreProvider)(nil)
-	_ stage.VectorSearcher   = (*integrationVectorSearcher)(nil)
-	_ stage.Embedder         = (*integrationEmbedder)(nil)
-	_ llm.Provider           = (*integrationLLMProvider)(nil)
+	_ stage.VectorSearcher = (*integrationVectorSearcher)(nil)
+	_ stage.Embedder       = (*integrationEmbedder)(nil)
 )
