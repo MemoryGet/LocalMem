@@ -27,11 +27,12 @@ const (
 // defaultAccessAlpha 默认访问频率阻尼系数 / Default access frequency damping coefficient
 const defaultAccessAlpha = 0.1
 
-// minEffectiveStrength 最低有效强度下限 / Minimum effective strength floor
-const minEffectiveStrength = 0.05
-
 // weightCap 最大权重上限 / Max weight cap to prevent over-amplification
 const weightCap = 2.0
+
+// minEffectiveStrength 有效强度下限，防止零强度记忆被完全屏蔽 / Floor for effective strength to prevent zero-strength memories from being silenced
+// CalculateEffectiveStrength can return 0 for memories with zero Strength or permanent tier; this floor ensures they still rank.
+const minEffectiveStrength = 0.05
 
 // kindWeights 记忆类型权重 / Memory kind weights
 var kindWeights = map[string]float64{
@@ -220,6 +221,14 @@ func (s *MergeStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	}
 
 	state.Candidates = merged
+
+	state.AddTrace(pipeline.StageTrace{
+		Name:        s.Name(),
+		Duration:    time.Since(start),
+		InputCount:  inputCount,
+		OutputCount: len(merged),
+		Note:        s.strategy,
+	})
 
 	return state, nil
 }

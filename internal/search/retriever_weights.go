@@ -31,7 +31,7 @@ var classWeights = map[string]float64{
 // weightCap 最大权重上限，防止叠乘过度放大 / Max weight cap to prevent over-amplification
 const weightCap = 2.0
 
-// Deprecated: ApplyKindAndClassWeights is used by retrieveLegacy() only. Use stage.WeightStage instead.
+// Deprecated: ApplyKindAndClassWeights is used by retrieveLegacy() only. Structural weights are now integrated into stage.MergeStage.
 // ApplyKindAndClassWeights 按 kind + memory_class 加权 / Weight results by kind and memory class
 func ApplyKindAndClassWeights(results []*model.SearchResult) []*model.SearchResult {
 	for _, r := range results {
@@ -68,7 +68,7 @@ var scopePriorityBoost = []struct {
 	{"agent/", 1.0},
 }
 
-// Deprecated: ApplyScopePriority is used by retrieveLegacy() only. Use stage.WeightStage instead.
+// Deprecated: ApplyScopePriority is used by retrieveLegacy() only. Structural weights are now integrated into stage.MergeStage.
 // ApplyScopePriority 按 scope + memory_class 组合加权 / Weight results by scope priority
 // 设计来源：Universal Memory Layer 固定检索优先级
 func ApplyScopePriority(results []*model.SearchResult) []*model.SearchResult {
