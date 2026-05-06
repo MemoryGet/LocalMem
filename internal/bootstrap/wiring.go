@@ -21,7 +21,6 @@ import (
 	"iclude/internal/runtime"
 	"iclude/internal/scheduler"
 	"iclude/internal/search"
-	"iclude/internal/search/stage"
 	"iclude/internal/store"
 
 	"go.uber.org/zap"
@@ -353,38 +352,6 @@ func initRetrievalLayer(stores *store.Stores, llmProvider llm.Provider, mgrs man
 	}
 
 	ret := search.NewRetriever(stores.MemoryStore, stores.VectorStore, stores.Embedder, stores.GraphStore, llmProvider, cfg.Retrieval, preprocessor, mgrs.accessTracker)
-
-	// 降级链检索器 / Cascade retriever
-	if cfg.Retrieval.Cascade.Enabled {
-		classifier := search.NewIntentClassifier(stores.GraphStore, stores.Tokenizer)
-
-		graphStage := stage.NewGraphStage(stores.GraphStore, stores.MemoryStore,
-			stage.WithMaxDepth(cfg.Retrieval.GraphDepth),
-			stage.WithLimit(30),
-			stage.WithFTSTop(cfg.Retrieval.GraphFTSTop),
-			stage.WithEntityLimit(cfg.Retrieval.GraphEntityLimit),
-			stage.WithDecayLambda(cfg.Retrieval.RelationDecayLambda),
-		)
-		ftsStage := stage.NewFTSStage(stores.MemoryStore, 30)
-
-		var vecStage *stage.VectorStage
-		if stores.VectorStore != nil && stores.Embedder != nil {
-			vecStage = stage.NewVectorStage(stores.VectorStore, stores.Embedder, 30, 0.3)
-		}
-
-		var tempStage *stage.TemporalStage
-		if stores.MemoryStore != nil {
-			tempStage = stage.NewTemporalStage(stores.MemoryStore, 30)
-		}
-
-		cascade := search.NewCascadeRetriever(classifier, graphStage, ftsStage, vecStage, tempStage, nil, cfg.Retrieval.Cascade)
-		ret.SetCascade(cascade)
-		logger.Info("cascade retriever enabled",
-			zap.Bool("graph", stores.GraphStore != nil),
-			zap.Bool("vector", vecStage != nil),
-			zap.Bool("temporal", tempStage != nil),
-		)
-	}
 
 	experienceRecaller := search.NewExperienceRecaller(ret)
 

@@ -207,7 +207,6 @@ type RetrievalConfig struct {
 	MMR                 MMRConfig                    `mapstructure:"mmr"`
 	Preprocess          PreprocessConfig             `mapstructure:"preprocess"`
 	Disclosure          DisclosureConfig             `mapstructure:"disclosure"`
-	Cascade             CascadeConfig                `mapstructure:"cascade"`
 	Strategy            StrategyConfig               `mapstructure:"strategy"`
 	Pipelines           map[string]PipelineOverrides `mapstructure:"pipelines"`
 }
@@ -356,16 +355,6 @@ func (d DisclosureConfig) WeightsForStrategy(strategy string) (core, context, en
 	}
 }
 
-// CascadeConfig 降级链检索配置 / Cascade retrieval configuration
-type CascadeConfig struct {
-	Enabled         bool    `mapstructure:"enabled"`
-	GraphMinResults int     `mapstructure:"graph_min_results"` // 图谱够用阈值 / Graph sufficient threshold
-	GraphMinScore   float64 `mapstructure:"graph_min_score"`   // 图谱最低分数 / Graph min score
-	L2MinResults    int     `mapstructure:"l2_min_results"`    // L2 够用阈值 / L2 sufficient threshold
-	IntentLLM       bool    `mapstructure:"intent_llm"`        // 意图分类用 LLM / Use LLM for intent classification
-	LLMFallback     bool    `mapstructure:"llm_fallback"`      // L3 LLM 兜底 / L3 LLM fallback
-}
-
 // IngestConfig 数据摄入配置 / Data ingestion configuration
 type IngestConfig struct {
 	NoiseFilter NoiseFilterConfig `mapstructure:"noise_filter"`
@@ -491,13 +480,6 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.disclosure.context_weight", 0.25)
 	viper.SetDefault("retrieval.disclosure.entity_weight", 0.2)
 	viper.SetDefault("retrieval.disclosure.timeline_weight", 0.15)
-	// Cascade 默认值 / Cascade defaults
-	viper.SetDefault("retrieval.cascade.enabled", false)
-	viper.SetDefault("retrieval.cascade.graph_min_results", 5)
-	viper.SetDefault("retrieval.cascade.graph_min_score", 0.3)
-	viper.SetDefault("retrieval.cascade.l2_min_results", 3)
-	viper.SetDefault("retrieval.cascade.intent_llm", false)
-	viper.SetDefault("retrieval.cascade.llm_fallback", true)
 	// MCP 默认值 / MCP defaults
 	viper.SetDefault("mcp.enabled", false)
 	viper.SetDefault("mcp.port", 8081)
