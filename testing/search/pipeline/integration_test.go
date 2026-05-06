@@ -235,7 +235,7 @@ func TestIntegration_PrecisionPipeline(t *testing.T) {
 	}
 
 	// 验证后处理 stage 也执行了 / Verify post-processing stages ran
-	postTraces := []string{"weight", "trim"}
+	postTraces := []string{"trim"}
 	for _, name := range postTraces {
 		if !traceNames[name] {
 			t.Errorf("missing post-stage trace for %q", name)
@@ -350,9 +350,6 @@ func TestIntegration_FastPipeline(t *testing.T) {
 	if !traceNames["filter"] {
 		t.Error("missing trace for filter stage")
 	}
-	if !traceNames["weight"] {
-		t.Error("missing trace for weight post-stage")
-	}
 	if !traceNames["trim"] {
 		t.Error("missing trace for trim post-stage")
 	}
@@ -453,8 +450,8 @@ func TestIntegration_FallbackChain(t *testing.T) {
 	}
 }
 
-// TestIntegration_FullPipeline_WithMockLLM 全量管线含 mock LLM 的 rerank_llm stage
-// Full pipeline E2E with mock LLM for rerank_llm stage
+// TestIntegration_FullPipeline_WithMockLLM 全量管线端到端: graph+fts+vector parallel → merge → filter → rerank_overlap → post-stages
+// Full pipeline E2E with graph + FTS + vector parallel through rerank_overlap
 func TestIntegration_FullPipeline_WithMockLLM(t *testing.T) {
 	graphStore := &integrationGraphRetriever{
 		entitiesByName: map[string][]*model.Entity{
@@ -535,16 +532,11 @@ func TestIntegration_FullPipeline_WithMockLLM(t *testing.T) {
 
 	// 验证 trace 包含所有预期 stage / Verify traces include all expected stages
 	traceNames := collectTraceNames(result.Traces)
-	expectedTraces := []string{"graph", "fts", "vector", "parallel_group", "merge", "filter", "rerank_llm", "weight", "trim"}
+	expectedTraces := []string{"graph", "fts", "vector", "parallel_group", "merge", "filter", "rerank_overlap", "trim"}
 	for _, name := range expectedTraces {
 		if !traceNames[name] {
 			t.Errorf("missing trace for stage %q", name)
 		}
-	}
-
-	// 验证 LLM rerank 设置了置信度 / Verify LLM rerank set confidence
-	if result.Confidence == "" {
-		t.Error("expected Confidence to be set by rerank_llm, got empty")
 	}
 }
 
@@ -607,18 +599,6 @@ func TestIntegration_DebugTraceOutput(t *testing.T) {
 			}
 			break
 		}
-	}
-
-	// 验证 weight trace 存在 / Verify weight trace exists
-	foundWeight := false
-	for _, tr := range result.Traces {
-		if tr.Name == "weight" {
-			foundWeight = true
-			break
-		}
-	}
-	if !foundWeight {
-		t.Error("missing weight trace in output")
 	}
 
 	// 验证 trim trace 存在 / Verify trim trace exists
@@ -692,7 +672,7 @@ func TestIntegration_SemanticPipeline_VectorAndFTS(t *testing.T) {
 	}
 
 	traceNames := collectTraceNames(result.Traces)
-	for _, name := range []string{"vector", "fts", "parallel_group", "merge", "filter", "rerank_overlap", "weight", "trim"} {
+	for _, name := range []string{"vector", "fts", "parallel_group", "merge", "filter", "rerank_overlap", "trim"} {
 		if !traceNames[name] {
 			t.Errorf("missing trace for stage %q", name)
 		}
@@ -766,7 +746,7 @@ func TestIntegration_AssociationPipeline_DeepGraph(t *testing.T) {
 
 	// 验证 graph + rerank_graph + filter traces 存在 / Verify traces exist
 	traceNames := collectTraceNames(result.Traces)
-	for _, name := range []string{"graph", "rerank_graph", "filter", "weight", "trim"} {
+	for _, name := range []string{"graph", "rerank_graph", "filter", "trim"} {
 		if !traceNames[name] {
 			t.Errorf("missing trace for stage %q", name)
 		}

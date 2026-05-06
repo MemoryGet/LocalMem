@@ -21,8 +21,8 @@ func TestRegisterBuiltins_AllPipelinesRegistered(t *testing.T) {
 			t.Errorf("pipeline %q not registered", name)
 		}
 	}
-	if len(postStages) != 4 {
-		t.Errorf("expected 4 post-stages, got %d", len(postStages))
+	if len(postStages) != 3 {
+		t.Errorf("expected 3 post-stages, got %d", len(postStages))
 	}
 }
 
@@ -197,7 +197,7 @@ func TestRegisterBuiltins_PostStageNames(t *testing.T) {
 	}
 	postStages := builtin.RegisterBuiltins(reg, deps)
 
-	expectedNames := []string{"weight", "mmr", "core", "trim"}
+	expectedNames := []string{"mmr", "core", "trim"}
 	if len(postStages) != len(expectedNames) {
 		t.Fatalf("expected %d post-stages, got %d", len(expectedNames), len(postStages))
 	}
@@ -220,11 +220,11 @@ func TestRegisterBuiltins_StageNames(t *testing.T) {
 		firstStageNames []string
 	}{
 		{"precision", []string{"graph", "merge", "filter", "rerank_graph"}},
-		{"exploration", []string{"fts", "merge", "filter", "rerank_overlap"}},
+		{"exploration", []string{"graph", "merge", "filter", "rerank_overlap"}},
 		{"semantic", []string{"vector", "merge", "filter", "rerank_overlap"}},
 		{"association", []string{"graph", "rerank_graph", "filter"}},
 		{"fast", []string{"fts", "filter"}},
-		{"full", []string{"graph", "merge", "filter", "rerank_llm"}},
+		{"full", []string{"graph", "merge", "filter", "rerank_overlap"}},
 	}
 
 	for _, tt := range tests {

@@ -135,8 +135,8 @@ func buildFast(deps Deps) *pipeline.Pipeline {
 	}
 }
 
-// buildFull 全量检索管线: parallel(graph, fts, vector) → merge(graph_aware) → score_filter(0.3) → rerank_llm
-// Full pipeline: graph + FTS + vector parallel → graph-aware merge → filter → LLM rerank
+// buildFull 全量检索管线: parallel(graph, fts, vector) → merge(graph_aware) → score_filter(0.3) → rerank_overlap
+// Full pipeline: graph + FTS + vector parallel → graph-aware merge → filter → overlap rerank
 func buildFull(deps Deps) *pipeline.Pipeline {
 	return &pipeline.Pipeline{
 		Name: pipeline.PipelineFull,
@@ -152,7 +152,7 @@ func buildFull(deps Deps) *pipeline.Pipeline {
 			}},
 			{Stages: []pipeline.Stage{stage.NewMergeStage(stage.MergeStrategyGraphAware, 60, 100, deps.Cfg.AccessAlpha)}},
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.3)}},
-			{Stages: []pipeline.Stage{stage.NewRerankLLMStage(deps.LLM, 20, 0.7, 0.3, 0)}},
+			{Stages: []pipeline.Stage{stage.NewOverlapRerankStage(20, 0.7)}},
 		},
 		Fallback: pipeline.PipelinePrecision,
 	}
