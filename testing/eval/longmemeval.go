@@ -746,7 +746,6 @@ func runSingleQuestionAllLLM(ctx context.Context, entry LongMemEvalEntry, tmpDir
 	deps := builtin.Deps{
 		FTSSearcher: memStore,
 		GraphStore:  graphStore,
-		LLM:         rerankProvider, // rerank_llm stage 用这个 / rerank_llm stage uses this
 		Cfg:         cfg,
 	}
 	postStages := builtin.RegisterBuiltins(registry, deps)
@@ -919,7 +918,6 @@ func RunLongMemEvalSingleVerbose(ctx context.Context, entry LongMemEvalEntry, tm
 	deps := builtin.Deps{
 		FTSSearcher: memStore,
 		GraphStore:  graphStore,
-		LLM:         rerankProvider,
 		Cfg:         cfg,
 	}
 	postStages := builtin.RegisterBuiltins(registry, deps)
