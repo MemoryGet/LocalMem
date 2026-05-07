@@ -187,9 +187,14 @@ type ExtractConfig struct {
 	Timeout             time.Duration `mapstructure:"timeout"`
 	EntityTypes         []string      `mapstructure:"entity_types"`          // 实体类型白名单 / Allowed entity types
 	RelationTypes       []string      `mapstructure:"relation_types"`        // 关系类型白名单 / Allowed relation types
-	BatchTokenThreshold int           `mapstructure:"batch_token_threshold"` // 每批最大 content token 数，默认 4000 / Max content tokens per batch
-	UseLLM              bool          `mapstructure:"use_llm"`               // LLM 抽取开关 / LLM extraction toggle (fallback)
-	Resolver            ResolverConfig `mapstructure:"resolver"`              // 向量解析器 / Vector resolver config
+	BatchTokenThreshold    int           `mapstructure:"batch_token_threshold"`    // 每批最大 content token 数，默认 4000 / Max content tokens per batch
+	UseLLM                 bool          `mapstructure:"use_llm"`                  // LLM 抽取开关 / LLM extraction toggle (fallback)
+	FastModelEnabled       bool          `mapstructure:"fast_model_enabled"`       // 启用快速模型抽取实体名 / Enable fast model for entity-only extraction
+	FastModelBaseURL       string        `mapstructure:"fast_model_base_url"`      // 快速模型 base URL / Fast model base URL
+	FastModelAPIKey        string        `mapstructure:"fast_model_api_key"`       // 快速模型 API key / Fast model API key
+	FastModelID            string        `mapstructure:"fast_model_id"`            // 快速模型 ID / Fast model ID
+	RelationExtractEnabled bool          `mapstructure:"relation_extract_enabled"` // 启用异步关系抽取 / Enable async relation extraction
+	Resolver               ResolverConfig `mapstructure:"resolver"`                // 向量解析器 / Vector resolver config
 }
 
 // RetrievalConfig 检索配置 / Retrieval config
@@ -415,6 +420,8 @@ func LoadConfig() error {
 	viper.SetDefault("extract.relation_types", []string{"uses", "knows", "belongs_to", "related_to"})
 	viper.SetDefault("extract.batch_token_threshold", 32000)
 	viper.SetDefault("extract.use_llm", true)
+	viper.SetDefault("extract.fast_model_enabled", false)
+	viper.SetDefault("extract.relation_extract_enabled", false)
 	viper.SetDefault("extract.resolver.enabled", false)
 	viper.SetDefault("extract.resolver.centroid_collection", "entity_centroids")
 	viper.SetDefault("extract.resolver.centroid_threshold", 0.6)

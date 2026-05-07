@@ -337,6 +337,15 @@ type BatchExtractResponse struct {
 	BatchCount  int                         `json:"batch_count"` // LLM 调用次数 / Number of LLM calls
 }
 
+// RelationExtractRequest 异步关系抽取任务载荷 / Async relation extraction task payload
+type RelationExtractRequest struct {
+	MemoryID      string            `json:"memory_id"`
+	Content       string            `json:"content"`
+	Scope         string            `json:"scope"`
+	TeamID        string            `json:"team_id"`
+	EntityContext map[string]string `json:"entity_context"` // name → entityID，实体名到已落库 ID 的映射 / name→entityID for resolved entities
+}
+
 // RetrieveResponse 检索响应（增强）/ Enhanced retrieve response
 type RetrieveResponse struct {
 	Results     []*SearchResult `json:"results"`

@@ -72,6 +72,8 @@ Output strict JSON: {"match": true, "matched_entity": "candidate name"} or {"mat
 // Extractor 自动实体抽取器 / Auto entity extractor
 type Extractor struct {
 	llm            llm.Provider
+	fastLLM        llm.Provider    // 快速模型（仅实体名抽取，可为 nil）/ Fast model for entity-only extraction (may be nil)
+	taskQueue      TaskEnqueuer    // 异步关系抽取队列（可为 nil）/ Async relation extraction queue (may be nil)
 	graphManager   *GraphManager
 	memStore       store.MemoryStore
 	candidateStore store.CandidateStore
@@ -110,12 +112,22 @@ func NewExtractor(llmProvider llm.Provider, graphManager *GraphManager, memStore
 	}
 }
 
+// WithFastLLM 注入快速模型（用于实体名抽取）/ Inject fast model (used for entity-only extraction)
+func (e *Extractor) WithFastLLM(provider llm.Provider) {
+	e.fastLLM = provider
+}
+
+// SetExtractorQueue 注入任务队列（用于异步关系抽取）/ Inject task queue (used for async relation extraction)
+func (e *Extractor) SetExtractorQueue(q TaskEnqueuer) {
+	e.taskQueue = q
+}
+
 // GetMemoryStore 获取记忆存储（供 API handler 使用）/ Get memory store (for API handler)
 func (e *Extractor) GetMemoryStore() store.MemoryStore {
 	return e.memStore
 }
 
-// buildExtractPrompt 构建抽取提示词（类型列表从配置注入）/ Build extraction prompt with configured types
+// buildExtractPrompt 构建完整抽取提示词（实体+关系）/ Build full extraction prompt (entities + relations)
 func (e *Extractor) buildExtractPrompt() string {
 	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
 	relationList := strings.Join(mapKeys(e.relationTypes), ", ")
@@ -132,6 +144,27 @@ Rules:
 - Only extract entities and relations that are clearly stated in the text`, entityList, relationList)
 }
 
+// buildEntityOnlyPrompt 构建仅实体抽取的提示词（不含关系）/ Build entity-only extraction prompt (no relations)
+func (e *Extractor) buildEntityOnlyPrompt() string {
+	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
+	return fmt.Sprintf(`You are a knowledge extraction engine. Extract entity names from the given text.
+
+Rules:
+- Entity types: %s
+- Output strict JSON with an "entities" array and an empty "relations" array
+- Each entity has: name, entity_type, description
+- Deduplicate: same entity appears only once
+- Only extract entities that are clearly stated in the text`, entityList)
+}
+
+// entityLLM 返回用于实体抽取的 LLM 提供者（优先 fastLLM）/ Return LLM provider for entity extraction (prefer fastLLM)
+func (e *Extractor) entityLLM() llm.Provider {
+	if e.fastLLM != nil {
+		return e.fastLLM
+	}
+	return e.llm
+}
+
 // mapKeys 提取 map 的键列表（排序）/ Extract map keys as sorted slice
 func mapKeys(m map[string]bool) []string {
 	keys := make([]string, 0, len(m))
@@ -142,7 +175,8 @@ func mapKeys(m map[string]bool) []string {
 	return keys
 }
 
-// Extract 从文本中抽取实体和关系 / Extract entities and relations from text
+// Extract 从文本中抽取实体；关系抽取根据配置同步或异步执行
+// Extract entities from text; relation extraction is sync or async depending on config
 func (e *Extractor) Extract(ctx context.Context, req *model.ExtractRequest) (*model.ExtractResponse, error) {
 	if req.Content == "" {
 		return &model.ExtractResponse{}, nil
@@ -155,8 +189,8 @@ func (e *Extractor) Extract(ctx context.Context, req *model.ExtractRequest) (*mo
 		defer cancel()
 	}
 
-	// 1) LLM 调用抽取实体和关系 / LLM call to extract entities and relations
-	output, err := e.callLLM(ctx, req.Content)
+	// 1) 快速实体抽取（实体专属提示词 + 优先 fastLLM）/ Fast entity extraction (entity-only prompt + prefer fastLLM)
+	output, err := e.callEntityLLM(ctx, req.Content)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("%w: %v", model.ErrExtractTimeout, ctx.Err())
@@ -168,11 +202,10 @@ func (e *Extractor) Extract(ctx context.Context, req *model.ExtractRequest) (*mo
 		return nil, model.ErrExtractParseFailed
 	}
 
-	// 校验并截断 / Validate and truncate
+	// 校验并截断（实体部分）/ Validate and truncate (entities only in this phase)
 	e.validateAndTruncate(output)
 
 	resp := &model.ExtractResponse{}
-	resp.TotalTokens = 0 // 将在 LLM 调用中累加
 
 	// 2) 实体规范化 + 创建 / Entity normalization + creation
 	entityIDMap := make(map[string]string) // name → entityID
@@ -194,33 +227,160 @@ func (e *Extractor) Extract(ctx context.Context, req *model.ExtractRequest) (*mo
 
 		// 写入记忆-实体关联 / Write memory-entity association
 		if req.MemoryID != "" {
-			err := e.graphManager.CreateMemoryEntity(ctx, &model.CreateMemoryEntityRequest{
+			if assocErr := e.graphManager.CreateMemoryEntity(ctx, &model.CreateMemoryEntityRequest{
 				MemoryID: req.MemoryID,
 				EntityID: result.EntityID,
 				Role:     "mentioned",
-			})
-			if err != nil {
+			}); assocErr != nil {
 				logger.Warn("create memory-entity failed",
 					zap.String("memory_id", req.MemoryID),
 					zap.String("entity_id", result.EntityID),
-					zap.Error(err))
+					zap.Error(assocErr))
 			}
 		}
 	}
 
-	// 3) 写入关系 / Write relations
+	// 3) 关系抽取：异步入队 or 同步执行 / Relation extraction: async queue or sync fallback
+	if e.cfg.RelationExtractEnabled && len(entityIDMap) >= 2 {
+		if e.taskQueue != nil {
+			e.enqueueRelationExtract(req, entityIDMap)
+		} else {
+			// 队列不可用时同步执行关系抽取 / Queue unavailable — extract relations synchronously
+			relations := e.extractAndWriteRelations(ctx, req.Content, entityIDMap)
+			resp.Relations = relations
+		}
+	}
+
+	return resp, nil
+}
+
+// enqueueRelationExtract 将关系抽取任务投入队列（非阻塞，失败仅记录日志）
+// Enqueue a relation extraction task (non-blocking, failures are only logged)
+func (e *Extractor) enqueueRelationExtract(req *model.ExtractRequest, entityIDMap map[string]string) {
+	payload := model.RelationExtractRequest{
+		MemoryID:      req.MemoryID,
+		Content:       req.Content,
+		Scope:         req.Scope,
+		TeamID:        req.TeamID,
+		EntityContext: entityIDMap,
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		logger.Warn("marshal relation extract payload failed", zap.Error(err))
+		return
+	}
+	// 使用 background context — 入队操作不应受原始请求超时影响
+	// Use background context — enqueue must not be cancelled by the caller's timeout
+	if _, err := e.taskQueue.Enqueue(context.Background(), "relation_extract", raw); err != nil {
+		logger.Warn("enqueue relation_extract task failed",
+			zap.String("memory_id", req.MemoryID),
+			zap.Error(err))
+	}
+}
+
+// ExtractRelations 异步关系抽取入口（由队列 worker 调用）/ Async relation extraction entry (called by queue worker)
+func (e *Extractor) ExtractRelations(ctx context.Context, req *model.RelationExtractRequest) error {
+	if req.Content == "" || len(req.EntityContext) < 2 {
+		return nil
+	}
+
+	if e.cfg.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, e.cfg.Timeout)
+		defer cancel()
+	}
+
+	e.extractAndWriteRelations(ctx, req.Content, req.EntityContext)
+	return nil
+}
+
+// extractAndWriteRelations 调用 LLM 抽取关系并写入图数据库 / Call LLM to extract relations and persist to graph
+func (e *Extractor) extractAndWriteRelations(ctx context.Context, content string, entityIDMap map[string]string) []model.ExtractedRelationResult {
+	output, err := e.callRelationLLM(ctx, content, entityIDMap)
+	if err != nil || output == nil {
+		if err != nil {
+			logger.Warn("relation LLM call failed", zap.Error(err))
+		}
+		return nil
+	}
+
+	// 仅保留类型合法的关系 / Keep only relations with valid types
+	filtered := output.Relations[:0]
 	for _, rel := range output.Relations {
+		if e.relationTypes[strings.ToLower(rel.RelationType)] {
+			filtered = append(filtered, rel)
+		}
+	}
+
+	var results []model.ExtractedRelationResult
+	for _, rel := range filtered {
 		sourceID, sok := entityIDMap[rel.Source]
 		targetID, tok := entityIDMap[rel.Target]
 		if !sok || !tok {
 			continue
 		}
-
 		result := e.resolveRelation(ctx, sourceID, targetID, rel.RelationType)
-		resp.Relations = append(resp.Relations, *result)
+		results = append(results, *result)
+	}
+	return results
+}
+
+// callEntityLLM 调用实体专属 LLM（优先 fastLLM，使用实体专属提示词）
+// Call entity-dedicated LLM (prefer fastLLM, entity-only prompt)
+func (e *Extractor) callEntityLLM(ctx context.Context, content string) (*extractLLMOutput, error) {
+	temp := 0.1
+	messages := []llm.ChatMessage{
+		{Role: "system", Content: e.buildEntityOnlyPrompt()},
+		{Role: "user", Content: content},
 	}
 
-	return resp, nil
+	req := &llm.ChatRequest{
+		Messages:       messages,
+		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
+		Temperature:    &temp,
+	}
+
+	provider := e.entityLLM()
+	resp, err := provider.Chat(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	output, _ := parseExtractOutput(ctx, resp.Content, messages, provider)
+	return output, nil
+}
+
+// callRelationLLM 调用关系抽取 LLM（使用完整提示词 + 已知实体上下文）
+// Call relation-extraction LLM (full prompt + known entity context)
+func (e *Extractor) callRelationLLM(ctx context.Context, content string, entityIDMap map[string]string) (*extractLLMOutput, error) {
+	// 将已解析实体名列表附加到用户消息，帮助 LLM 锚定关系主体
+	// Append resolved entity names to user message to anchor relation subjects
+	entityNames := make([]string, 0, len(entityIDMap))
+	for name := range entityIDMap {
+		entityNames = append(entityNames, name)
+	}
+	sort.Strings(entityNames)
+	userContent := content + "\n\nKnown entities: " + strings.Join(entityNames, ", ")
+
+	temp := 0.1
+	messages := []llm.ChatMessage{
+		{Role: "system", Content: e.buildExtractPrompt()},
+		{Role: "user", Content: userContent},
+	}
+
+	req := &llm.ChatRequest{
+		Messages:       messages,
+		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
+		Temperature:    &temp,
+	}
+
+	resp, err := e.llm.Chat(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	output, _ := parseExtractOutput(ctx, resp.Content, messages, e.llm)
+	return output, nil
 }
 
 // callLLM 调用LLM抽取实体和关系 / Call LLM to extract entities and relations

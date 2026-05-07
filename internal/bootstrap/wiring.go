@@ -65,6 +65,19 @@ func (h *extractHandler) Handle(ctx context.Context, payload json.RawMessage) er
 	return err
 }
 
+// relationExtractHandler 将关系抽取任务委托给 Extractor / Delegates relation extraction tasks to Extractor.
+type relationExtractHandler struct {
+	extractor *memory.Extractor
+}
+
+func (h *relationExtractHandler) Handle(ctx context.Context, payload json.RawMessage) error {
+	var req model.RelationExtractRequest
+	if err := json.Unmarshal(payload, &req); err != nil {
+		return fmt.Errorf("unmarshal relation_extract payload: %w", err)
+	}
+	return h.extractor.ExtractRelations(ctx, &req)
+}
+
 // managers 聚合所有业务管理器 / Aggregates all business managers
 type managers struct {
 	memManager   *memory.Manager
@@ -263,6 +276,15 @@ func initBusinessManagers(stores *store.Stores, llmProvider llm.Provider, cfg co
 	var extractor *memory.Extractor
 	if llmProvider != nil && graphManager != nil {
 		extractor = memory.NewExtractor(llmProvider, graphManager, stores.MemoryStore, stores.CandidateStore, cfg.Extract)
+		// 快速实体抽取模型（可选，未配置时 fallback 到主 LLM）/ Fast entity model (optional, falls back to primary)
+		if cfg.Extract.FastModelEnabled && cfg.Extract.FastModelBaseURL != "" {
+			fastProvider := llm.NewOpenAIProvider(cfg.Extract.FastModelBaseURL, cfg.Extract.FastModelAPIKey, cfg.Extract.FastModelID)
+			extractor.WithFastLLM(fastProvider)
+			logger.Info("fast extract model configured",
+				zap.String("model", cfg.Extract.FastModelID),
+				zap.String("base_url", cfg.Extract.FastModelBaseURL),
+			)
+		}
 	}
 
 	// Access tracker
@@ -489,6 +511,9 @@ func initScheduler(ctx context.Context, stores *store.Stores, mgrs managers, llm
 		worker := queue.NewWorker(taskQueue, cfg.Queue.StaleTimeout)
 		if mgrs.extractor != nil {
 			worker.RegisterHandler("entity_extract", &extractHandler{extractor: mgrs.extractor})
+			worker.RegisterHandler("relation_extract", &relationExtractHandler{extractor: mgrs.extractor})
+			// 将队列注入 extractor，启用异步关系抽取 / Inject queue into extractor for async relation extraction
+			mgrs.extractor.SetExtractorQueue(taskQueue)
 		}
 		sched.Register("queue-worker", cfg.Queue.PollInterval, worker.Run)
 	}
