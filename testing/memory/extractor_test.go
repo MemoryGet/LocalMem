@@ -106,25 +106,36 @@ func setupExtractor(t *testing.T, mockLLM *mockLLMProvider, cfg *config.ExtractC
 }
 
 func TestExtract_BasicEntitiesAndRelations(t *testing.T) {
-	llmResp := entitiesJSON(
+	entityResp := entitiesJSON(
 		[]map[string]string{
 			{"name": "Alice", "entity_type": "person", "description": "Engineer"},
 			{"name": "Go", "entity_type": "tool", "description": "Programming language"},
 		},
+		nil,
+	)
+	relationResp := entitiesJSON(
+		nil,
 		[]map[string]string{
 			{"source": "Alice", "target": "Go", "relation_type": "uses"},
 		},
 	)
 
 	mock := &mockLLMProvider{
-		responses: []*llm.ChatResponse{{Content: llmResp}},
+		responses: []*llm.ChatResponse{{Content: entityResp}, {Content: relationResp}},
 	}
-	ext, _, _, _ := setupExtractor(t, mock, nil)
+	cfg := &config.ExtractConfig{
+		MaxEntities:            20,
+		MaxRelations:           30,
+		NormalizeEnabled:       true,
+		NormalizeCandidates:    20,
+		Timeout:                30 * time.Second,
+		RelationExtractEnabled: true,
+	}
+	ext, _, _, _ := setupExtractor(t, mock, cfg)
 
 	resp, err := ext.Extract(context.Background(), &model.ExtractRequest{
-		MemoryID: "mem-1",
-		Content:  "Alice uses Go for backend development",
-		Scope:    "test",
+		Content: "Alice uses Go for backend development",
+		Scope:   "test",
 	})
 
 	require.NoError(t, err)
@@ -291,20 +302,34 @@ func TestExtract_NormalizeLLMFailed_CreatesNew(t *testing.T) {
 }
 
 func TestExtract_RelationDedup(t *testing.T) {
+	entityResp := entitiesJSON(
+		[]map[string]string{
+			{"name": "Alice", "entity_type": "person", "description": "Dev"},
+			{"name": "Go", "entity_type": "tool", "description": "Lang"},
+		},
+		nil,
+	)
+	relationResp := entitiesJSON(
+		nil,
+		[]map[string]string{
+			{"source": "Alice", "target": "Go", "relation_type": "uses"},
+		},
+	)
 	mock := &mockLLMProvider{
 		responses: []*llm.ChatResponse{
-			{Content: entitiesJSON(
-				[]map[string]string{
-					{"name": "Alice", "entity_type": "person", "description": "Dev"},
-					{"name": "Go", "entity_type": "tool", "description": "Lang"},
-				},
-				[]map[string]string{
-					{"source": "Alice", "target": "Go", "relation_type": "uses"},
-				},
-			)},
+			{Content: entityResp},
+			{Content: relationResp},
 		},
 	}
-	ext, graphManager, _, _ := setupExtractor(t, mock, nil)
+	cfg := &config.ExtractConfig{
+		MaxEntities:            20,
+		MaxRelations:           30,
+		NormalizeEnabled:       true,
+		NormalizeCandidates:    20,
+		Timeout:                30 * time.Second,
+		RelationExtractEnabled: true,
+	}
+	ext, graphManager, _, _ := setupExtractor(t, mock, cfg)
 
 	// 预创建实体和关系 / Pre-create entities and relation
 	alice, err := graphManager.CreateEntity(context.Background(), &model.CreateEntityRequest{

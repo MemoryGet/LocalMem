@@ -274,9 +274,9 @@ func (p *Preprocessor) classifyIntent(query string) QueryIntent {
 		shortMax = 8
 		longMin = 25
 	} else {
-		// 英文主导：20 runes 以内短查询，50 runes 以上长查询
+		// 英文主导：20 runes 以内短查询，35 runes 以上长查询
 		shortMax = 20
-		longMin = 50
+		longMin = 35
 	}
 
 	// 短查询 → keyword
@@ -378,9 +378,15 @@ Respond ONLY with valid JSON, no markdown.`,
 		}
 	}
 
-	// HyDE 仅对语义/通用意图有效 / HyDE only helps for semantic/general intent
+	// HyDE 仅对语义意图且长度达标的查询触发，避免短查询浪费 LLM 调用
+	// HyDE triggers only for semantic intent queries that meet the min-rune threshold
+	hydeMinRunes := p.cfg.Preprocess.HyDEMinRunes
+	if hydeMinRunes <= 0 {
+		hydeMinRunes = 25
+	}
 	if p.cfg.Preprocess.HyDEEnabled &&
-		(plan.Intent == IntentSemantic || plan.Intent == IntentGeneral) {
+		plan.Intent == IntentSemantic &&
+		len([]rune(plan.OriginalQuery)) >= hydeMinRunes {
 		p.generateHyDE(ctx, plan)
 	}
 }

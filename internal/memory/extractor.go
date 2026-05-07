@@ -58,6 +58,27 @@ type extractedRelation struct {
 	RelationType string `json:"relation_type"`
 }
 
+// batchExtractInput 批量抽取结构化输入（带 index）/ Structured input for batch extraction with index markers
+type batchExtractInput struct {
+	Memories []batchMemoryItem `json:"memories"`
+}
+
+type batchMemoryItem struct {
+	Index   int    `json:"index"`
+	Content string `json:"content"`
+}
+
+// batchExtractOutput 批量抽取结构化输出（按 index 分组）/ Structured output grouped by memory index
+type batchExtractOutput struct {
+	Results []batchExtractResult `json:"results"`
+}
+
+type batchExtractResult struct {
+	Index     int                 `json:"index"`
+	Entities  []extractedEntity   `json:"entities"`
+	Relations []extractedRelation `json:"relations"`
+}
+
 // normalizeLLMOutput 规范化LLM输出 / Normalization LLM output
 type normalizeLLMOutput struct {
 	Match         bool   `json:"match"`
@@ -155,6 +176,23 @@ Rules:
 - Each entity has: name, entity_type, description
 - Deduplicate: same entity appears only once
 - Only extract entities that are clearly stated in the text`, entityList)
+}
+
+// buildBatchExtractPrompt 构建批量抽取提示词（按 index 独立处理）/ Build batch extraction prompt (process each item independently by index)
+func (e *Extractor) buildBatchExtractPrompt() string {
+	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
+	relationList := strings.Join(mapKeys(e.relationTypes), ", ")
+	return fmt.Sprintf(`You are a knowledge extraction engine. The input is a JSON object with a "memories" array. Each element has an "index" and "content".
+
+Rules:
+- Entity types: %s
+- Relation types: %s
+- Process each memory item independently by its index
+- Only extract entities clearly stated in that item's text; do not infer across items
+- Return a JSON object with a "results" array; each element must have: index (integer matching input), entities (array), relations (array)
+- Each entity: name, entity_type, description
+- Each relation: source (entity name), target (entity name), relation_type
+- Include an entry for every input index, even if entities and relations are empty arrays`, entityList, relationList)
 }
 
 // entityLLM 返回用于实体抽取的 LLM 提供者（优先 fastLLM）/ Return LLM provider for entity extraction (prefer fastLLM)
@@ -459,36 +497,40 @@ func parseExtractOutput(ctx context.Context, raw string, prevMessages []llm.Chat
 	return nil, ExtractParseFallback
 }
 
-// validateAndTruncate 校验并截断输出 / Validate and truncate output
-func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
-	// 过滤无效实体类型（新切片避免原地修改）/ Filter invalid entity types into new slice to avoid in-place mutation
-	valid := make([]extractedEntity, 0, len(output.Entities))
-	for _, ent := range output.Entities {
+// filterEntities 过滤并截断实体列表 / Filter invalid entity types and truncate to limit
+func (e *Extractor) filterEntities(entities []extractedEntity) []extractedEntity {
+	valid := make([]extractedEntity, 0, len(entities))
+	for _, ent := range entities {
 		ent.EntityType = strings.ToLower(strings.TrimSpace(ent.EntityType))
 		if e.entityTypes[ent.EntityType] && strings.TrimSpace(ent.Name) != "" {
 			valid = append(valid, ent)
 		}
 	}
-	output.Entities = valid
-
-	// 截断到上限 / Truncate to limit
-	if e.cfg.MaxEntities > 0 && len(output.Entities) > e.cfg.MaxEntities {
-		output.Entities = output.Entities[:e.cfg.MaxEntities]
+	if e.cfg.MaxEntities > 0 && len(valid) > e.cfg.MaxEntities {
+		valid = valid[:e.cfg.MaxEntities]
 	}
+	return valid
+}
 
-	// 过滤无效关系类型（新切片避免原地修改）/ Filter invalid relation types into new slice
-	validRels := make([]extractedRelation, 0, len(output.Relations))
-	for _, rel := range output.Relations {
+// filterRelations 过滤并截断关系列表 / Filter invalid relation types and truncate to limit
+func (e *Extractor) filterRelations(relations []extractedRelation) []extractedRelation {
+	valid := make([]extractedRelation, 0, len(relations))
+	for _, rel := range relations {
 		rel.RelationType = strings.ToLower(strings.TrimSpace(rel.RelationType))
 		if e.relationTypes[rel.RelationType] && rel.Source != "" && rel.Target != "" {
-			validRels = append(validRels, rel)
+			valid = append(valid, rel)
 		}
 	}
-	output.Relations = validRels
-
-	if e.cfg.MaxRelations > 0 && len(output.Relations) > e.cfg.MaxRelations {
-		output.Relations = output.Relations[:e.cfg.MaxRelations]
+	if e.cfg.MaxRelations > 0 && len(valid) > e.cfg.MaxRelations {
+		valid = valid[:e.cfg.MaxRelations]
 	}
+	return valid
+}
+
+// validateAndTruncate 校验并截断输出 / Validate and truncate output
+func (e *Extractor) validateAndTruncate(output *extractLLMOutput) {
+	output.Entities = e.filterEntities(output.Entities)
+	output.Relations = e.filterRelations(output.Relations)
 }
 
 // resolveEntity 实体规范化（两阶段）/ Entity normalization (two-phase)
@@ -659,8 +701,8 @@ func (e *Extractor) resolveRelation(ctx context.Context, sourceID, targetID, rel
 // 批量实体抽取 / Batch entity extraction
 // ============================================================
 
-// defaultBatchTokenThreshold 默认每批 token 阈值（适配 128K 上下文模型）/ Default batch token threshold (for 128K context models)
-const defaultBatchTokenThreshold = 32000
+// defaultBatchTokenThreshold 默认每批 token 阈值（约 30-50 条，降低超时风险）/ Default batch token threshold (~30-50 items, reduces timeout risk)
+const defaultBatchTokenThreshold = 8000
 
 // ExtractBatch 批量实体抽取：按 token 阈值分批 → LLM 全局抽取 → 系统侧匹配归属 → 落库
 // Batch entity extraction: split by token threshold → global LLM extraction → system-side matching → store
@@ -705,59 +747,61 @@ func (e *Extractor) ExtractBatch(ctx context.Context, req *model.BatchExtractReq
 			continue
 		}
 
-		// 校验并截断 / Validate and truncate
-		e.validateAndTruncate(output)
-
-		// 系统侧匹配实体归属 / System-side entity-to-memory matching
-		entityMemMap := matchEntitiesToMemories(output.Entities, batch)
-
-		// 规范化+创建全局实体 / Normalize + create global entities
-		entityIDMap := make(map[string]string, len(output.Entities)) // name → entityID
-		for _, ent := range output.Entities {
-			result, normalized, resolveErr := e.resolveEntity(ctx, ent, req.Scope, "")
-			if resolveErr != nil {
-				logger.Warn("batch entity resolution failed", zap.String("name", ent.Name), zap.Error(resolveErr))
+		// 按 index 精准归属，逐条处理 / Process each result by its memory index
+		for _, result := range output.Results {
+			if result.Index < 0 || result.Index >= len(batch) {
+				logger.Warn("batch result index out of range",
+					zap.Int("index", result.Index),
+					zap.Int("batch_size", len(batch)),
+				)
 				continue
 			}
-			// nil 表示已进候选队列，跳过主图写入 / nil means queued as candidate
-			if result == nil {
-				continue
+			memID := batch[result.Index].MemoryID
+			if resp.Results[memID] == nil {
+				resp.Results[memID] = &model.ExtractResponse{}
 			}
-			entityIDMap[ent.Name] = result.EntityID
 
-			// 为匹配到的每个 memory 写入关联 / Create memory-entity associations for matched memories
-			for _, memID := range entityMemMap[ent.Name] {
-				if resp.Results[memID] == nil {
-					resp.Results[memID] = &model.ExtractResponse{}
+			validEnts := e.filterEntities(result.Entities)
+			validRels := e.filterRelations(result.Relations)
+
+			entityIDMap := make(map[string]string, len(validEnts))
+			for _, ent := range validEnts {
+				entity, normalized, resolveErr := e.resolveEntity(ctx, ent, req.Scope, "")
+				if resolveErr != nil {
+					logger.Warn("batch entity resolution failed", zap.String("name", ent.Name), zap.Error(resolveErr))
+					continue
 				}
-				resp.Results[memID].Entities = append(resp.Results[memID].Entities, *result)
+				// nil 表示已进候选队列，跳过主图写入 / nil means queued as candidate
+				if entity == nil {
+					continue
+				}
+				entityIDMap[ent.Name] = entity.EntityID
+				resp.Results[memID].Entities = append(resp.Results[memID].Entities, *entity)
 				if normalized {
 					resp.Results[memID].Normalized++
 				}
-
 				assocErr := e.graphManager.CreateMemoryEntity(ctx, &model.CreateMemoryEntityRequest{
 					MemoryID: memID,
-					EntityID: result.EntityID,
+					EntityID: entity.EntityID,
 					Role:     "mentioned",
 				})
 				if assocErr != nil {
 					logger.Warn("batch create memory-entity failed",
 						zap.String("memory_id", memID),
-						zap.String("entity_id", result.EntityID),
+						zap.String("entity_id", entity.EntityID),
 						zap.Error(assocErr),
 					)
 				}
 			}
-		}
 
-		// 写入关系 / Create relations
-		for _, rel := range output.Relations {
-			sourceID, sok := entityIDMap[rel.Source]
-			targetID, tok := entityIDMap[rel.Target]
-			if !sok || !tok {
-				continue
+			for _, rel := range validRels {
+				sourceID, sok := entityIDMap[rel.Source]
+				targetID, tok := entityIDMap[rel.Target]
+				if !sok || !tok {
+					continue
+				}
+				e.resolveRelation(ctx, sourceID, targetID, rel.RelationType)
 			}
-			e.resolveRelation(ctx, sourceID, targetID, rel.RelationType)
 		}
 	}
 
@@ -792,26 +836,31 @@ func (e *Extractor) formBatches(items []model.BatchExtractItem) [][]model.BatchE
 	return batches
 }
 
-// callBatchLLM 调用 LLM 进行批量抽取（复用现有 prompt + 解析）/ Call LLM for batch extraction (reuse existing prompt + parsing)
-func (e *Extractor) callBatchLLM(ctx context.Context, items []model.BatchExtractItem) (*extractLLMOutput, int, error) {
-	// 拼接多条 content / Concatenate multiple contents
-	var sb strings.Builder
+// callBatchLLM 调用 LLM 进行批量抽取（结构化输入/输出，index 精准归属）/ Call LLM for batch extraction with indexed input/output
+func (e *Extractor) callBatchLLM(ctx context.Context, items []model.BatchExtractItem) (*batchExtractOutput, int, error) {
+	input := batchExtractInput{
+		Memories: make([]batchMemoryItem, len(items)),
+	}
 	for i, item := range items {
-		if i > 0 {
-			sb.WriteString("\n\n---\n\n")
-		}
-		sb.WriteString(item.Content)
+		input.Memories[i] = batchMemoryItem{Index: i, Content: item.Content}
+	}
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		return nil, 0, fmt.Errorf("marshal batch input: %w", err)
 	}
 
 	temp := 0.1
 	messages := []llm.ChatMessage{
-		{Role: "system", Content: e.buildExtractPrompt()},
-		{Role: "user", Content: sb.String()},
+		{Role: "system", Content: e.buildBatchExtractPrompt()},
+		{Role: "user", Content: string(inputJSON)},
 	}
-
+	responseFormat := &llm.ResponseFormat{Type: "json_object"}
+	if schema := e.buildBatchExtractionSchema(); schema != nil {
+		responseFormat = &llm.ResponseFormat{Type: "json_schema", JSONSchema: schema}
+	}
 	req := &llm.ChatRequest{
 		Messages:       messages,
-		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
+		ResponseFormat: responseFormat,
 		Temperature:    &temp,
 	}
 
@@ -820,25 +869,81 @@ func (e *Extractor) callBatchLLM(ctx context.Context, items []model.BatchExtract
 		return nil, 0, err
 	}
 
-	output, _ := parseExtractOutput(ctx, resp.Content, messages, e.llm)
-	return output, resp.TotalTokens, nil
+	var output batchExtractOutput
+	if err := json.Unmarshal([]byte(resp.Content), &output); err != nil {
+		return nil, resp.TotalTokens, fmt.Errorf("parse batch LLM output: %w", err)
+	}
+	return &output, resp.TotalTokens, nil
 }
 
-// matchEntitiesToMemories 系统侧匹配实体归属：entity.Name ∈ memory.Content → 建立关联
-// System-side matching: if entity name appears in memory content, associate them
-func matchEntitiesToMemories(entities []extractedEntity, items []model.BatchExtractItem) map[string][]string {
-	// name → []memoryID
-	result := make(map[string][]string, len(entities))
-	for _, ent := range entities {
-		nameLower := strings.ToLower(ent.Name)
-		if nameLower == "" {
-			continue
-		}
-		for _, item := range items {
-			if strings.Contains(strings.ToLower(item.Content), nameLower) {
-				result[ent.Name] = append(result[ent.Name], item.MemoryID)
-			}
-		}
+// buildBatchExtractionSchema 动态构建批量抽取的 JSON Schema（枚举值来自配置）
+// Dynamically build JSON Schema for batch extraction using configured type enums
+func (e *Extractor) buildBatchExtractionSchema() *llm.JSONSchema {
+	entityEnum := make([]string, 0, len(e.entityTypes))
+	for t := range e.entityTypes {
+		entityEnum = append(entityEnum, t)
 	}
-	return result
+	sort.Strings(entityEnum)
+
+	relationEnum := make([]string, 0, len(e.relationTypes))
+	for t := range e.relationTypes {
+		relationEnum = append(relationEnum, t)
+	}
+	sort.Strings(relationEnum)
+
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"results": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"index": map[string]any{"type": "integer"},
+						"entities": map[string]any{
+							"type": "array",
+							"items": map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"name":        map[string]any{"type": "string"},
+									"entity_type": map[string]any{"type": "string", "enum": entityEnum},
+									"description": map[string]any{"type": "string"},
+								},
+								"required":             []string{"name", "entity_type", "description"},
+								"additionalProperties": false,
+							},
+						},
+						"relations": map[string]any{
+							"type": "array",
+							"items": map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"source":        map[string]any{"type": "string"},
+									"target":        map[string]any{"type": "string"},
+									"relation_type": map[string]any{"type": "string", "enum": relationEnum},
+								},
+								"required":             []string{"source", "target", "relation_type"},
+								"additionalProperties": false,
+							},
+						},
+					},
+					"required":             []string{"index", "entities", "relations"},
+					"additionalProperties": false,
+				},
+			},
+		},
+		"required":             []string{"results"},
+		"additionalProperties": false,
+	}
+
+	schemaBytes, err := json.Marshal(schema)
+	if err != nil {
+		return nil
+	}
+	return &llm.JSONSchema{
+		Name:   "batch_extraction",
+		Strict: true,
+		Schema: schemaBytes,
+	}
 }
+

@@ -61,6 +61,13 @@ extract:
   normalize_candidates: 20
   timeout: 30s
 
+  # 分阶段抽取 / Split extraction (entity-only fast model + async relation extraction)
+  fast_model_enabled: false          # 开启后实体名走小模型同步抽取 / Enable fast model for entity-only extraction
+  fast_model_base_url: ""            # 例: http://localhost:11434/v1 (Ollama) / Fast model base URL
+  fast_model_api_key: ""             # 本地模型留空 / Leave empty for local models
+  fast_model_id: ""                  # 例: qwen2.5:3b / Fast model ID
+  relation_extract_enabled: false    # 开启后关系抽取走异步 Queue / Enable async relation extraction via queue
+
 # Retrieval 检索配置 / Retrieval configuration
 retrieval:
   graph_enabled: true
@@ -99,6 +106,9 @@ retrieval:
       - "config/stopwords_zh.txt"
     synonym_files:
       - "config/synonym_zh.txt"
+    hyde_enabled: true     # 启用 HyDE / Enable Hypothetical Document Embedding
+    hyde_weight: 0.8       # HyDE 向量混合权重 / HyDE vector blend weight
+    hyde_min_runes: 25     # HyDE 触发的最小 rune 长度 / Min rune length to trigger HyDE
 
   # 级联检索阈值 / Cascade retrieval thresholds (Path C temporal tuning)
   cascade:

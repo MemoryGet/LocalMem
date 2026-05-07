@@ -1,7 +1,10 @@
 // Package llm LLM推理调用抽象层 / LLM inference call abstraction layer
 package llm
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 // ChatMessage LLM对话消息 / LLM chat message
 type ChatMessage struct {
@@ -11,7 +14,15 @@ type ChatMessage struct {
 
 // ResponseFormat LLM响应格式约束 / LLM response format constraint
 type ResponseFormat struct {
-	Type string `json:"type"`
+	Type       string      `json:"type"`
+	JSONSchema *JSONSchema `json:"json_schema,omitempty"`
+}
+
+// JSONSchema 严格 JSON Schema 约束（OpenAI structured output）/ Strict JSON Schema for structured output
+type JSONSchema struct {
+	Name   string          `json:"name"`
+	Strict bool            `json:"strict"`
+	Schema json.RawMessage `json:"schema"`
 }
 
 // ChatRequest LLM对话请求 / LLM chat request

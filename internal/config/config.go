@@ -328,6 +328,7 @@ type PreprocessConfig struct {
 	StopwordFiles []string      `mapstructure:"stopword_files"` // 外部停用词文件路径 / External stopword file paths
 	SynonymFiles  []string      `mapstructure:"synonym_files"`  // 同义词词典文件路径 / Synonym dictionary file paths
 	HyDEWeight    float64       `mapstructure:"hyde_weight"`    // HyDE 通道权重系数（默认 0.8）/ HyDE channel weight factor (default 0.8)
+	HyDEMinRunes  int           `mapstructure:"hyde_min_runes"` // HyDE 触发的最小 rune 长度（默认 25）/ Min rune length to trigger HyDE (default 25)
 }
 
 // ResolvedHyDEWeight 返回 HyDE 权重，未配置时默认 0.8 / Return HyDE weight with default
@@ -481,6 +482,7 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.preprocess.enabled", true)
 	viper.SetDefault("retrieval.preprocess.use_llm", false)
 	viper.SetDefault("retrieval.preprocess.hyde_enabled", false)
+	viper.SetDefault("retrieval.preprocess.hyde_min_runes", 25)
 	viper.SetDefault("retrieval.preprocess.llm_timeout", "5s")
 	viper.SetDefault("retrieval.preprocess.stopword_files", []string{"config/stopwords_en.txt", "config/stopwords_zh.txt"})
 	// Disclosure 默认值 / Disclosure defaults

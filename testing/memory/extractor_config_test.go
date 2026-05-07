@@ -129,17 +129,18 @@ func TestExtractor_CustomRelationTypes_Accepted(t *testing.T) {
 			)
 
 			mock := &mockLLMProvider{
-				responses: mockResponses(llmResp),
+				responses: mockResponses(llmResp, llmResp), // entity call + relation call
 			}
 
 			cfg := &config.ExtractConfig{
-				MaxEntities:         20,
-				MaxRelations:        30,
-				NormalizeEnabled:    false,
-				NormalizeCandidates: 0,
-				Timeout:             30 * time.Second,
-				EntityTypes:         []string{"person"},
-				RelationTypes:       tt.relationTypes,
+				MaxEntities:            20,
+				MaxRelations:           30,
+				NormalizeEnabled:       false,
+				NormalizeCandidates:    0,
+				Timeout:                30 * time.Second,
+				EntityTypes:            []string{"person"},
+				RelationTypes:          tt.relationTypes,
+				RelationExtractEnabled: true,
 			}
 
 			ext, _, _, _ := setupExtractor(t, mock, cfg)
@@ -171,17 +172,18 @@ func TestExtractor_FallbackDefaults_WhenConfigEmpty(t *testing.T) {
 	)
 
 	mock := &mockLLMProvider{
-		responses: mockResponses(llmResp),
+		responses: mockResponses(llmResp, llmResp), // entity call + relation call
 	}
 
 	cfg := &config.ExtractConfig{
-		MaxEntities:         20,
-		MaxRelations:        30,
-		NormalizeEnabled:    false,
-		NormalizeCandidates: 0,
-		Timeout:             30 * time.Second,
-		EntityTypes:         nil, // 空列表触发默认值 / Empty triggers defaults
-		RelationTypes:       nil,
+		MaxEntities:            20,
+		MaxRelations:           30,
+		NormalizeEnabled:       false,
+		NormalizeCandidates:    0,
+		Timeout:                30 * time.Second,
+		EntityTypes:            nil, // 空列表触发默认值 / Empty triggers defaults
+		RelationTypes:          nil,
+		RelationExtractEnabled: true,
 	}
 
 	ext, _, _, _ := setupExtractor(t, mock, cfg)
