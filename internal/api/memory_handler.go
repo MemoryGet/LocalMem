@@ -15,14 +15,15 @@ import (
 
 // MemoryHandler 记忆 CRUD 处理器 / Memory CRUD handler
 type MemoryHandler struct {
-	manager     *memory.Manager
-	recaller    *search.ExperienceRecaller // B7: 可为 nil / may be nil
-	authEnabled bool // 认证开关，关闭时放宽 admin 检查 / Auth toggle, relaxes admin check when disabled
+	manager              *memory.Manager
+	recaller             *search.ExperienceRecaller // B7: 可为 nil / may be nil
+	authEnabled          bool                       // 认证开关，关闭时放宽 admin 检查 / Auth toggle, relaxes admin check when disabled
+	experienceRecallLimit int                       // B7 经验召回条数 / B7 experience recall count
 }
 
 // NewMemoryHandler 创建记忆处理器 / Create memory handler
-func NewMemoryHandler(manager *memory.Manager, recaller *search.ExperienceRecaller, authEnabled bool) *MemoryHandler {
-	return &MemoryHandler{manager: manager, recaller: recaller, authEnabled: authEnabled}
+func NewMemoryHandler(manager *memory.Manager, recaller *search.ExperienceRecaller, authEnabled bool, experienceRecallLimit int) *MemoryHandler {
+	return &MemoryHandler{manager: manager, recaller: recaller, authEnabled: authEnabled, experienceRecallLimit: experienceRecallLimit}
 }
 
 // CreateMemoryResponse 创建记忆增强响应 / Enhanced create memory response with experience hints (B7)
@@ -59,7 +60,11 @@ func (h *MemoryHandler) Create(c *gin.Context, identity *model.Identity) {
 	// B7: 相似经验主动召回 / Proactive experience recall
 	resp := &CreateMemoryResponse{Memory: mem}
 	if h.recaller != nil {
-		resp.ExperienceHints = h.recaller.Recall(c.Request.Context(), req.Content, identity, 3)
+		lim := h.experienceRecallLimit
+		if lim <= 0 {
+			lim = 3
+		}
+		resp.ExperienceHints = h.recaller.Recall(c.Request.Context(), req.Content, identity, lim)
 	}
 
 	Created(c, resp)

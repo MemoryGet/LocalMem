@@ -199,21 +199,23 @@ type ExtractConfig struct {
 
 // RetrievalConfig 检索配置 / Retrieval config
 type RetrievalConfig struct {
-	GraphEnabled        bool                         `mapstructure:"graph_enabled"`
-	GraphDepth          int                          `mapstructure:"graph_depth"`
-	GraphWeight         float64                      `mapstructure:"graph_weight"`
-	FTSWeight           float64                      `mapstructure:"fts_weight"`
-	QdrantWeight        float64                      `mapstructure:"qdrant_weight"`
-	GraphFTSTop         int                          `mapstructure:"graph_fts_top"`
-	GraphEntityLimit    int                          `mapstructure:"graph_entity_limit"`
-	AccessAlpha         float64                      `mapstructure:"access_alpha"`          // 访问频率阻尼系数 / Access frequency damping coefficient
-	RelationDecayLambda float64                      `mapstructure:"relation_decay_lambda"` // 关系时间衰减系数 λ / Relation time decay lambda
-	Rerank              RerankConfig                 `mapstructure:"rerank"`
-	MMR                 MMRConfig                    `mapstructure:"mmr"`
-	Preprocess          PreprocessConfig             `mapstructure:"preprocess"`
-	Disclosure          DisclosureConfig             `mapstructure:"disclosure"`
-	Strategy            StrategyConfig               `mapstructure:"strategy"`
-	Pipelines           map[string]PipelineOverrides `mapstructure:"pipelines"`
+	GraphEnabled         bool                         `mapstructure:"graph_enabled"`
+	GraphDepth           int                          `mapstructure:"graph_depth"`
+	GraphWeight          float64                      `mapstructure:"graph_weight"`
+	FTSWeight            float64                      `mapstructure:"fts_weight"`
+	QdrantWeight         float64                      `mapstructure:"qdrant_weight"`
+	GraphFTSTop          int                          `mapstructure:"graph_fts_top"`
+	GraphEntityLimit     int                          `mapstructure:"graph_entity_limit"`
+	DefaultLimit         int                          `mapstructure:"default_limit"`          // 默认召回条数 / Default recall result count
+	ExperienceRecallLimit int                         `mapstructure:"experience_recall_limit"` // B7 经验召回条数 / B7 experience recall count
+	AccessAlpha          float64                      `mapstructure:"access_alpha"`           // 访问频率阻尼系数 / Access frequency damping coefficient
+	RelationDecayLambda  float64                      `mapstructure:"relation_decay_lambda"`  // 关系时间衰减系数 λ / Relation time decay lambda
+	Rerank               RerankConfig                 `mapstructure:"rerank"`
+	MMR                  MMRConfig                    `mapstructure:"mmr"`
+	Preprocess           PreprocessConfig             `mapstructure:"preprocess"`
+	Disclosure           DisclosureConfig             `mapstructure:"disclosure"`
+	Strategy             StrategyConfig               `mapstructure:"strategy"`
+	Pipelines            map[string]PipelineOverrides `mapstructure:"pipelines"`
 }
 
 // StrategyConfig 策略 Agent 配置 / Strategy agent configuration
@@ -438,6 +440,8 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.qdrant_weight", 1.0)
 	viper.SetDefault("retrieval.graph_fts_top", 5)
 	viper.SetDefault("retrieval.graph_entity_limit", 10)
+	viper.SetDefault("retrieval.default_limit", 10)
+	viper.SetDefault("retrieval.experience_recall_limit", 3)
 	viper.SetDefault("retrieval.access_alpha", 0.15)
 	viper.SetDefault("retrieval.relation_decay_lambda", 0.015)
 	viper.SetDefault("retrieval.rerank.enabled", false)

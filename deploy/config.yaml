@@ -77,6 +77,8 @@ retrieval:
   qdrant_weight: 1.0
   graph_fts_top: 5
   graph_entity_limit: 10
+  default_limit: 10              # 默认召回条数（请求未指定时使用）/ Default recall result count
+  experience_recall_limit: 3     # B7 经验主动召回条数 / B7 proactive experience recall count
   access_alpha: 0.15     # 访问频率阻尼系数 / Access frequency damping coefficient
 
   # MMR 多样性重排（需要 Qdrant）/ MMR diversity re-ranking (requires Qdrant)

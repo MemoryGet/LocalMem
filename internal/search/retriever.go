@@ -241,7 +241,11 @@ func (r *Retriever) RetrieveWithDebug(ctx context.Context, req *model.RetrieveRe
 func (r *Retriever) retrieveLegacy(ctx context.Context, req *model.RetrieveRequest) ([]*model.SearchResult, error) {
 	limit := req.Limit
 	if limit <= 0 {
-		limit = 10
+		defaultLimit := r.cfg.DefaultLimit
+		if defaultLimit <= 0 {
+			defaultLimit = 10
+		}
+		limit = defaultLimit
 	}
 	if limit > 100 {
 		limit = 100

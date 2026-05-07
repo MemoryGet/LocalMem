@@ -23,8 +23,9 @@ type RouterDeps struct {
 	Extractor          *memory.Extractor          // 可为 nil / may be nil
 	Summarizer         *memory.SessionSummarizer  // B7: 可为 nil / may be nil
 	LineageTracer      *memory.LineageTracer      // B7: 可为 nil / may be nil
-	ExperienceRecaller *search.ExperienceRecaller // B7: 可为 nil / may be nil
-	FileStore          document.FileStore         // nil if document disabled
+	ExperienceRecaller    *search.ExperienceRecaller // B7: 可为 nil / may be nil
+	ExperienceRecallLimit int                        // B7 经验召回条数 / B7 experience recall count
+	FileStore             document.FileStore         // nil if document disabled
 	ScopePolicyStore   store.ScopePolicyStore    // nil if SQLite disabled
 	DocumentConfig     config.DocumentConfig
 	AuthConfig         config.AuthConfig
@@ -65,7 +66,7 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 		v1.POST("/sessions/by-source/:sourceRef/summarize", llmRateLimit, withIdentity(sessionHandler.SummarizeBySourceRef))
 
 		// Memory CRUD
-		memHandler := NewMemoryHandler(deps.MemManager, deps.ExperienceRecaller, deps.AuthConfig.Enabled)
+		memHandler := NewMemoryHandler(deps.MemManager, deps.ExperienceRecaller, deps.AuthConfig.Enabled, deps.ExperienceRecallLimit)
 		v1.POST("/memories", writeRateLimit, withIdentity(memHandler.Create))
 		v1.GET("/memories", withIdentity(memHandler.List))
 		v1.GET("/memories/:id", withIdentity(memHandler.Get))
