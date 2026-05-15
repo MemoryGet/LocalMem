@@ -11,7 +11,7 @@ import (
 )
 
 // 当前最新 schema 版本
-const latestVersion = 27
+const latestVersion = 28
 
 // getCurrentVersion 获取当前 schema 版本 / Get current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
@@ -273,6 +273,14 @@ func Migrate(db *sql.DB, tok tokenizer.Tokenizer) error {
 			return fmt.Errorf("V26→V27 migration failed: %w", err)
 		}
 		version = 27
+	}
+
+	// V27→V28: entity_candidates entity_type column
+	if version < 28 {
+		if err := migrateV27ToV28(db); err != nil {
+			return fmt.Errorf("V27→V28 migration failed: %w", err)
+		}
+		version = 28
 	}
 
 	return nil

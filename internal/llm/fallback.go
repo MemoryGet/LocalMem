@@ -73,3 +73,23 @@ func (f *FallbackProvider) providerName(i int) string {
 	}
 	return fmt.Sprintf("provider-%d", i)
 }
+
+// ProviderBaseURL 委托给第一个实现了 ModelInfoProvider 的 provider / Delegates to the first provider implementing ModelInfoProvider
+func (f *FallbackProvider) ProviderBaseURL() string {
+	for _, p := range f.providers {
+		if info, ok := p.(ModelInfoProvider); ok {
+			return info.ProviderBaseURL()
+		}
+	}
+	return ""
+}
+
+// ProviderModel 委托给第一个实现了 ModelInfoProvider 的 provider / Delegates to the first provider implementing ModelInfoProvider
+func (f *FallbackProvider) ProviderModel() string {
+	for _, p := range f.providers {
+		if info, ok := p.(ModelInfoProvider); ok {
+			return info.ProviderModel()
+		}
+	}
+	return ""
+}

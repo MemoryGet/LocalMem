@@ -138,6 +138,10 @@ type FallbackLLMConfig struct {
 type EmbeddingConfig struct {
 	Provider string `mapstructure:"provider"`
 	Model    string `mapstructure:"model"`
+	// BaseURL 自定义嵌入 API 地址（OpenAI 兼容）；为空时使用 provider 默认地址
+	BaseURL string `mapstructure:"base_url"`
+	// APIKey 嵌入 API 鉴权 key；为空时 fallback 到 llm.openai.api_key
+	APIKey string `mapstructure:"api_key"`
 }
 
 // OpenAIConfig OpenAI 配置 / OpenAI configuration
@@ -187,7 +191,9 @@ type ExtractConfig struct {
 	Timeout             time.Duration `mapstructure:"timeout"`
 	EntityTypes         []string      `mapstructure:"entity_types"`          // 实体类型白名单 / Allowed entity types
 	RelationTypes       []string      `mapstructure:"relation_types"`        // 关系类型白名单 / Allowed relation types
-	BatchTokenThreshold    int           `mapstructure:"batch_token_threshold"`    // 每批最大 content token 数，默认 4000 / Max content tokens per batch
+	BatchTokenThreshold    int           `mapstructure:"batch_token_threshold"`    // 每批最大 content token 数，默认 32000 / Max content tokens per batch
+	BatchConcurrency       int           `mapstructure:"batch_concurrency"`        // 批量抽取最大并发批次数，默认 20 / Max concurrent batches for extraction
+	SkipDedup              bool          `mapstructure:"skip_dedup"`               // 跳过 dedup SSE 路径，直接走 indexed 批量 / Skip dedup SSE path, use indexed batch directly
 	UseLLM                 bool          `mapstructure:"use_llm"`                  // LLM 抽取开关 / LLM extraction toggle (fallback)
 	FastModelEnabled       bool          `mapstructure:"fast_model_enabled"`       // 启用快速模型抽取实体名 / Enable fast model for entity-only extraction
 	FastModelBaseURL       string        `mapstructure:"fast_model_base_url"`      // 快速模型 base URL / Fast model base URL
@@ -206,6 +212,7 @@ type RetrievalConfig struct {
 	QdrantWeight         float64                      `mapstructure:"qdrant_weight"`
 	GraphFTSTop          int                          `mapstructure:"graph_fts_top"`
 	GraphEntityLimit     int                          `mapstructure:"graph_entity_limit"`
+	GraphMaxVisited      int                          `mapstructure:"graph_max_visited"`
 	DefaultLimit         int                          `mapstructure:"default_limit"`          // 默认召回条数 / Default recall result count
 	ExperienceRecallLimit int                         `mapstructure:"experience_recall_limit"` // B7 经验召回条数 / B7 experience recall count
 	AccessAlpha          float64                      `mapstructure:"access_alpha"`           // 访问频率阻尼系数 / Access frequency damping coefficient
@@ -440,6 +447,7 @@ func LoadConfig() error {
 	viper.SetDefault("retrieval.qdrant_weight", 1.0)
 	viper.SetDefault("retrieval.graph_fts_top", 5)
 	viper.SetDefault("retrieval.graph_entity_limit", 10)
+	viper.SetDefault("retrieval.graph_max_visited", 50)
 	viper.SetDefault("retrieval.default_limit", 10)
 	viper.SetDefault("retrieval.experience_recall_limit", 3)
 	viper.SetDefault("retrieval.access_alpha", 0.15)
@@ -573,10 +581,17 @@ func LoadConfig() error {
 	// 展开配置中的 ${ENV_VAR} 引用 / Expand ${ENV_VAR} references in config values
 	AppConfig.LLM.OpenAI.APIKey = os.ExpandEnv(AppConfig.LLM.OpenAI.APIKey)
 	AppConfig.LLM.OpenAI.BaseURL = os.ExpandEnv(AppConfig.LLM.OpenAI.BaseURL)
+	AppConfig.LLM.OpenAI.Model = os.ExpandEnv(AppConfig.LLM.OpenAI.Model)
 	AppConfig.LLM.Claude.APIKey = os.ExpandEnv(AppConfig.LLM.Claude.APIKey)
 	AppConfig.Retrieval.Rerank.APIKey = os.ExpandEnv(AppConfig.Retrieval.Rerank.APIKey)
 	AppConfig.Retrieval.Rerank.BaseURL = os.ExpandEnv(AppConfig.Retrieval.Rerank.BaseURL)
 	AppConfig.MCP.APIToken = os.ExpandEnv(AppConfig.MCP.APIToken)
+	AppConfig.LLM.Embedding.APIKey = os.ExpandEnv(AppConfig.LLM.Embedding.APIKey)
+	AppConfig.LLM.Embedding.BaseURL = os.ExpandEnv(AppConfig.LLM.Embedding.BaseURL)
+	AppConfig.LLM.Embedding.Model = os.ExpandEnv(AppConfig.LLM.Embedding.Model)
+	AppConfig.Extract.FastModelBaseURL = os.ExpandEnv(AppConfig.Extract.FastModelBaseURL)
+	AppConfig.Extract.FastModelAPIKey = os.ExpandEnv(AppConfig.Extract.FastModelAPIKey)
+	AppConfig.Extract.FastModelID = os.ExpandEnv(AppConfig.Extract.FastModelID)
 	for i := range AppConfig.LLM.Fallback {
 		AppConfig.LLM.Fallback[i].APIKey = os.ExpandEnv(AppConfig.LLM.Fallback[i].APIKey)
 	}

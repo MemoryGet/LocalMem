@@ -6,27 +6,57 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"iclude/internal/config"
-	"iclude/internal/embed"
 	"iclude/internal/llm"
 	"iclude/internal/memory"
 	"iclude/internal/model"
 	"iclude/internal/search"
 	"iclude/internal/search/pipeline"
-	"iclude/internal/search/pipeline/builtin"
-	"iclude/internal/search/strategy"
+	"iclude/internal/search/stage"
 	"iclude/internal/store"
 	"iclude/pkg/tokenizer"
+
+	"path/filepath"
 )
+
+// EvalCollection 评测专用 Qdrant collection（与生产 collection 隔离）
+// Eval-only Qdrant collection — intentionally separate from the production collection.
+const EvalCollection = "memories_eval"
+
+// evalQdrantURL 从 config.yaml 读取 Qdrant 地址，兜底 localhost / Qdrant URL from config, fallback to localhost.
+func evalQdrantURL() string {
+	loadTestConfig()
+	if u := config.AppConfig.Storage.Qdrant.URL; u != "" {
+		return u
+	}
+	return "http://localhost:6333"
+}
+
+// EvalQdrantURL 对外暴露，供测试文件使用 / Exported for use from *_test.go files.
+func EvalQdrantURL() string { return evalQdrantURL() }
+
+// evalQdrantDim 从 config.yaml 读取向量维度，兜底 4096（Qwen3-Embedding-8B）
+// Vector dimension from config, fallback to 4096 (Qwen3-Embedding-8B).
+func evalQdrantDim() int {
+	loadTestConfig()
+	if d := config.AppConfig.Storage.Qdrant.Dimension; d > 0 {
+		return d
+	}
+	return 4096
+}
+
+// EvalQdrantDim 对外暴露 / Exported for use from *_test.go files.
+func EvalQdrantDim() int { return evalQdrantDim() }
 
 // LongMemEvalEntry 单个 LongMemEval 问题（独立 seed + case）/ Single LongMemEval question with its own seeds
 type LongMemEvalEntry struct {
-	SeedMemories []SeedMemory       `json:"seed_memories"`
-	Case         LongMemEvalCase    `json:"case"`
+	SeedMemories []SeedMemory    `json:"seed_memories"`
+	Case         LongMemEvalCase `json:"case"`
 }
 
 // LongMemEvalCase LongMemEval 用例 / LongMemEval case with extra metadata
@@ -53,514 +83,8 @@ func LoadLongMemEval(path string) ([]LongMemEvalEntry, error) {
 	return entries, nil
 }
 
-// RunLongMemEval 逐问题独立建库评测 / Run per-question isolated evaluation
-func RunLongMemEval(ctx context.Context, entries []LongMemEvalEntry, tmpDir string) (*EvalReport, error) {
-	start := time.Now()
-	cases := make([]CaseResult, 0, len(entries))
-
-	for i, entry := range entries {
-		if i > 0 && i%50 == 0 {
-			hits := 0
-			for _, c := range cases {
-				if c.Hit {
-					hits++
-				}
-			}
-			fmt.Printf("  [%d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
-		}
-
-		cr, err := runSingleQuestion(ctx, entry, tmpDir, i)
-		if err != nil {
-			// 记录失败但继续 / Log failure but continue
-			cases = append(cases, CaseResult{
-				Query:      entry.Case.Query,
-				Expected:   entry.Case.GoldAnswer,
-				Category:   entry.Case.Category,
-				Difficulty: entry.Case.Difficulty,
-				Hit:        false,
-				Rank:       -1,
-			})
-			continue
-		}
-		cases = append(cases, cr)
-	}
-
-	metrics := Aggregate(cases)
-	report := &EvalReport{
-		Mode:         "fts (simple) — LongMemEval oracle",
-		Dataset:      "longmemeval-oracle",
-		Timestamp:    time.Now(),
-		Metrics:      metrics,
-		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
-		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
-		Cases:        cases,
-		Duration:     time.Since(start),
-		GitCommit:    resolveGitCommit(),
-	}
-	return report, nil
-}
-
-// RunLongMemEvalPipeline 管线模式逐问题评测 / Pipeline-mode per-question evaluation
-func RunLongMemEvalPipeline(ctx context.Context, entries []LongMemEvalEntry, tmpDir string) (*EvalReport, error) {
-	start := time.Now()
-	cases := make([]CaseResult, 0, len(entries))
-
-	for i, entry := range entries {
-		if i > 0 && i%50 == 0 {
-			hits := 0
-			for _, c := range cases {
-				if c.Hit {
-					hits++
-				}
-			}
-			fmt.Printf("  [pipeline %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
-		}
-
-		cr, err := runSingleQuestionPipeline(ctx, entry, tmpDir, i)
-		if err != nil {
-			cases = append(cases, CaseResult{
-				Query:      entry.Case.Query,
-				Expected:   entry.Case.GoldAnswer,
-				Category:   entry.Case.Category,
-				Difficulty: entry.Case.Difficulty,
-				Hit:        false,
-				Rank:       -1,
-			})
-			continue
-		}
-		cases = append(cases, cr)
-	}
-
-	metrics := Aggregate(cases)
-	report := &EvalReport{
-		Mode:         "pipeline (rule classifier) — LongMemEval oracle",
-		Dataset:      "longmemeval-oracle",
-		Timestamp:    time.Now(),
-		Metrics:      metrics,
-		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
-		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
-		Cases:        cases,
-		Duration:     time.Since(start),
-		GitCommit:    resolveGitCommit(),
-	}
-	return report, nil
-}
-
-// runSingleQuestionPipeline 管线模式单问题评测 / Pipeline-mode single question evaluation
-func runSingleQuestionPipeline(ctx context.Context, entry LongMemEvalEntry, tmpDir string, idx int) (CaseResult, error) {
-	dbPath := filepath.Join(tmpDir, fmt.Sprintf("pq%d.db", idx))
-
-	tok := tokenizer.NewSimpleTokenizer()
-	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("create store: %w", err)
-	}
-	defer func() {
-		_ = memStore.Close()
-		_ = os.Remove(dbPath)
-	}()
-
-	if err := memStore.Init(ctx); err != nil {
-		return CaseResult{}, fmt.Errorf("init store: %w", err)
-	}
-
-	mgr := memory.NewManager(memory.ManagerDeps{MemStore: memStore})
-
-	for _, sm := range entry.SeedMemories {
-		kind := sm.Kind
-		if kind == "" {
-			kind = "conversation"
-		}
-		_, err := mgr.Create(ctx, &model.CreateMemoryRequest{
-			Content: sm.Content,
-			Kind:    kind,
-			SubKind: sm.SubKind,
-			Scope:   "eval/longmemeval",
-		})
-		if err != nil {
-			return CaseResult{}, fmt.Errorf("seed: %w", err)
-		}
-	}
-
-	cfg := buildRetrievalConfig("fts")
-	retriever := search.NewRetriever(memStore, nil, nil, nil, nil, cfg, nil, nil)
-	retriever.InitPipeline() // 关键区别：启用管线模式 / Key difference: enable pipeline mode
-
-	results, err := retriever.Retrieve(ctx, &model.RetrieveRequest{
-		Query: entry.Case.Query,
-		Limit: 10,
-	})
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("retrieve: %w", err)
-	}
-
-	hit, rank, score := checkHit(results, entry.Case.Expected)
-	if !hit && entry.Case.GoldAnswer != "" {
-		hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
-	}
-
-	return CaseResult{
-		Query:       entry.Case.Query,
-		Expected:    entry.Case.GoldAnswer,
-		Category:    entry.Case.Category,
-		Difficulty:  entry.Case.Difficulty,
-		Hit:         hit,
-		Rank:        rank,
-		Score:       score,
-		ResultCount: len(results),
-	}, nil
-}
-
-// runSingleQuestion 为单个问题创建独立 DB，seed 后查询 / Create isolated DB for one question
-func runSingleQuestion(ctx context.Context, entry LongMemEvalEntry, tmpDir string, idx int) (CaseResult, error) {
-	dbPath := filepath.Join(tmpDir, fmt.Sprintf("q%d.db", idx))
-
-	tok := tokenizer.NewSimpleTokenizer()
-	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("create store: %w", err)
-	}
-	defer func() {
-		_ = memStore.Close()
-		_ = os.Remove(dbPath)
-	}()
-
-	if err := memStore.Init(ctx); err != nil {
-		return CaseResult{}, fmt.Errorf("init store: %w", err)
-	}
-
-	mgr := memory.NewManager(memory.ManagerDeps{MemStore: memStore})
-
-	// Seed
-	for _, sm := range entry.SeedMemories {
-		kind := sm.Kind
-		if kind == "" {
-			kind = "conversation"
-		}
-		_, err := mgr.Create(ctx, &model.CreateMemoryRequest{
-			Content: sm.Content,
-			Kind:    kind,
-			SubKind: sm.SubKind,
-			Scope:   "eval/longmemeval",
-		})
-		if err != nil {
-			return CaseResult{}, fmt.Errorf("seed: %w", err)
-		}
-	}
-
-	// Retrieve
-	cfg := buildRetrievalConfig("fts")
-	retriever := search.NewRetriever(memStore, nil, nil, nil, nil, cfg, nil, nil)
-
-	results, err := retriever.Retrieve(ctx, &model.RetrieveRequest{
-		Query: entry.Case.Query,
-		Limit: 10,
-	})
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("retrieve: %w", err)
-	}
-
-	hit, rank, score := checkHit(results, entry.Case.Expected)
-
-	// 如果关键词匹配失败，尝试宽松匹配（answer 中的核心词出现在任一结果中）
-	if !hit && entry.Case.GoldAnswer != "" {
-		hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
-	}
-
-	return CaseResult{
-		Query:       entry.Case.Query,
-		Expected:    entry.Case.GoldAnswer,
-		Category:    entry.Case.Category,
-		Difficulty:  entry.Case.Difficulty,
-		Hit:         hit,
-		Rank:        rank,
-		Score:       score,
-		ResultCount: len(results),
-	}, nil
-}
-
-// RunLongMemEvalGraphPipeline 图谱增强管线评测（实体抽取 + graph stage）/ Graph-enhanced pipeline evaluation
-// maxQuestions 限制评测问题数（0=全部），避免大量 LLM 调用 / Limit questions to avoid excessive LLM calls
-func RunLongMemEvalGraphPipeline(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, error) {
-	llmProvider := resolveLLMProvider()
-	if llmProvider == nil {
-		return nil, fmt.Errorf("LLM provider required for graph pipeline (set OPENAI_API_KEY)")
-	}
-
-	if maxQuestions > 0 && len(entries) > maxQuestions {
-		entries = entries[:maxQuestions]
-	}
-
-	start := time.Now()
-	cases := make([]CaseResult, 0, len(entries))
-
-	for i, entry := range entries {
-		if i > 0 && i%10 == 0 {
-			hits := 0
-			for _, c := range cases {
-				if c.Hit {
-					hits++
-				}
-			}
-			fmt.Printf("  [graph-pipeline %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
-		}
-
-		cr, err := runSingleQuestionGraphPipeline(ctx, entry, tmpDir, i, llmProvider)
-		if err != nil {
-			cases = append(cases, CaseResult{
-				Query:      entry.Case.Query,
-				Expected:   entry.Case.GoldAnswer,
-				Category:   entry.Case.Category,
-				Difficulty: entry.Case.Difficulty,
-				Hit:        false,
-				Rank:       -1,
-			})
-			continue
-		}
-		cases = append(cases, cr)
-
-		// 避免 API 限流 / Avoid API rate limits
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	metrics := Aggregate(cases)
-	report := &EvalReport{
-		Mode:         "pipeline (graph) — LongMemEval oracle",
-		Dataset:      "longmemeval-oracle",
-		Timestamp:    time.Now(),
-		Metrics:      metrics,
-		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
-		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
-		Cases:        cases,
-		Duration:     time.Since(start),
-		GitCommit:    resolveGitCommit(),
-	}
-	return report, nil
-}
-
-// RunLongMemEvalFullPipeline 完整管线评测（Graph + LLM rerank）/ Full pipeline evaluation with Graph + LLM reranker
-// maxQuestions 限制评测问题数（0=全部）/ Limit questions (0=all)
-func RunLongMemEvalFullPipeline(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, error) {
-	llmProvider := resolveLLMProvider()
-	if llmProvider == nil {
-		return nil, fmt.Errorf("LLM provider required for full pipeline (set OPENAI_API_KEY)")
-	}
-
-	if maxQuestions > 0 && len(entries) > maxQuestions {
-		entries = entries[:maxQuestions]
-	}
-
-	start := time.Now()
-	cases := make([]CaseResult, 0, len(entries))
-
-	for i, entry := range entries {
-		if i > 0 && i%10 == 0 {
-			hits := 0
-			for _, c := range cases {
-				if c.Hit {
-					hits++
-				}
-			}
-			fmt.Printf("  [full-pipeline %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
-		}
-
-		cr, err := runSingleQuestionFullPipeline(ctx, entry, tmpDir, i, llmProvider)
-		if err != nil {
-			cases = append(cases, CaseResult{
-				Query:      entry.Case.Query,
-				Expected:   entry.Case.GoldAnswer,
-				Category:   entry.Case.Category,
-				Difficulty: entry.Case.Difficulty,
-				Hit:        false,
-				Rank:       -1,
-			})
-			continue
-		}
-		cases = append(cases, cr)
-
-		// 避免 API 限流 / Avoid API rate limits
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	metrics := Aggregate(cases)
-	report := &EvalReport{
-		Mode:         "pipeline (full) — LongMemEval oracle",
-		Dataset:      "longmemeval-oracle",
-		Timestamp:    time.Now(),
-		Metrics:      metrics,
-		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
-		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
-		Cases:        cases,
-		Duration:     time.Since(start),
-		GitCommit:    resolveGitCommit(),
-	}
-	return report, nil
-}
-
-// runSingleQuestionGraphPipeline 图谱增强管线单问题评测 / Graph-enhanced pipeline single question evaluation
-// 与 runSingleQuestionPipeline 区别：创建 graphStore + extractor，seed 时自动抽取实体
-func runSingleQuestionGraphPipeline(ctx context.Context, entry LongMemEvalEntry, tmpDir string, idx int, llmProvider llm.Provider) (CaseResult, error) {
-	dbPath := filepath.Join(tmpDir, fmt.Sprintf("gq%d.db", idx))
-
-	tok := tokenizer.NewSimpleTokenizer()
-	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("create store: %w", err)
-	}
-	defer func() {
-		_ = memStore.Close()
-		_ = os.Remove(dbPath)
-	}()
-
-	if err := memStore.Init(ctx); err != nil {
-		return CaseResult{}, fmt.Errorf("init store: %w", err)
-	}
-
-	// 创建图谱存储和管理器 / Create graph store and manager
-	db := memStore.DB().(*sql.DB)
-	graphStore := store.NewSQLiteGraphStore(db)
-	graphMgr := memory.NewGraphManager(graphStore)
-	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, nil, config.ExtractConfig{})
-
-	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
-	mgr := memory.NewManager(memory.ManagerDeps{
-		MemStore:  memStore,
-		Extractor: extractor,
-	})
-
-	for _, sm := range entry.SeedMemories {
-		kind := sm.Kind
-		if kind == "" {
-			kind = "conversation"
-		}
-		_, err := mgr.Create(ctx, &model.CreateMemoryRequest{
-			Content: sm.Content,
-			Kind:    kind,
-			SubKind: sm.SubKind,
-			Scope:   "eval/longmemeval",
-		})
-		if err != nil {
-			return CaseResult{}, fmt.Errorf("seed: %w", err)
-		}
-	}
-
-	// 图谱增强检索配置 / Graph-enhanced retrieval config
-	cfg := buildRetrievalConfig("fts")
-	cfg.GraphEnabled = true
-	cfg.GraphDepth = 2
-	cfg.GraphWeight = 0.8
-	retriever := search.NewRetriever(memStore, nil, nil, graphStore, llmProvider, cfg, nil, nil)
-	retriever.InitPipeline()
-
-	results, err := retriever.Retrieve(ctx, &model.RetrieveRequest{
-		Query: entry.Case.Query,
-		Limit: 10,
-	})
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("retrieve: %w", err)
-	}
-
-	hit, rank, score := checkHit(results, entry.Case.Expected)
-	if !hit && entry.Case.GoldAnswer != "" {
-		hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
-	}
-
-	return CaseResult{
-		Query:       entry.Case.Query,
-		Expected:    entry.Case.GoldAnswer,
-		Category:    entry.Case.Category,
-		Difficulty:  entry.Case.Difficulty,
-		Hit:         hit,
-		Rank:        rank,
-		Score:       score,
-		ResultCount: len(results),
-	}, nil
-}
-
-// runSingleQuestionFullPipeline 完整管线单问题评测（Graph + LLM rerank）/ Full pipeline single question evaluation
-func runSingleQuestionFullPipeline(ctx context.Context, entry LongMemEvalEntry, tmpDir string, idx int, llmProvider llm.Provider) (CaseResult, error) {
-	dbPath := filepath.Join(tmpDir, fmt.Sprintf("fq%d.db", idx))
-
-	tok := tokenizer.NewSimpleTokenizer()
-	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("create store: %w", err)
-	}
-	defer func() {
-		_ = memStore.Close()
-		_ = os.Remove(dbPath)
-	}()
-
-	if err := memStore.Init(ctx); err != nil {
-		return CaseResult{}, fmt.Errorf("init store: %w", err)
-	}
-
-	// 创建图谱存储和管理器 / Create graph store and manager
-	db := memStore.DB().(*sql.DB)
-	graphStore := store.NewSQLiteGraphStore(db)
-	graphMgr := memory.NewGraphManager(graphStore)
-	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, nil, config.ExtractConfig{})
-
-	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
-	mgr := memory.NewManager(memory.ManagerDeps{
-		MemStore:  memStore,
-		Extractor: extractor,
-	})
-
-	for _, sm := range entry.SeedMemories {
-		kind := sm.Kind
-		if kind == "" {
-			kind = "conversation"
-		}
-		_, err := mgr.Create(ctx, &model.CreateMemoryRequest{
-			Content: sm.Content,
-			Kind:    kind,
-			SubKind: sm.SubKind,
-			Scope:   "eval/longmemeval",
-		})
-		if err != nil {
-			return CaseResult{}, fmt.Errorf("seed: %w", err)
-		}
-	}
-
-	// 完整管线配置：Graph + LLM rerank / Full pipeline config: Graph + LLM rerank
-	cfg := buildRetrievalConfig("fts")
-	cfg.GraphEnabled = true
-	cfg.GraphDepth = 2
-	cfg.GraphWeight = 0.8
-	retriever := search.NewRetriever(memStore, nil, nil, graphStore, llmProvider, cfg, nil, nil)
-	retriever.InitPipeline()
-
-	// 强制使用 full 管线（Graph + LLM rerank）/ Force full pipeline (Graph + LLM rerank)
-	results, err := retriever.Retrieve(ctx, &model.RetrieveRequest{
-		Query:    entry.Case.Query,
-		Limit:    10,
-		Pipeline: "full",
-	})
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("retrieve: %w", err)
-	}
-
-	hit, rank, score := checkHit(results, entry.Case.Expected)
-	if !hit && entry.Case.GoldAnswer != "" {
-		hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
-	}
-
-	return CaseResult{
-		Query:       entry.Case.Query,
-		Expected:    entry.Case.GoldAnswer,
-		Category:    entry.Case.Category,
-		Difficulty:  entry.Case.Difficulty,
-		Hit:         hit,
-		Rank:        rank,
-		Score:       score,
-		ResultCount: len(results),
-	}, nil
-}
-
 // fuzzyCheckHit 宽松匹配：将 gold answer 拆词后检查是否多数词出现在结果中
 func fuzzyCheckHit(results []*model.SearchResult, goldAnswer string) (bool, int, float64) {
-	// 提取 gold answer 中的有意义词（长度>=2）
 	words := strings.Fields(strings.ToLower(goldAnswer))
 	var meaningful []string
 	for _, w := range words {
@@ -573,11 +97,7 @@ func fuzzyCheckHit(results []*model.SearchResult, goldAnswer string) (bool, int,
 		return false, -1, 0
 	}
 
-	// 至少 50% 的有意义词出现在某个结果中
-	threshold := len(meaningful) / 2
-	if threshold < 1 {
-		threshold = 1
-	}
+	threshold := max(len(meaningful)/2, 1)
 
 	for i, r := range results {
 		if r == nil || r.Memory == nil {
@@ -597,216 +117,28 @@ func fuzzyCheckHit(results []*model.SearchResult, goldAnswer string) (bool, int,
 	return false, -1, 0
 }
 
-// RunLongMemEvalAllLLM 全链路 LLM 评测：实体抽取 + strategy agent + graph + LLM rerank + preprocess
-// Full LLM pipeline evaluation with per-stage token tracking
-func RunLongMemEvalAllLLM(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, *LLMTracker, error) {
-	rawProvider := resolveLLMProvider()
-	if rawProvider == nil {
-		return nil, nil, fmt.Errorf("LLM provider required (set OPENAI_API_KEY)")
-	}
-
-	tracker := NewLLMTracker()
-
-	if maxQuestions > 0 && len(entries) > maxQuestions {
-		entries = entries[:maxQuestions]
-	}
-
-	start := time.Now()
-	cases := make([]CaseResult, 0, len(entries))
-
-	for i, entry := range entries {
-		if i > 0 && i%10 == 0 {
-			hits := 0
-			for _, c := range cases {
-				if c.Hit {
-					hits++
-				}
-			}
-			total := tracker.Total()
-			fmt.Printf("  [all-llm %d/%d] hit %d/%d (%.1f%%) | LLM calls: %d, tokens: %d\n",
-				i, len(entries), hits, i, float64(hits)*100/float64(i),
-				total.Calls, total.TotalTokens)
-		}
-
-		cr, err := runSingleQuestionAllLLM(ctx, entry, tmpDir, i, rawProvider, tracker)
-		if err != nil {
-			cases = append(cases, CaseResult{
-				Query:      entry.Case.Query,
-				Expected:   entry.Case.GoldAnswer,
-				Category:   entry.Case.Category,
-				Difficulty: entry.Case.Difficulty,
-				Hit:        false,
-				Rank:       -1,
-			})
-			continue
-		}
-		cases = append(cases, cr)
-
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	metrics := Aggregate(cases)
-	report := &EvalReport{
-		Mode:         "pipeline (all-llm) — LongMemEval oracle",
-		Dataset:      "longmemeval-oracle",
-		Timestamp:    time.Now(),
-		Metrics:      metrics,
-		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
-		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
-		Cases:        cases,
-		Duration:     time.Since(start),
-		GitCommit:    resolveGitCommit(),
-	}
-	return report, tracker, nil
+// Tier 描述一个评测层级的检索能力配置 / Describes retrieval capabilities for one eval tier
+type Tier struct {
+	Name        string  // 用于报告和基线命名 / Used for report and baseline naming
+	Pipeline    bool    // 启用 Cascade 意图分类器 / Enable cascade intent classifier
+	Graph       bool    // 启用实体抽取 + 图谱检索 / Enable entity extraction + graph stage
+	Vector      bool    // 启用 Qdrant 向量检索 / Enable Qdrant vector search
+	Rerank      bool    // 启用 LLM 精排 / Enable LLM reranking
+	GraphWeight float64 // 图谱检索权重（0 时使用默认值 0.8）/ Graph weight (0 = default 0.8)
 }
 
-// runSingleQuestionAllLLM 全链路 LLM 单问题评测 / All-LLM single question evaluation
-// LLM 使用点:
-//   1. entity_extraction — 实体抽取（seed 时 Extractor 调 LLM）
-//   2. strategy_agent — 管线选择（Agent.Select 调 LLM）
-//   3. rerank_llm — LLM 精排（full 管线的 rerank_llm stage）
-//   4. preprocess — 查询预处理（HyDE/语义改写，如果开启）
-//   5. graph_llm_fallback — 图谱 LLM 实体抽取 fallback
-func runSingleQuestionAllLLM(ctx context.Context, entry LongMemEvalEntry, tmpDir string, idx int, rawProvider llm.Provider, tracker *LLMTracker) (CaseResult, error) {
-	dbPath := filepath.Join(tmpDir, fmt.Sprintf("allllm%d.db", idx))
+// 五个预定义层级 / Five predefined tiers
+var (
+	TierFTS      = Tier{Name: "fts"}
+	TierPipeline = Tier{Name: "fts+pipeline", Pipeline: true}
+	TierGraph    = Tier{Name: "fts+pipeline+graph", Pipeline: true, Graph: true, GraphWeight: 0.5}
+	TierVector   = Tier{Name: "fts+pipeline+graph+vector", Pipeline: true, Graph: true, Vector: true}
+	TierFull     = Tier{Name: "full", Pipeline: true, Graph: true, Vector: true, Rerank: true}
+)
 
-	tok := tokenizer.NewSimpleTokenizer()
-	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("create store: %w", err)
-	}
-	defer func() {
-		_ = memStore.Close()
-		_ = os.Remove(dbPath)
-	}()
-
-	if err := memStore.Init(ctx); err != nil {
-		return CaseResult{}, fmt.Errorf("init store: %w", err)
-	}
-
-	// --- 为每个阶段创建独立追踪的 Provider / Create per-stage tracked providers ---
-	extractProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "entity_extraction"}
-	strategyProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "strategy_agent"}
-	rerankProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "rerank_llm"}
-	preprocessProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "preprocess"}
-
-	// --- 1. 图谱存储 + 实体抽取（用 extractProvider 追踪）/ Graph store + entity extraction ---
-	db := memStore.DB().(*sql.DB)
-	graphStore := store.NewSQLiteGraphStore(db)
-	graphMgr := memory.NewGraphManager(graphStore)
-	extractor := memory.NewExtractor(extractProvider, graphMgr, memStore, nil, config.ExtractConfig{})
-
-	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
-	mgr := memory.NewManager(memory.ManagerDeps{
-		MemStore:  memStore,
-		Extractor: extractor,
-	})
-
-	// Seed memories（触发实体抽取）/ Seed memories (triggers entity extraction)
-	for _, sm := range entry.SeedMemories {
-		kind := sm.Kind
-		if kind == "" {
-			kind = "conversation"
-		}
-		_, err := mgr.Create(ctx, &model.CreateMemoryRequest{
-			Content: sm.Content,
-			Kind:    kind,
-			SubKind: sm.SubKind,
-			Scope:   "eval/longmemeval",
-		})
-		if err != nil {
-			return CaseResult{}, fmt.Errorf("seed: %w", err)
-		}
-	}
-
-	// --- 2. 配置检索管线（开启所有 LLM 功能）/ Configure retrieval with all LLM features ---
-	cfg := buildRetrievalConfig("fts")
-	cfg.GraphEnabled = true
-	cfg.GraphDepth = 2
-	cfg.GraphWeight = 0.8
-	// 开启 strategy agent LLM 选择 / Enable LLM strategy selection
-	cfg.Strategy.UseLLM = true
-	cfg.Strategy.FallbackPipeline = "exploration"
-	// 开启预处理 LLM（HyDE + 语义改写）/ Enable preprocessing LLM (HyDE + semantic rewrite)
-	cfg.Preprocess.Enabled = true
-	cfg.Preprocess.UseLLM = true
-	cfg.Preprocess.LLMTimeout = 10 * time.Second
-
-	// Preprocessor 用 preprocessProvider / Preprocessor uses preprocessProvider
-	preprocessor := search.NewPreprocessor(tok, graphStore, preprocessProvider, cfg)
-
-	// Retriever: graphFallbackProvider 用于图谱 LLM fallback，rerankProvider 用于 LLM rerank
-	// 注意：builtin.Deps.LLM 会被注入到 rerank_llm stage 和 graph stage 的 LLM fallback
-	// 这里需要用一个统一 Provider，但通过 stageProvider 分别追踪
-	// 解决方案：用 rerankProvider（rerank_llm stage 会用它），graph LLM fallback 用 graphFallbackProvider
-	retriever := search.NewRetriever(memStore, nil, nil, graphStore, rerankProvider, cfg, preprocessor, nil)
-
-	// 手动初始化管线，覆盖 strategy agent 的 LLM / Manually init pipeline with overridden strategy LLM
-	registry := pipeline.NewRegistry()
-	deps := builtin.Deps{
-		FTSSearcher: memStore,
-		GraphStore:  graphStore,
-		Cfg:         cfg,
-	}
-	postStages := builtin.RegisterBuiltins(registry, deps)
-	executor := pipeline.NewExecutor(registry, pipeline.WithPostStages(postStages...))
-
-	rc := strategy.NewRuleClassifier(pipeline.PipelineExploration)
-	agent := strategy.NewAgent(strategyProvider, rc, 5*time.Second)
-
-	retriever.SetPipelineComponents(executor, agent, rc)
-
-	// --- 3. 执行检索（不强制管线，让 strategy agent 选择）/ Execute retrieval (let strategy agent decide) ---
-	results, err := retriever.Retrieve(ctx, &model.RetrieveRequest{
-		Query: entry.Case.Query,
-		Limit: 10,
-	})
-	if err != nil {
-		return CaseResult{}, fmt.Errorf("retrieve: %w", err)
-	}
-
-	hit, rank, score := checkHit(results, entry.Case.Expected)
-	if !hit && entry.Case.GoldAnswer != "" {
-		hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
-	}
-
-	return CaseResult{
-		Query:       entry.Case.Query,
-		Expected:    entry.Case.GoldAnswer,
-		Category:    entry.Case.Category,
-		Difficulty:  entry.Case.Difficulty,
-		Hit:         hit,
-		Rank:        rank,
-		Score:       score,
-		ResultCount: len(results),
-	}, nil
-}
-
-// RunLongMemEvalSingleVerbose 单问题详细调试评测，每一步输出日志
-// Single-question verbose debug evaluation with step-by-step logging
-func RunLongMemEvalSingleVerbose(ctx context.Context, entry LongMemEvalEntry, tmpDir string) error {
-	rawProvider := resolveLLMProvider()
-	if rawProvider == nil {
-		return fmt.Errorf("LLM provider required (set OPENAI_API_KEY)")
-	}
-
-	tracker := NewLLMTracker()
-	start := time.Now()
-	qCase := entry.Case
-
-	fmt.Println("\n" + strings.Repeat("=", 70))
-	fmt.Printf("VERBOSE SINGLE-QUESTION DEBUG\n")
-	fmt.Printf("Question ID: %s\n", qCase.QuestionID)
-	fmt.Printf("Query:       %s\n", qCase.Query)
-	fmt.Printf("Expected:    %v\n", qCase.Expected)
-	fmt.Printf("Gold Answer: %s\n", qCase.GoldAnswer)
-	fmt.Printf("Category:    %s | Difficulty: %s\n", qCase.Category, qCase.Difficulty)
-	fmt.Printf("Seed memories: %d\n", len(entry.SeedMemories))
-	fmt.Println(strings.Repeat("=", 70))
-
-	// --- Step 1: 建库 / Create DB ---
-	stepStart := time.Now()
-	dbPath := filepath.Join(tmpDir, "verbose_debug.db")
+// SeedLongMemEvalDB 将所有 entry 的 seed 记忆写入共享库 / Seed all entry memories into shared DB
+// withExtraction=true 时触发实体抽取（Graph/Vector/Full 层需要）
+func SeedLongMemEvalDB(ctx context.Context, entries []LongMemEvalEntry, dbPath string, withExtraction bool) error {
 	tok := tokenizer.NewSimpleTokenizer()
 	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
 	if err != nil {
@@ -816,852 +148,123 @@ func RunLongMemEvalSingleVerbose(ctx context.Context, entry LongMemEvalEntry, tm
 	if err := memStore.Init(ctx); err != nil {
 		return fmt.Errorf("init store: %w", err)
 	}
-	fmt.Printf("\n[Step 1] DB created (%s)\n", time.Since(stepStart).Round(time.Millisecond))
 
-	// --- Step 2: 图谱 + 实体抽取器 / Graph + Extractor ---
-	stepStart = time.Now()
-	extractProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "entity_extraction"}
-	strategyProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "strategy_agent"}
-	rerankProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "rerank_llm"}
-	preprocessProvider := &stageProvider{inner: rawProvider, tracker: tracker, stage: "preprocess"}
-
-	db := memStore.DB().(*sql.DB)
+	db, ok := memStore.DB().(*sql.DB)
+	if !ok {
+		return fmt.Errorf("store does not expose *sql.DB")
+	}
 	graphStore := store.NewSQLiteGraphStore(db)
 	graphMgr := memory.NewGraphManager(graphStore)
-	ext := memory.NewExtractor(extractProvider, graphMgr, memStore, nil, config.ExtractConfig{})
 
-	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
+	var extractor *memory.Extractor
+	if withExtraction {
+		llmProvider := resolveLLMProvider()
+		if llmProvider == nil {
+			return fmt.Errorf("LLM provider required for extraction (set OPENAI_API_KEY)")
+		}
+		extractor = memory.NewExtractor(llmProvider, graphMgr, memStore, nil, config.ExtractConfig{})
+	}
+
 	mgr := memory.NewManager(memory.ManagerDeps{
 		MemStore:  memStore,
-		Extractor: ext,
+		Extractor: extractor,
 	})
-	fmt.Printf("[Step 2] Graph store + Extractor initialized (%s)\n", time.Since(stepStart).Round(time.Millisecond))
 
-	// --- Step 3: Seed memories + 收集 ID / Seed memories and collect IDs ---
-	stepStart = time.Now()
-	fmt.Printf("\n[Step 3] Seeding %d memories...\n", len(entry.SeedMemories))
-	type seededMem struct{ ID, Content string }
-	var allSeeded []seededMem
-	for i, sm := range entry.SeedMemories {
-		kind := sm.Kind
-		if kind == "" {
-			kind = "conversation"
-		}
-		seedStart := time.Now()
-		mem, createErr := mgr.Create(ctx, &model.CreateMemoryRequest{
-			Content: sm.Content,
-			Kind:    kind,
-			SubKind: sm.SubKind,
-			Scope:   "eval/longmemeval",
-		})
-		elapsed := time.Since(seedStart)
-		contentPreview := sm.Content
-		if len([]rune(contentPreview)) > 80 {
-			contentPreview = string([]rune(contentPreview)[:80]) + "..."
-		}
-		status := "OK"
-		if createErr != nil {
-			status = fmt.Sprintf("ERR: %v", createErr)
-		} else {
-			allSeeded = append(allSeeded, seededMem{ID: mem.ID, Content: sm.Content})
-		}
-		fmt.Printf("  [3.%d] %s kind=%s (%s) %s\n", i+1, status, kind, elapsed.Round(time.Millisecond), contentPreview)
-	}
-	fmt.Printf("[Step 3] Seeding done: %d memories (%s)\n", len(allSeeded), time.Since(stepStart).Round(time.Millisecond))
-
-	// --- Step 3b: 批量实体抽取 / Batch entity extraction ---
-	stepStart = time.Now()
-	fmt.Printf("\n[Step 3b] Batch entity extraction (%d items)...\n", len(allSeeded))
-	batchItems := make([]model.BatchExtractItem, len(allSeeded))
-	for i, s := range allSeeded {
-		batchItems[i] = model.BatchExtractItem{MemoryID: s.ID, Content: s.Content}
-	}
-	batchResp, batchErr := ext.ExtractBatch(ctx, &model.BatchExtractRequest{
-		Items: batchItems, Scope: "eval/longmemeval",
-	})
-	if batchErr != nil {
-		fmt.Printf("[Step 3b] Batch extraction FAILED: %v\n", batchErr)
-	} else {
-		totalEntities := 0
-		for _, r := range batchResp.Results {
-			totalEntities += len(r.Entities)
-		}
-		fmt.Printf("[Step 3b] Done: %d batches, %d tokens, %d memory-entity associations (%s)\n",
-			batchResp.BatchCount, batchResp.TotalTokens, totalEntities,
-			time.Since(stepStart).Round(time.Millisecond))
-	}
-
-	// 输出抽取的实体 / Print extracted entities
-	entities, _ := graphStore.ListEntities(ctx, "", "", 1000)
-	fmt.Printf("  Entities in graph: %d\n", len(entities))
-	for i, e := range entities {
-		fmt.Printf("  [E%d] %s (type=%s)\n", i+1, e.Name, e.EntityType)
-	}
-
-	// --- Step 4: 配置管线 / Configure pipeline ---
-	stepStart = time.Now()
-	cfg := buildRetrievalConfig("fts")
-	cfg.GraphEnabled = true
-	cfg.GraphDepth = 2
-	cfg.GraphWeight = 0.8
-	cfg.Strategy.UseLLM = true
-	cfg.Strategy.FallbackPipeline = "exploration"
-	cfg.Preprocess.Enabled = true
-	cfg.Preprocess.UseLLM = true
-	cfg.Preprocess.LLMTimeout = 10 * time.Second
-
-	preprocessor := search.NewPreprocessor(tok, graphStore, preprocessProvider, cfg)
-	retriever := search.NewRetriever(memStore, nil, nil, graphStore, rerankProvider, cfg, preprocessor, nil)
-
-	// 手动初始化管线 / Manually init pipeline
-	registry := pipeline.NewRegistry()
-	deps := builtin.Deps{
-		FTSSearcher: memStore,
-		GraphStore:  graphStore,
-		Cfg:         cfg,
-	}
-	postStages := builtin.RegisterBuiltins(registry, deps)
-	executor := pipeline.NewExecutor(registry, pipeline.WithPostStages(postStages...))
-
-	rc := strategy.NewRuleClassifier(pipeline.PipelineExploration)
-	agent := strategy.NewAgent(strategyProvider, rc, 5*time.Second)
-	retriever.SetPipelineComponents(executor, agent, rc)
-	fmt.Printf("[Step 4] Pipeline configured (%s)\n", time.Since(stepStart).Round(time.Millisecond))
-
-	// --- Step 5: 执行检索（带 Debug trace）/ Execute retrieval with debug trace ---
-	stepStart = time.Now()
-	fmt.Printf("\n[Step 5] Retrieving: %q\n", qCase.Query)
-	result, err := retriever.RetrieveWithDebug(ctx, &model.RetrieveRequest{
-		Query: qCase.Query,
-		Limit: 10,
-		Debug: true,
-	})
-	if err != nil {
-		return fmt.Errorf("retrieve: %w", err)
-	}
-	fmt.Printf("[Step 5] Retrieval done (%s)\n", time.Since(stepStart).Round(time.Millisecond))
-
-	// --- Step 6: 输出 Pipeline Debug 信息 / Print pipeline debug info ---
-	if result.PipelineInfo != nil {
-		fmt.Printf("\n[Step 6] Pipeline: %s\n", result.PipelineInfo.PipelineName)
-		fmt.Printf("  Traces (%d stages):\n", len(result.PipelineInfo.Traces))
-		for i, tr := range result.PipelineInfo.Traces {
-			skipMark := ""
-			if tr.Skipped {
-				skipMark = " [SKIPPED]"
+	total := 0
+	for _, entry := range entries {
+		for _, sm := range entry.SeedMemories {
+			kind := sm.Kind
+			if kind == "" {
+				kind = "conversation"
 			}
-			note := ""
-			if tr.Note != "" {
-				note = fmt.Sprintf(" (%s)", tr.Note)
+			_, err := mgr.Create(ctx, &model.CreateMemoryRequest{
+				Content:       sm.Content,
+				Kind:          kind,
+				SubKind:       sm.SubKind,
+				Scope:         "eval/longmemeval",
+				RetentionTier: model.TierPermanent,
+				AutoExtract:   withExtraction,
+			})
+			if err != nil {
+				return fmt.Errorf("seed memory: %w", err)
 			}
-			fmt.Printf("  [T%d] %-20s in=%d out=%d %s%s%s\n",
-				i+1, tr.Name, tr.InputCount, tr.OutputCount, tr.Duration.Round(time.Millisecond), skipMark, note)
+			total++
 		}
 	}
-
-	// --- Step 7: 输出检索结果 / Print retrieval results ---
-	results := result.Results
-	fmt.Printf("\n[Step 7] Results: %d items\n", len(results))
-	for i, r := range results {
-		if r == nil || r.Memory == nil {
-			fmt.Printf("  [R%d] <nil>\n", i+1)
-			continue
-		}
-		contentPreview := r.Memory.Content
-		if len([]rune(contentPreview)) > 100 {
-			contentPreview = string([]rune(contentPreview)[:100]) + "..."
-		}
-		fmt.Printf("  [R%d] score=%.4f source=%s kind=%s\n       %s\n",
-			i+1, r.Score, r.Source, r.Memory.Kind, contentPreview)
-	}
-
-	// --- Step 8: 匹配检查 / Hit check ---
-	hit, rank, score := checkHit(results, qCase.Expected)
-	if !hit && qCase.GoldAnswer != "" {
-		hit, rank, score = fuzzyCheckHit(results, qCase.GoldAnswer)
-		if hit {
-			fmt.Printf("\n[Step 8] HIT (fuzzy) rank=%d score=%.4f\n", rank, score)
-		}
-	}
-	if hit && rank > 0 {
-		fmt.Printf("\n[Step 8] HIT rank=%d score=%.4f\n", rank, score)
-	} else {
-		fmt.Printf("\n[Step 8] MISS — expected keywords not found in results\n")
-	}
-
-	// --- Step 9: LLM 用量 / LLM usage ---
-	tracker.PrintUsage()
-
-	totalDuration := time.Since(start)
-	fmt.Printf("Total duration: %s\n", totalDuration.Round(time.Millisecond))
-	fmt.Println(strings.Repeat("=", 70))
-
+	fmt.Printf("  seeded %d memories into %s\n", total, dbPath)
 	return nil
 }
 
-// RunLongMemEvalSharedDB 共享单库评测：全部记忆写入同一 DB + LLM 实体抽取 + 全局图谱
-// Shared-DB eval: all memories in one DB with LLM entity extraction and global graph
-func RunLongMemEvalSharedDB(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, error) {
-	llmProvider := resolveLLMProvider()
-	if llmProvider == nil {
-		return nil, fmt.Errorf("LLM provider required for shared-DB eval (set OPENAI_API_KEY)")
-	}
-
+// RunLongMemEval 对已 seed 的共享库按指定层级运行评测 / Run eval against seeded shared DB with given tier
+func RunLongMemEval(ctx context.Context, entries []LongMemEvalEntry, dbPath string, tier Tier, maxQuestions int) (*EvalReport, error) {
 	if maxQuestions > 0 && len(entries) > maxQuestions {
 		entries = entries[:maxQuestions]
 	}
 
-	start := time.Now()
-	dbPath := filepath.Join(tmpDir, "shared_eval.db")
-
 	tok := tokenizer.NewSimpleTokenizer()
 	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
 	if err != nil {
-		return nil, fmt.Errorf("create shared store: %w", err)
-	}
-	defer memStore.Close()
-
-	if err := memStore.Init(ctx); err != nil {
-		return nil, fmt.Errorf("init shared store: %w", err)
-	}
-
-	db := memStore.DB().(*sql.DB)
-	graphStore := store.NewSQLiteGraphStore(db)
-	graphMgr := memory.NewGraphManager(graphStore)
-	ext := memory.NewExtractor(llmProvider, graphMgr, memStore, nil, config.ExtractConfig{})
-
-	// Manager 不传 LLMProvider，避免 seed 时逐条 LLM 生成 excerpt / No LLMProvider to skip per-seed excerpt generation
-	mgr := memory.NewManager(memory.ManagerDeps{
-		MemStore:  memStore,
-		Extractor: ext,
-	})
-
-	// --- Phase 1a: seed（收集 memoryID）/ Seed and collect memory IDs ---
-	type seedKey struct{ content, kind string }
-	seeded := make(map[seedKey]bool)
-	type seededMem struct{ ID, Content string }
-	var allSeeded []seededMem
-
-	for _, entry := range entries {
-		for _, sm := range entry.SeedMemories {
-			kind := sm.Kind
-			if kind == "" {
-				kind = "conversation"
-			}
-			key := seedKey{content: sm.Content, kind: kind}
-			if seeded[key] {
-				continue
-			}
-			seeded[key] = true
-			mem, createErr := mgr.Create(ctx, &model.CreateMemoryRequest{
-				Content: sm.Content,
-				Kind:    kind,
-				SubKind: sm.SubKind,
-				Scope:   "eval/longmemeval",
-			})
-			if createErr != nil {
-				continue
-			}
-			allSeeded = append(allSeeded, seededMem{ID: mem.ID, Content: sm.Content})
-			if len(allSeeded)%50 == 0 {
-				fmt.Printf("  [seed] %d memories seeded...\n", len(allSeeded))
-			}
-		}
-	}
-	seedDuration := time.Since(start)
-	fmt.Printf("  [seed] Phase 1a done: %d memories (%s)\n", len(allSeeded), seedDuration.Round(time.Second))
-
-	// --- Phase 1b: 批量实体抽取 / Batch entity extraction ---
-	extractStart := time.Now()
-	batchItems := make([]model.BatchExtractItem, len(allSeeded))
-	for i, s := range allSeeded {
-		batchItems[i] = model.BatchExtractItem{MemoryID: s.ID, Content: s.Content}
-	}
-	batchResp, batchErr := ext.ExtractBatch(ctx, &model.BatchExtractRequest{
-		Items: batchItems, Scope: "eval/longmemeval",
-	})
-	if batchErr != nil {
-		fmt.Printf("  [extract] batch extraction failed: %v\n", batchErr)
-	} else {
-		fmt.Printf("  [extract] Phase 1b done: %d batches, %d tokens (%s)\n",
-			batchResp.BatchCount, batchResp.TotalTokens, time.Since(extractStart).Round(time.Second))
-	}
-
-	entityCount := 0
-	if ents, listErr := graphStore.ListEntities(ctx, "", "", 100000); listErr == nil {
-		entityCount = len(ents)
-	}
-	fmt.Printf("  [seed] Phase 1 total: %d memories, %d entities, %s\n", len(allSeeded), entityCount, time.Since(start).Round(time.Second))
-
-	// --- Phase 2: query ---
-	cfg := buildRetrievalConfig("fts")
-	cfg.GraphEnabled = true
-	cfg.GraphDepth = 2
-	cfg.GraphWeight = 0.8
-	retriever := search.NewRetriever(memStore, nil, nil, graphStore, llmProvider, cfg, nil, nil)
-	retriever.InitPipeline()
-
-	queryStart := time.Now()
-	cases := make([]CaseResult, 0, len(entries))
-
-	for i, entry := range entries {
-		if i > 0 && i%5 == 0 {
-			hits := 0
-			for _, c := range cases {
-				if c.Hit {
-					hits++
-				}
-			}
-			fmt.Printf("  [query %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
-		}
-
-		results, qErr := retriever.Retrieve(ctx, &model.RetrieveRequest{
-			Query: entry.Case.Query,
-			Limit: 10,
-		})
-		if qErr != nil {
-			cases = append(cases, CaseResult{
-				Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
-				Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
-				Hit: false, Rank: -1,
-			})
-			continue
-		}
-
-		hit, rank, score := checkHit(results, entry.Case.Expected)
-		if !hit && entry.Case.GoldAnswer != "" {
-			hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
-		}
-		cases = append(cases, CaseResult{
-			Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
-			Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
-			Hit: hit, Rank: rank, Score: score, ResultCount: len(results),
-		})
-	}
-
-	queryDuration := time.Since(queryStart)
-	metrics := Aggregate(cases)
-
-	report := &EvalReport{
-		Mode:         fmt.Sprintf("shared-DB (graph+llm) — %d memories, %d entities", len(allSeeded), entityCount),
-		Dataset:      "longmemeval-oracle",
-		Timestamp:    time.Now(),
-		Metrics:      metrics,
-		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
-		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
-		Cases:        cases,
-		Duration:     time.Since(start),
-		GitCommit:    resolveGitCommit(),
-	}
-
-	fmt.Printf("\n  Phase 1 (seed+extract): %s | Phase 2 (query): %s\n", seedDuration.Round(time.Second), queryDuration.Round(time.Second))
-	return report, nil
-}
-
-// RunLongMemEvalResolverDB 向量解析器评测：全部记忆写入同一 DB + EntityResolver 实体抽取（无 LLM）
-// Resolver-DB eval: all memories in one DB with EntityResolver extraction (no LLM)
-func RunLongMemEvalResolverDB(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, error) {
-	if maxQuestions > 0 && len(entries) > maxQuestions {
-		entries = entries[:maxQuestions]
-	}
-
-	start := time.Now()
-	dbPath := filepath.Join(tmpDir, "resolver_eval.db")
-
-	tok := tokenizer.NewSimpleTokenizer()
-	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
-	if err != nil {
-		return nil, fmt.Errorf("create resolver store: %w", err)
-	}
-	defer memStore.Close()
-
-	if err := memStore.Init(ctx); err != nil {
-		return nil, fmt.Errorf("init resolver store: %w", err)
-	}
-
-	db := memStore.DB().(*sql.DB)
-	graphStore := store.NewSQLiteGraphStore(db)
-	candidateStore := store.NewSQLiteCandidateStore(db)
-
-	// Manager 不传 LLM/Extractor / No LLM, no Extractor
-	mgr := memory.NewManager(memory.ManagerDeps{MemStore: memStore})
-
-	// --- Phase 1a: seed ---
-	type seedKey struct{ content, kind string }
-	seeded := make(map[seedKey]bool)
-	type seededMem struct{ ID, Content string }
-	var allSeeded []seededMem
-
-	for _, entry := range entries {
-		for _, sm := range entry.SeedMemories {
-			kind := sm.Kind
-			if kind == "" {
-				kind = "conversation"
-			}
-			key := seedKey{content: sm.Content, kind: kind}
-			if seeded[key] {
-				continue
-			}
-			seeded[key] = true
-			mem, createErr := mgr.Create(ctx, &model.CreateMemoryRequest{
-				Content: sm.Content, Kind: kind, SubKind: sm.SubKind, Scope: "eval/longmemeval",
-			})
-			if createErr != nil {
-				continue
-			}
-			allSeeded = append(allSeeded, seededMem{ID: mem.ID, Content: sm.Content})
-			if len(allSeeded)%50 == 0 {
-				fmt.Printf("  [seed] %d memories seeded...\n", len(allSeeded))
-			}
-		}
-	}
-	seedDuration := time.Since(start)
-	fmt.Printf("  [seed] Phase 1a done: %d memories (%s)\n", len(allSeeded), seedDuration.Round(time.Second))
-
-	// --- Phase 1b: EntityResolver 两轮解析（无 LLM）/ Two-pass resolver (no LLM) ---
-	resolveStart := time.Now()
-	resolverCfg := config.ResolverConfig{Enabled: true, CandidatePromoteMin: 2}
-	resolver := memory.NewEntityResolver(tok, graphStore, candidateStore, nil, nil, resolverCfg)
-
-	mems := make([]*model.Memory, len(allSeeded))
-	for i, s := range allSeeded {
-		mems[i] = &model.Memory{ID: s.ID, Content: s.Content, Scope: "eval/longmemeval"}
-	}
-
-	// Pass 1: 全部词成为候选（无已知实体）/ All terms become candidates
-	resolver.Resolve(ctx, mems)
-
-	// 晋升候选 → 正式实体 / Promote candidates to real entities
-	candidates, _ := candidateStore.ListPromotable(ctx, 2)
-	promoted := 0
-	for _, c := range candidates {
-		entity := &model.Entity{Name: c.Name, EntityType: "concept", Scope: c.Scope}
-		if err := graphStore.CreateEntity(ctx, entity); err != nil {
-			continue
-		}
-		for _, memID := range c.MemoryIDs {
-			_ = graphStore.CreateMemoryEntity(ctx, &model.MemoryEntity{
-				MemoryID: memID, EntityID: entity.ID, Role: "mentioned", Confidence: 0.9,
-			})
-		}
-		_ = candidateStore.DeleteCandidate(ctx, c.Name, c.Scope)
-		promoted++
-	}
-	fmt.Printf("  [resolver] promoted %d candidates to entities\n", promoted)
-
-	// Pass 2: 匹配已有实体 + 建立共现关系 / Match promoted entities + build co-occurrence
-	resolver.Resolve(ctx, mems)
-
-	entityCount := 0
-	if ents, listErr := graphStore.ListEntities(ctx, "", "", 100000); listErr == nil {
-		entityCount = len(ents)
-	}
-	fmt.Printf("  [resolver] Phase 1b done: %d entities (%s)\n", entityCount, time.Since(resolveStart).Round(time.Second))
-
-	// --- Phase 2: query ---
-	cfg := buildRetrievalConfig("fts")
-	cfg.GraphEnabled = true
-	cfg.GraphDepth = 2
-	cfg.GraphWeight = 0.8
-	retriever := search.NewRetriever(memStore, nil, nil, graphStore, nil, cfg, nil, nil)
-	retriever.InitPipeline()
-
-	queryStart := time.Now()
-	cases := make([]CaseResult, 0, len(entries))
-
-	for i, entry := range entries {
-		if i > 0 && i%5 == 0 {
-			hits := 0
-			for _, c := range cases {
-				if c.Hit {
-					hits++
-				}
-			}
-			fmt.Printf("  [query %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
-		}
-
-		results, qErr := retriever.Retrieve(ctx, &model.RetrieveRequest{Query: entry.Case.Query, Limit: 10})
-		if qErr != nil {
-			cases = append(cases, CaseResult{
-				Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
-				Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
-				Hit: false, Rank: -1,
-			})
-			continue
-		}
-
-		hit, rank, score := checkHit(results, entry.Case.Expected)
-		if !hit && entry.Case.GoldAnswer != "" {
-			hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
-		}
-		cases = append(cases, CaseResult{
-			Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
-			Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
-			Hit: hit, Rank: rank, Score: score, ResultCount: len(results),
-		})
-	}
-
-	queryDuration := time.Since(queryStart)
-	metrics := Aggregate(cases)
-
-	report := &EvalReport{
-		Mode:         fmt.Sprintf("shared-DB (resolver, no LLM) — %d memories, %d entities", len(allSeeded), entityCount),
-		Dataset:      "longmemeval-oracle",
-		Timestamp:    time.Now(),
-		Metrics:      metrics,
-		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
-		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
-		Cases:        cases,
-		Duration:     time.Since(start),
-		GitCommit:    resolveGitCommit(),
-	}
-
-	fmt.Printf("\n  Phase 1 (seed+resolve): %s | Phase 2 (query): %s\n",
-		(seedDuration + time.Since(resolveStart)).Round(time.Second), queryDuration.Round(time.Second))
-	return report, nil
-}
-
-// RunLongMemEvalResolverFull 完整三层向量解析器评测：SQLite + Qdrant + Embedding + EntityResolver（无 LLM）
-// Full three-layer resolver eval: SQLite + Qdrant + Embedding + EntityResolver (no LLM)
-// 需要: EMBEDDING_API_KEY + Qdrant (localhost:6333) / Requires: EMBEDDING_API_KEY + Qdrant
-func RunLongMemEvalResolverFull(ctx context.Context, entries []LongMemEvalEntry, tmpDir string, maxQuestions int) (*EvalReport, error) {
-	// 解析环境变量 / Parse environment variables
-	embeddingAPIKey := os.Getenv("EMBEDDING_API_KEY")
-	if embeddingAPIKey == "" {
-		embeddingAPIKey = os.Getenv("OPENAI_API_KEY")
-	}
-	if embeddingAPIKey == "" {
-		return nil, fmt.Errorf("EMBEDDING_API_KEY or OPENAI_API_KEY required for full resolver eval")
-	}
-	embeddingModel := os.Getenv("EMBEDDING_MODEL")
-	if embeddingModel == "" {
-		embeddingModel = "text-embedding-3-small"
-	}
-	qdrantURL := os.Getenv("QDRANT_URL")
-	if qdrantURL == "" {
-		qdrantURL = "http://localhost:6333"
-	}
-	qdrantCollection := "eval_resolver_" + time.Now().Format("20060102_150405")
-	qdrantDimension := 1536 // text-embedding-3-small default
-	if d := os.Getenv("EMBEDDING_DIMENSION"); d != "" {
-		if n, err := fmt.Sscanf(d, "%d", &qdrantDimension); n == 0 || err != nil {
-			qdrantDimension = 1536
-		}
-	}
-
-	if maxQuestions > 0 && len(entries) > maxQuestions {
-		entries = entries[:maxQuestions]
-	}
-
-	start := time.Now()
-	dbPath := filepath.Join(tmpDir, "resolver_full_eval.db")
-
-	// --- 初始化存储 / Initialize stores ---
-	tok := tokenizer.NewSimpleTokenizer()
-	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
-	if err != nil {
-		return nil, fmt.Errorf("create store: %w", err)
+		return nil, fmt.Errorf("open store: %w", err)
 	}
 	defer memStore.Close()
 	if err := memStore.Init(ctx); err != nil {
 		return nil, fmt.Errorf("init store: %w", err)
 	}
 
-	db := memStore.DB().(*sql.DB)
+	db, ok := memStore.DB().(*sql.DB)
+	if !ok {
+		return nil, fmt.Errorf("store does not expose *sql.DB")
+	}
 	graphStore := store.NewSQLiteGraphStore(db)
-	candidateStore := store.NewSQLiteCandidateStore(db)
 
-	// Qdrant 向量存储 / Qdrant vector store
-	vecStore := store.NewQdrantVectorStore(qdrantURL, qdrantCollection, qdrantDimension)
-	if err := vecStore.Init(ctx); err != nil {
-		return nil, fmt.Errorf("init qdrant: %w (is Qdrant running at %s?)", err, qdrantURL)
-	}
-	defer vecStore.Close()
-	fmt.Printf("  [init] Qdrant collection: %s (dim=%d)\n", qdrantCollection, qdrantDimension)
-
-	// Embedding 模型 / Embedding model
-	embedder := embed.NewOpenAIEmbedder(embeddingAPIKey, embeddingModel)
-	fmt.Printf("  [init] Embedding model: %s\n", embeddingModel)
-
-	// CentroidManager / Centroid manager
-	centroidCollection := qdrantCollection + "_centroids"
-	centroidMgr, err := memory.NewCentroidManager(qdrantURL, centroidCollection, qdrantDimension)
-	if err != nil {
-		fmt.Printf("  [init] CentroidManager failed (Layer 2 disabled): %v\n", err)
-		centroidMgr = nil
-	} else {
-		fmt.Printf("  [init] CentroidManager: %s\n", centroidCollection)
-	}
-
-	// Manager 带 vecStore + embedder / Manager with vector store + embedder
-	mgr := memory.NewManager(memory.ManagerDeps{
-		MemStore: memStore,
-		VecStore: vecStore,
-		Embedder: embedder,
-	})
-
-	// --- Phase 1a: seed（写入 SQLite + Qdrant）/ Seed into SQLite + Qdrant ---
-	type seedKey struct{ content, kind string }
-	seeded := make(map[seedKey]bool)
-	type seededMem struct {
-		ID, Content string
-		Embedding   []float32
-	}
-	var allSeeded []seededMem
-
-	for _, entry := range entries {
-		for _, sm := range entry.SeedMemories {
-			kind := sm.Kind
-			if kind == "" {
-				kind = "conversation"
-			}
-			key := seedKey{content: sm.Content, kind: kind}
-			if seeded[key] {
-				continue
-			}
-			seeded[key] = true
-			mem, createErr := mgr.Create(ctx, &model.CreateMemoryRequest{
-				Content: sm.Content, Kind: kind, SubKind: sm.SubKind, Scope: "eval/longmemeval",
-			})
-			if createErr != nil {
-				continue
-			}
-			allSeeded = append(allSeeded, seededMem{ID: mem.ID, Content: sm.Content})
-			if len(allSeeded)%50 == 0 {
-				fmt.Printf("  [seed] %d memories seeded (SQLite + Qdrant)...\n", len(allSeeded))
-			}
-		}
-	}
-	seedDuration := time.Since(start)
-	fmt.Printf("  [seed] Phase 1a done: %d memories (%s)\n", len(allSeeded), seedDuration.Round(time.Second))
-
-	// --- Phase 1b: 批量获取 embedding + 三层解析 / Batch embedding + three-layer resolution ---
-	resolveStart := time.Now()
-
-	// 批量获取 embedding / Batch embed all seeded memories
-	fmt.Printf("  [embed] Embedding %d memories...\n", len(allSeeded))
-	texts := make([]string, len(allSeeded))
-	for i, s := range allSeeded {
-		texts[i] = s.Content
-	}
-
-	batchSize := 100
-	var allEmbeddings [][]float32
-	for i := 0; i < len(texts); i += batchSize {
-		end := i + batchSize
-		if end > len(texts) {
-			end = len(texts)
-		}
-		batch, embErr := embedder.EmbedBatch(ctx, texts[i:end])
-		if embErr != nil {
-			return nil, fmt.Errorf("embed batch %d-%d: %w", i, end, embErr)
-		}
-		allEmbeddings = append(allEmbeddings, batch...)
-		fmt.Printf("  [embed] %d/%d embedded\n", len(allEmbeddings), len(texts))
-	}
-	fmt.Printf("  [embed] Done: %d embeddings (%s)\n", len(allEmbeddings), time.Since(resolveStart).Round(time.Second))
-
-	// EntityResolver 三层 / Three-layer EntityResolver
-	resolverCfg := config.ResolverConfig{
-		Enabled:             true,
-		CentroidThreshold:   0.6,
-		NeighborK:           10,
-		NeighborMinCount:    2,
-		CandidatePromoteMin: 2,
-	}
-	resolver := memory.NewEntityResolver(tok, graphStore, candidateStore, centroidMgr, vecStore, resolverCfg)
-
-	mems := make([]*model.Memory, len(allSeeded))
-	for i, s := range allSeeded {
-		mems[i] = &model.Memory{ID: s.ID, Content: s.Content, Scope: "eval/longmemeval"}
-	}
-
-	// Pass 1: 三层解析（Layer 1 分词 + Layer 2 质心 + Layer 3 近邻）/ Three-layer pass 1
-	fmt.Printf("  [resolver] Pass 1: three-layer resolution...\n")
-	resolver.ResolveWithEmbeddings(ctx, mems, allEmbeddings)
-
-	// 晋升候选 / Promote candidates
-	promCandidates, _ := candidateStore.ListPromotable(ctx, 2)
-	promoted := 0
-	for _, c := range promCandidates {
-		entity := &model.Entity{Name: c.Name, EntityType: "concept", Scope: c.Scope}
-		if err := graphStore.CreateEntity(ctx, entity); err != nil {
-			continue
-		}
-		for _, memID := range c.MemoryIDs {
-			_ = graphStore.CreateMemoryEntity(ctx, &model.MemoryEntity{
-				MemoryID: memID, EntityID: entity.ID, Role: "mentioned", Confidence: 0.9,
-			})
-		}
-		_ = candidateStore.DeleteCandidate(ctx, c.Name, c.Scope)
-		promoted++
-
-		// 计算晋升实体的质心 / Compute centroid for promoted entity
-		if centroidMgr != nil {
-			var centroidVecs [][]float32
-			for _, memID := range c.MemoryIDs {
-				for j, s := range allSeeded {
-					if s.ID == memID && j < len(allEmbeddings) {
-						centroidVecs = append(centroidVecs, allEmbeddings[j])
-					}
-				}
-			}
-			if len(centroidVecs) > 0 {
-				centroid := averageVectors(centroidVecs)
-				_ = centroidMgr.UpsertCentroid(ctx, entity.ID, entity.Name, entity.Scope, centroid, len(centroidVecs))
-			}
-		}
-	}
-	fmt.Printf("  [resolver] promoted %d candidates to entities\n", promoted)
-
-	// Pass 2: 二次解析 / Second pass
-	fmt.Printf("  [resolver] Pass 2: re-resolution with promoted entities...\n")
-	resolver.ResolveWithEmbeddings(ctx, mems, allEmbeddings)
-
-	entityCount := 0
-	if ents, listErr := graphStore.ListEntities(ctx, "", "", 100000); listErr == nil {
-		entityCount = len(ents)
-	}
-	relCount := 0
-	for _, ent := range func() []*model.Entity {
-		ents, _ := graphStore.ListEntities(ctx, "", "", 100000)
-		return ents
-	}() {
-		rels, _ := graphStore.GetEntityRelations(ctx, ent.ID)
-		relCount += len(rels)
-	}
-	relCount /= 2 // 双向计数 / Double-counted
-
-	fmt.Printf("  [resolver] Phase 1b done: %d entities, ~%d relations (%s)\n",
-		entityCount, relCount, time.Since(resolveStart).Round(time.Second))
-
-	// --- Phase 2: query ---
 	cfg := buildRetrievalConfig("fts")
-	cfg.GraphEnabled = true
-	cfg.GraphDepth = 2
-	cfg.GraphWeight = 0.8
-	cfg.QdrantWeight = 0.6
-	retriever := search.NewRetriever(memStore, vecStore, embedder, graphStore, nil, cfg, nil, nil)
-	retriever.InitPipeline()
-
-	queryStart := time.Now()
-	cases := make([]CaseResult, 0, len(entries))
-
-	for i, entry := range entries {
-		if i > 0 && i%5 == 0 {
-			hits := 0
-			for _, c := range cases {
-				if c.Hit {
-					hits++
-				}
-			}
-			fmt.Printf("  [query %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
-		}
-
-		results, qErr := retriever.Retrieve(ctx, &model.RetrieveRequest{Query: entry.Case.Query, Limit: 10})
-		if qErr != nil {
-			cases = append(cases, CaseResult{
-				Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
-				Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
-				Hit: false, Rank: -1,
-			})
-			continue
-		}
-
-		hit, rank, score := checkHit(results, entry.Case.Expected)
-		if !hit && entry.Case.GoldAnswer != "" {
-			hit, rank, score = fuzzyCheckHit(results, entry.Case.GoldAnswer)
-		}
-		cases = append(cases, CaseResult{
-			Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
-			Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
-			Hit: hit, Rank: rank, Score: score, ResultCount: len(results),
-		})
+	if tier.Pipeline {
+		// buildRetrievalConfig 无 "pipeline" case，手动启用 preprocess（激活管线意图分类）
+		// buildRetrievalConfig has no "pipeline" case; enable preprocess to activate pipeline intent classification
+		cfg.Preprocess.Enabled = true
 	}
-
-	queryDuration := time.Since(queryStart)
-	metrics := Aggregate(cases)
-
-	layerInfo := "L1"
-	if centroidMgr != nil {
-		layerInfo += "+L2"
-	}
-	if vecStore != nil {
-		layerInfo += "+L3"
-	}
-
-	report := &EvalReport{
-		Mode:         fmt.Sprintf("full-resolver (%s, no LLM) — %d memories, %d entities, ~%d relations", layerInfo, len(allSeeded), entityCount, relCount),
-		Dataset:      "longmemeval-oracle",
-		Timestamp:    time.Now(),
-		Metrics:      metrics,
-		ByCategory:   groupAggregate(cases, func(c CaseResult) string { return c.Category }),
-		ByDifficulty: groupAggregate(cases, func(c CaseResult) string { return c.Difficulty }),
-		Cases:        cases,
-		Duration:     time.Since(start),
-		GitCommit:    resolveGitCommit(),
-	}
-
-	fmt.Printf("\n  Phase 1 (seed+embed+resolve): %s | Phase 2 (query): %s\n",
-		time.Since(start).Round(time.Second)-queryDuration.Round(time.Second), queryDuration.Round(time.Second))
-	return report, nil
-}
-
-// averageVectors 计算向量平均值 / Compute average of vectors
-func averageVectors(vecs [][]float32) []float32 {
-	if len(vecs) == 0 {
-		return nil
-	}
-	dim := len(vecs[0])
-	avg := make([]float32, dim)
-	for _, v := range vecs {
-		for i, val := range v {
-			avg[i] += val
+	cfg.GraphEnabled = tier.Graph
+	if tier.Graph {
+		cfg.GraphDepth = 2
+		cfg.GraphWeight = tier.GraphWeight
+		if cfg.GraphWeight <= 0 {
+			cfg.GraphWeight = 0.8
 		}
 	}
-	n := float32(len(vecs))
-	for i := range avg {
-		avg[i] /= n
-	}
-	return avg
-}
 
-// RunLongMemEvalQueryOnly 纯查询评测：复用已有数据库，跳过 seed+extract 阶段
-// Query-only eval: reuse existing DB, skip seed and extraction phases
-func RunLongMemEvalQueryOnly(ctx context.Context, entries []LongMemEvalEntry, dbPath string, maxQuestions int) (*EvalReport, error) {
-	if maxQuestions > 0 && len(entries) > maxQuestions {
-		entries = entries[:maxQuestions]
+	llmProvider := resolveLLMProvider()
+
+	// Vector store (optional, requires Qdrant) / 向量存储（可选，需要 Qdrant）
+	var vecStore store.VectorStore
+	var embedder store.Embedder
+	if tier.Vector {
+		emb, embErr := resolveEmbedder()
+		if embErr != nil {
+			return nil, fmt.Errorf("resolve embedder for eval: %w", embErr)
+		}
+		vs := store.NewQdrantVectorStore(evalQdrantURL(), EvalCollection, evalQdrantDim())
+		if initErr := vs.Init(ctx); initErr != nil {
+			return nil, fmt.Errorf("init qdrant for eval: %w", initErr)
+		}
+		vecStore = vs
+		embedder = emb
 	}
+
+	// LLM rerank (optional) / LLM 精排（可选）
+	var extraPostStages []pipeline.Stage
+	if tier.Rerank && llmProvider != nil {
+		// 精排参数：topK=20, scoreWeight=0.7, minRelevance=0.3, timeout=8s
+		// Rerank knobs: topK=20, scoreWeight=0.7, minRelevance=0.3, timeout=8s
+		extraPostStages = append(extraPostStages,
+			stage.NewRerankLLMStage(llmProvider, 20, 0.7, 0.3, 8*time.Second))
+	}
+
+	retriever := search.NewRetriever(memStore, vecStore, embedder, graphStore, llmProvider, cfg, nil, nil)
+	retriever.InitPipeline(extraPostStages...)
 
 	start := time.Now()
-	tok := tokenizer.NewSimpleTokenizer()
-	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
-	if err != nil {
-		return nil, fmt.Errorf("open existing store: %w", err)
-	}
-	defer memStore.Close()
-
-	db := memStore.DB().(*sql.DB)
-	graphStore := store.NewSQLiteGraphStore(db)
-
-	// 统计已有数据 / Report existing data
-	memCount := 0
-	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM memories").Scan(&memCount)
-	entityCount := 0
-	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM entities").Scan(&entityCount)
-	relCount := 0
-	_ = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM entity_relations").Scan(&relCount)
-	fmt.Printf("  [reuse] DB: %s — %d memories, %d entities, %d relations\n", dbPath, memCount, entityCount, relCount)
-
-	// FTS + 图谱检索，strategy agent 走规则分类器 / FTS + graph retrieval, rule-based strategy
-	cfg := buildRetrievalConfig("fts")
-	cfg.GraphEnabled = true
-	cfg.GraphDepth = 2
-	cfg.GraphWeight = 0.8
-	retriever := search.NewRetriever(memStore, nil, nil, graphStore, nil, cfg, nil, nil)
-	retriever.InitPipeline()
-
 	cases := make([]CaseResult, 0, len(entries))
+
 	for i, entry := range entries {
 		if i > 0 && i%10 == 0 {
 			hits := 0
@@ -1670,32 +273,21 @@ func RunLongMemEvalQueryOnly(ctx context.Context, entries []LongMemEvalEntry, db
 					hits++
 				}
 			}
-			fmt.Printf("  [query %d/%d] hit %d/%d (%.1f%%)\n", i, len(entries), hits, i, float64(hits)*100/float64(i))
+			fmt.Printf("  [%s %d/%d] hit %d/%d (%.1f%%)\n",
+				tier.Name, i, len(entries), hits, i, float64(hits)*100/float64(i))
 		}
 
-		qStart := time.Now()
-		debugResult, qErr := retriever.RetrieveWithDebug(ctx, &model.RetrieveRequest{
+		results, err := retriever.Retrieve(ctx, &model.RetrieveRequest{
 			Query: entry.Case.Query,
 			Limit: 10,
-			Debug: true,
 		})
-		if qErr != nil {
-			fmt.Printf("  [query %d] ERROR: %v (%.1fs)\n", i, qErr, time.Since(qStart).Seconds())
+		if err != nil {
 			cases = append(cases, CaseResult{
 				Query: entry.Case.Query, Expected: entry.Case.GoldAnswer,
 				Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
 				Hit: false, Rank: -1,
 			})
 			continue
-		}
-		results := debugResult.Results
-		// 打印管线调试信息 / Print pipeline debug traces
-		if debugResult.PipelineInfo != nil {
-			fmt.Printf("  [query %d] pipeline=%s (%.1fs)\n", i, debugResult.PipelineInfo.PipelineName, time.Since(qStart).Seconds())
-			for _, tr := range debugResult.PipelineInfo.Traces {
-				fmt.Printf("    stage=%-20s duration=%-10s in=%d out=%d skipped=%v note=%s\n",
-					tr.Name, tr.Duration.Round(time.Millisecond), tr.InputCount, tr.OutputCount, tr.Skipped, tr.Note)
-			}
 		}
 
 		hit, rank, score := checkHit(results, entry.Case.Expected)
@@ -1707,11 +299,12 @@ func RunLongMemEvalQueryOnly(ctx context.Context, entries []LongMemEvalEntry, db
 			Category: entry.Case.Category, Difficulty: entry.Case.Difficulty,
 			Hit: hit, Rank: rank, Score: score, ResultCount: len(results),
 		})
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	metrics := Aggregate(cases)
-	report := &EvalReport{
-		Mode:         fmt.Sprintf("query-only (reuse DB) — %d memories, %d entities", memCount, entityCount),
+	return &EvalReport{
+		Mode:         "longmemeval — " + tier.Name,
 		Dataset:      "longmemeval-oracle",
 		Timestamp:    time.Now(),
 		Metrics:      metrics,
@@ -1720,7 +313,446 @@ func RunLongMemEvalQueryOnly(ctx context.Context, entries []LongMemEvalEntry, db
 		Cases:        cases,
 		Duration:     time.Since(start),
 		GitCommit:    resolveGitCommit(),
+	}, nil
+}
+
+// extractQueuePath 队列文件路径（与 DB 同目录）/ Queue file path alongside the DB
+func extractQueuePath(dbPath string) string {
+	return filepath.Join(filepath.Dir(dbPath), "extract_queue.md")
+}
+
+// loadExtractQueue 读取队列文件，返回待处理 ID 列表。文件不存在返回 nil。
+// Load queue file and return pending memory IDs. Returns nil if file absent.
+func loadExtractQueue(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read queue file: %w", err)
+	}
+	var ids []string
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		ids = append(ids, line)
+	}
+	return ids, nil
+}
+
+// saveExtractQueue 将剩余 ID 写回队列文件；IDs 为空时删除文件。
+// Write remaining IDs back to queue file; deletes file when empty.
+func saveExtractQueue(path string, ids []string) error {
+	if len(ids) == 0 {
+		_ = os.Remove(path)
+		return nil
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "# Entity Extraction Queue — %d remaining\n", len(ids))
+	sb.WriteString("# Each line is a memory ID pending extraction.\n")
+	sb.WriteString("# Completed IDs are removed after each chunk. Delete file to skip.\n\n")
+	for _, id := range ids {
+		sb.WriteString(id)
+		sb.WriteString("\n")
+	}
+	return os.WriteFile(path, []byte(sb.String()), 0644)
+}
+
+// queryModelContextLimit 返回批量抽取的 token 阈值，委托给 llm.DetectContextWindow。
+// Delegates to llm.DetectContextWindow — 5-layer detection: env → API → pattern table → ask model → default.
+func queryModelContextLimit(ctx context.Context, provider llm.Provider) int {
+	return llm.DetectContextWindow(ctx, provider)
+}
+
+// ExtractEntitiesFromDB 对共享库中所有记忆补跑批量实体抽取
+// Batch entity extraction for all memories already in the shared DB.
+// Safe to re-run: existing entities are reused via exact-match.
+// maxItems=0 means no limit; pass a positive value to cap the number of memories processed.
+func ExtractEntitiesFromDB(ctx context.Context, dbPath string, maxItems int) (int, error) {
+	llmProvider := resolveLLMProvider()
+	if llmProvider == nil {
+		return 0, fmt.Errorf("LLM provider required (set OPENAI_API_KEY)")
 	}
 
-	return report, nil
+	tok := tokenizer.NewSimpleTokenizer()
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
+	if err != nil {
+		return 0, fmt.Errorf("open store: %w", err)
+	}
+	defer memStore.Close()
+	if err := memStore.Init(ctx); err != nil {
+		return 0, fmt.Errorf("init store: %w", err)
+	}
+
+	db, ok := memStore.DB().(*sql.DB)
+	if !ok {
+		return 0, fmt.Errorf("store does not expose *sql.DB")
+	}
+	graphStore := store.NewSQLiteGraphStore(db)
+	graphMgr := memory.NewGraphManager(graphStore)
+
+	queueFile := extractQueuePath(dbPath)
+
+	// 尝试从队列文件恢复；文件不存在则从 DB 查询并初始化队列
+	// Try to resume from queue file; if absent, query DB and initialize queue.
+	pendingIDs, err := loadExtractQueue(queueFile)
+	if err != nil {
+		return 0, fmt.Errorf("load queue: %w", err)
+	}
+
+	if pendingIDs == nil {
+		// 队列文件不存在：从 DB 查询未抽取的记忆 / Queue absent: query DB for unextracted memories
+		q := `SELECT m.id FROM memories m
+			WHERE m.deleted_at IS NULL
+			  AND NOT EXISTS (SELECT 1 FROM memory_entities me WHERE me.memory_id = m.id)
+			ORDER BY m.created_at`
+		if maxItems > 0 {
+			q += fmt.Sprintf(" LIMIT %d", maxItems)
+		}
+		rows, err := db.QueryContext(ctx, q)
+		if err != nil {
+			return 0, fmt.Errorf("query memories: %w", err)
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return 0, fmt.Errorf("scan id: %w", err)
+			}
+			pendingIDs = append(pendingIDs, id)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return 0, fmt.Errorf("iterate ids: %w", err)
+		}
+		if len(pendingIDs) == 0 {
+			fmt.Println("  ExtractEntitiesFromDB: all memories already have entity associations, nothing to do")
+			return 0, nil
+		}
+		if err := saveExtractQueue(queueFile, pendingIDs); err != nil {
+			return 0, fmt.Errorf("save queue: %w", err)
+		}
+		fmt.Printf("  ExtractEntitiesFromDB: initialized queue → %s (%d memories)\n", queueFile, len(pendingIDs))
+	} else if len(pendingIDs) == 0 {
+		fmt.Println("  ExtractEntitiesFromDB: queue file is empty, nothing to do")
+		return 0, nil
+	} else {
+		fmt.Printf("  ExtractEntitiesFromDB: resuming from queue → %s (%d remaining)\n", queueFile, len(pendingIDs))
+	}
+
+	// 预加载所有待处理 ID 的 content（单次查询）/ Preload content for all pending IDs (single query)
+	contentMap := make(map[string]string, len(pendingIDs))
+	{
+		// 用 IN 查询，分批避免 SQLite 参数上限 / Batch IN query to avoid SQLite parameter limit
+		batchSize := 500
+		for i := 0; i < len(pendingIDs); i += batchSize {
+			end := i + batchSize
+			if end > len(pendingIDs) {
+				end = len(pendingIDs)
+			}
+			chunk := pendingIDs[i:end]
+			placeholders := make([]string, len(chunk))
+			args := make([]any, len(chunk))
+			for j, id := range chunk {
+				placeholders[j] = "?"
+				args[j] = id
+			}
+			q := fmt.Sprintf("SELECT id, content FROM memories WHERE id IN (%s)",
+				strings.Join(placeholders, ","))
+			rows, err := db.QueryContext(ctx, q, args...)
+			if err != nil {
+				return 0, fmt.Errorf("preload content: %w", err)
+			}
+			for rows.Next() {
+				var id, content string
+				if err := rows.Scan(&id, &content); err != nil {
+					rows.Close()
+					return 0, fmt.Errorf("scan content: %w", err)
+				}
+				contentMap[id] = content
+			}
+			rows.Close()
+		}
+	}
+
+	threshold := queryModelContextLimit(ctx, llmProvider)
+	extractor := memory.NewExtractor(llmProvider, graphMgr, memStore, nil, config.ExtractConfig{
+		BatchTokenThreshold: threshold,
+		BatchConcurrency:    8,
+	})
+
+	// 分块处理：每块完成后立即更新队列文件 / Process in chunks, updating queue file after each chunk
+	const chunkSize = 300
+	created := 0
+	total := len(pendingIDs)
+
+	for len(pendingIDs) > 0 {
+		end := chunkSize
+		if end > len(pendingIDs) {
+			end = len(pendingIDs)
+		}
+		chunk := pendingIDs[:end]
+
+		items := make([]model.BatchExtractItem, 0, len(chunk))
+		for _, id := range chunk {
+			if content, ok := contentMap[id]; ok {
+				items = append(items, model.BatchExtractItem{MemoryID: id, Content: content})
+			}
+		}
+
+		done := total - len(pendingIDs)
+		fmt.Printf("  ExtractEntitiesFromDB: chunk %d-%d/%d (threshold=%d)\n",
+			done+1, done+len(chunk), total, threshold)
+
+		resp, err := extractor.ExtractBatch(ctx, &model.BatchExtractRequest{
+			Items: items,
+			Scope: "eval/longmemeval",
+		})
+		if err != nil {
+			// 保存当前进度后返回错误，下次从断点续跑 / Save progress before returning error — resume next run
+			_ = saveExtractQueue(queueFile, pendingIDs)
+			return created, fmt.Errorf("batch extract at offset %d: %w", done, err)
+		}
+
+		for _, r := range resp.Results {
+			if r == nil {
+				continue
+			}
+			for _, e := range r.Entities {
+				if !e.Reused {
+					created++
+				}
+			}
+		}
+		fmt.Printf("  ExtractEntitiesFromDB: chunk done — %d batches, %d tokens, %d new entities (total created: %d)\n",
+			resp.BatchCount, resp.TotalTokens, func() int {
+				n := 0
+				for _, r := range resp.Results {
+					if r != nil {
+						for _, e := range r.Entities {
+							if !e.Reused {
+								n++
+							}
+						}
+					}
+				}
+				return n
+			}(), created)
+
+		// 从队列移除已完成的 chunk / Remove completed chunk from queue
+		pendingIDs = pendingIDs[end:]
+		if err := saveExtractQueue(queueFile, pendingIDs); err != nil {
+			return created, fmt.Errorf("update queue: %w", err)
+		}
+	}
+
+	fmt.Printf("  ExtractEntitiesFromDB: all done — %d new entities created\n", created)
+	return created, nil
+}
+
+// seedItem 单条待嵌入记忆 / Single memory item pending embedding
+type seedItem struct {
+	id, content, scope, kind, ownerID string
+}
+
+// SeedVectorsToQdrant 将 SQLite eval DB 中的记忆批量嵌入并写入 Qdrant
+// Batch-embed memories from SQLite eval DB and upsert into Qdrant.
+// Embedder is resolved from env vars via resolveEmbedder() (EMBEDDING_PROVIDER / EMBEDDING_MODEL).
+// Uses collection "memories_eval" to avoid colliding with production collection.
+// maxItems=0 means no limit. Safe to re-run: Qdrant upsert is idempotent.
+// Concurrent: uses 8 workers to parallelize embed+upsert.
+func SeedVectorsToQdrant(ctx context.Context, dbPath, qdrantURL, collection string, dim int, maxItems int) (int, error) {
+	embedder, err := resolveEmbedder()
+	if err != nil {
+		return 0, fmt.Errorf("resolve embedder: %w", err)
+	}
+
+	tok := tokenizer.NewSimpleTokenizer()
+	memStore, err := store.NewSQLiteMemoryStore(dbPath, [3]float64{10, 5, 3}, tok)
+	if err != nil {
+		return 0, fmt.Errorf("open store: %w", err)
+	}
+	defer memStore.Close()
+	if err := memStore.Init(ctx); err != nil {
+		return 0, fmt.Errorf("init store: %w", err)
+	}
+
+	db, ok := memStore.DB().(*sql.DB)
+	if !ok {
+		return 0, fmt.Errorf("store does not expose *sql.DB")
+	}
+
+	vecStore := store.NewQdrantVectorStore(qdrantURL, collection, dim)
+	if err := vecStore.Init(ctx); err != nil {
+		return 0, fmt.Errorf("init qdrant: %w", err)
+	}
+
+	// 1. 读取全部记忆到内存，避免边遍历边发网络请求 / Load all rows first to avoid holding cursor during parallel embed
+	q := `SELECT id, content, scope, kind, owner_id FROM memories
+          WHERE deleted_at IS NULL ORDER BY created_at`
+	if maxItems > 0 {
+		q += fmt.Sprintf(" LIMIT %d", maxItems)
+	}
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return 0, fmt.Errorf("query memories: %w", err)
+	}
+	var items []seedItem
+	for rows.Next() {
+		var it seedItem
+		if err := rows.Scan(&it.id, &it.content, &it.scope, &it.kind, &it.ownerID); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("scan row: %w", err)
+		}
+		items = append(items, it)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("rows error: %w", err)
+	}
+	// 2. 切分批次，全部并发提交 EmbedBatch，每批完成后报告一次进度
+	// Split into batches; submit all concurrently via EmbedBatch; report progress once per completed batch.
+	const batchSize = 50 // 每批文本数 / texts per batch
+
+	// 取前 batchSize 条真实内容作探针，确保 token 量与实际一致
+	// Use real content as probe sample so token load matches the actual workload.
+	probeN := batchSize
+	if probeN > len(items) {
+		probeN = len(items)
+	}
+	probeSample := make([]string, probeN)
+	for i := range probeSample {
+		probeSample[i] = items[i].content
+	}
+	concurrency := probeSafeConcurrency(ctx, embedder, probeSample)
+
+	total := len(items)
+	numBatches := (total + batchSize - 1) / batchSize
+	fmt.Printf("  SeedVectorsToQdrant: %d memories → %d batches (size=%d conc=%d) → %q\n",
+		total, numBatches, batchSize, concurrency, collection)
+
+	// 预切批次 / Pre-slice batches
+	batches := make([][]seedItem, 0, numBatches)
+	for i := 0; i < total; i += batchSize {
+		batches = append(batches, items[i:min(i+batchSize, total)])
+	}
+
+	sem := make(chan struct{}, concurrency)
+	var mu sync.Mutex
+	var seeded int
+	var wg sync.WaitGroup
+
+	for batchIdx, batch := range batches {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(batchIdx int, batch []seedItem) {
+			defer func() { <-sem; wg.Done() }()
+
+			texts := make([]string, len(batch))
+			for i, it := range batch {
+				texts[i] = it.content
+			}
+
+			vecs, err := embedder.EmbedBatch(ctx, texts)
+			if err != nil {
+				fmt.Printf("  SeedVectorsToQdrant: batch %d/%d embed failed: %v (skipping %d items)\n",
+					batchIdx+1, numBatches, err, len(batch))
+				return
+			}
+
+			localSeeded := 0
+			for i, it := range batch {
+				payload := map[string]any{
+					"scope":      it.scope,
+					"kind":       it.kind,
+					"owner_id":   it.ownerID,
+					"visibility": "private",
+					"team_id":    "",
+				}
+				if err := vecStore.Upsert(ctx, it.id, vecs[i], payload); err != nil {
+					fmt.Printf("  SeedVectorsToQdrant: upsert failed for %s: %v (skipping)\n", it.id, err)
+					continue
+				}
+				localSeeded++
+			}
+
+			// 每批一次锁，减少争用，完成时打印进度 / One lock per batch to reduce contention; print progress on completion
+			mu.Lock()
+			seeded += localSeeded
+			current := seeded
+			mu.Unlock()
+			fmt.Printf("  SeedVectorsToQdrant: batch %d/%d done (+%d) total=%d/%d\n",
+				batchIdx+1, numBatches, localSeeded, current, total)
+		}(batchIdx, batch)
+	}
+	wg.Wait()
+
+	fmt.Printf("  SeedVectorsToQdrant: done — %d/%d vectors into %q\n", seeded, total, collection)
+	return seeded, nil
+}
+
+// probeSafeConcurrency 指数探测安全并发数 / Exponential probe to find safe embed concurrency.
+// 从 startConc=4 开始，不报错就加倍，遇到首个错误退一档即为安全并发数。
+// Starts at 4, doubles each step; backs off one step on first error.
+// batchSize 决定探针文本数（取 min(batchSize,8)），使探针负载与真实批次匹配。
+// sampleTexts 应为真实内容（而非占位符），以确保 token 量与实际批次一致。
+// sampleTexts should be real content (not placeholders) so token load matches the actual workload.
+// EMBED_CONCURRENCY env var skips probing and uses the specified value directly.
+func probeSafeConcurrency(ctx context.Context, embedder store.Embedder, sampleTexts []string) int {
+	if v := os.Getenv("EMBED_CONCURRENCY"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			fmt.Printf("  probeSafeConcurrency: EMBED_CONCURRENCY=%d (override)\n", n)
+			return n
+		}
+	}
+
+	const (
+		startConc     = 1
+		maxConc       = 10
+		// 25s: 允许低延迟服务探出 conc=2+；仍能识别 429（10s+20s backoff > 25s）
+		// 25s: lets low-latency backends probe conc=2+; still catches 429 (10s+20s backoff > 25s)
+		probeDeadline = 25 * time.Second
+	)
+
+	probe := startConc
+	safe := 1 // 仅在探测通过后才提升 / only raised after a successful probe round
+
+	for probe <= maxConc {
+		probeCtx, cancel := context.WithTimeout(ctx, probeDeadline)
+
+		errc := make(chan error, probe)
+		var wg sync.WaitGroup
+		for i := 0; i < probe; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := embedder.EmbedBatch(probeCtx, sampleTexts)
+				errc <- err
+			}()
+		}
+		wg.Wait()
+		cancel()
+		close(errc)
+
+		var hitLimit bool
+		for err := range errc {
+			if err != nil {
+				hitLimit = true
+				break
+			}
+		}
+
+		if hitLimit {
+			fmt.Printf("  probeSafeConcurrency: conc=%d → error, safe=%d\n", probe, safe)
+			return safe
+		}
+		fmt.Printf("  probeSafeConcurrency: conc=%d ok\n", probe)
+		safe = probe
+		probe *= 2
+	}
+
+	fmt.Printf("  probeSafeConcurrency: reached cap, safe=%d\n", safe)
+	return safe
 }

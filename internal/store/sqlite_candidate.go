@@ -23,17 +23,21 @@ func NewSQLiteCandidateStore(db *sql.DB) *SQLiteCandidateStore {
 }
 
 // UpsertCandidate 创建或更新候选 / Upsert candidate
-func (s *SQLiteCandidateStore) UpsertCandidate(ctx context.Context, name, scope, memoryID string) error {
+func (s *SQLiteCandidateStore) UpsertCandidate(ctx context.Context, name, entityType, scope, memoryID string) error {
 	now := time.Now().UTC()
+	if entityType == "" {
+		entityType = "concept"
+	}
 
 	// 尝试更新 / Try update
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE entity_candidates
 		SET hit_count = hit_count + 1,
+		    entity_type = CASE WHEN entity_type = 'concept' OR entity_type = '' THEN ? ELSE entity_type END,
 		    memory_ids = json_insert(memory_ids, '$[#]', ?),
 		    updated_at = ?
 		WHERE name = ? AND scope = ?`,
-		memoryID, now, name, scope,
+		entityType, memoryID, now, name, scope,
 	)
 	if err != nil {
 		return fmt.Errorf("update candidate: %w", err)
@@ -47,9 +51,9 @@ func (s *SQLiteCandidateStore) UpsertCandidate(ctx context.Context, name, scope,
 	// 不存在，创建 / Create new
 	idsJSON, _ := json.Marshal([]string{memoryID})
 	_, err = s.db.ExecContext(ctx, `
-		INSERT INTO entity_candidates (name, scope, first_seen, hit_count, memory_ids, created_at, updated_at)
-		VALUES (?, ?, ?, 1, ?, ?, ?)`,
-		name, scope, now, string(idsJSON), now, now,
+		INSERT INTO entity_candidates (name, entity_type, scope, first_seen, hit_count, memory_ids, created_at, updated_at)
+		VALUES (?, ?, ?, ?, 1, ?, ?, ?)`,
+		name, entityType, scope, now, string(idsJSON), now, now,
 	)
 	if err != nil {
 		return fmt.Errorf("insert candidate: %w", err)
@@ -60,7 +64,7 @@ func (s *SQLiteCandidateStore) UpsertCandidate(ctx context.Context, name, scope,
 // ListPromotable 列出可晋升候选 / List promotable candidates
 func (s *SQLiteCandidateStore) ListPromotable(ctx context.Context, minHits int) ([]*model.EntityCandidate, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT name, scope, first_seen, hit_count, memory_ids, created_at, updated_at
+		`SELECT name, COALESCE(entity_type,'concept'), scope, first_seen, hit_count, memory_ids, created_at, updated_at
 		 FROM entity_candidates WHERE hit_count >= ? ORDER BY hit_count DESC`,
 		minHits,
 	)
@@ -73,7 +77,7 @@ func (s *SQLiteCandidateStore) ListPromotable(ctx context.Context, minHits int) 
 	for rows.Next() {
 		var c model.EntityCandidate
 		var idsJSON string
-		if err := rows.Scan(&c.Name, &c.Scope, &c.FirstSeen, &c.HitCount, &idsJSON, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.Name, &c.EntityType, &c.Scope, &c.FirstSeen, &c.HitCount, &idsJSON, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan candidate: %w", err)
 		}
 		if err := json.Unmarshal([]byte(idsJSON), &c.MemoryIDs); err != nil {

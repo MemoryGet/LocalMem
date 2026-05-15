@@ -246,3 +246,13 @@ func (m *GraphManager) GetEntityProfile(ctx context.Context, entityID string, li
 		TotalMemories: len(mRes.val),
 	}, nil
 }
+
+// ListAllRelations 列出所有关系（供监控使用）/ List all relations for monitoring
+func (m *GraphManager) ListAllRelations(ctx context.Context, limit int) ([]*model.EntityRelation, error) {
+	return m.graphStore.ListAllRelations(ctx, limit)
+}
+
+// GetRelationEvidence 查找使两个实体相连的记忆 / Find memories that connect two entities
+func (m *GraphManager) GetRelationEvidence(ctx context.Context, sourceID, targetID string, limit int) ([]*model.Memory, error) {
+	return m.graphStore.GetRelationEvidence(ctx, sourceID, targetID, limit)
+}

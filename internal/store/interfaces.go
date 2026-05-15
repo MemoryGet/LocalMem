@@ -314,12 +314,18 @@ type GraphStore interface {
 
 	// PurgeDeletedEntities 硬删除已超期的软删除实体 / Hard-delete entities soft-deleted before cutoff
 	PurgeDeletedEntities(ctx context.Context, cutoff time.Time) (int64, error)
+
+	// ListAllRelations 列出所有关系（无 scope 过滤，供监控使用）/ List all relations without scope filter
+	ListAllRelations(ctx context.Context, limit int) ([]*model.EntityRelation, error)
+
+	// GetRelationEvidence 查找使两个实体相连的记忆（证据链）/ Find memories connecting two entities
+	GetRelationEvidence(ctx context.Context, sourceID, targetID string, limit int) ([]*model.Memory, error)
 }
 
 // CandidateStore 候选实体存储 / Candidate entity store
 type CandidateStore interface {
 	// UpsertCandidate 创建或更新候选实体 / Upsert candidate (increment hit_count if exists)
-	UpsertCandidate(ctx context.Context, name, scope, memoryID string) error
+	UpsertCandidate(ctx context.Context, name, entityType, scope, memoryID string) error
 
 	// ListPromotable 列出可晋升的候选 / List candidates with hit_count >= minHits
 	ListPromotable(ctx context.Context, minHits int) ([]*model.EntityCandidate, error)

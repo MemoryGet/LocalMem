@@ -167,15 +167,16 @@ func createFreshSchema(db *sql.DB, tok tokenizer.Tokenizer) error {
 		return fmt.Errorf("fresh schema: create memory_entities: %w", err)
 	}
 
-	// --- entity_candidates 表 (V27) / entity_candidates table ---
+	// --- entity_candidates 表 (V27+V28) / entity_candidates table ---
 	if _, err := tx.Exec(`CREATE TABLE entity_candidates (
-		name       TEXT NOT NULL,
-		scope      TEXT DEFAULT '',
-		first_seen DATETIME NOT NULL,
-		hit_count  INTEGER DEFAULT 1,
-		memory_ids TEXT DEFAULT '[]',
-		created_at DATETIME NOT NULL,
-		updated_at DATETIME NOT NULL,
+		name        TEXT NOT NULL,
+		entity_type TEXT DEFAULT 'concept',
+		scope       TEXT DEFAULT '',
+		first_seen  DATETIME NOT NULL,
+		hit_count   INTEGER DEFAULT 1,
+		memory_ids  TEXT DEFAULT '[]',
+		created_at  DATETIME NOT NULL,
+		updated_at  DATETIME NOT NULL,
 		UNIQUE(name, scope)
 	)`); err != nil {
 		return fmt.Errorf("fresh schema: create entity_candidates: %w", err)

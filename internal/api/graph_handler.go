@@ -10,6 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// GraphStats 图谱统计数据 / Graph statistics
+type GraphStats struct {
+	TotalEntities    int                     `json:"total_entities"`
+	TypeDistribution map[string]int          `json:"type_distribution"`
+	RecentEntities   []*model.Entity         `json:"recent_entities"`
+	Entities         []*model.Entity         `json:"entities"`
+	TotalRelations   int                     `json:"total_relations"`
+	Relations        []*model.EntityRelation `json:"relations"`
+}
+
 // GraphHandler 知识图谱处理器 / Graph handler
 type GraphHandler struct {
 	manager *memory.GraphManager
@@ -314,4 +324,75 @@ func (h *GraphHandler) SearchEntities(c *gin.Context, identity *model.Identity) 
 		return
 	}
 	Success(c, entities)
+}
+
+// GetRelationEvidence 查询两实体之间的证据记忆 / GET /v1/graph/evidence?source_id=X&target_id=Y
+func (h *GraphHandler) GetRelationEvidence(c *gin.Context) {
+	sourceID := c.Query("source_id")
+	targetID := c.Query("target_id")
+	if sourceID == "" || targetID == "" {
+		c.JSON(400, gin.H{"error": "source_id and target_id are required"})
+		return
+	}
+	limit := 10
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+	memories, err := h.manager.GetRelationEvidence(c.Request.Context(), sourceID, targetID, limit)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	Success(c, memories)
+}
+
+// GetGraphStats 图谱统计：无 scope 过滤，供监控面板使用 / Graph stats without scope filter for monitoring
+// GET /v1/graph/stats?limit=500
+func (h *GraphHandler) GetGraphStats(c *gin.Context) {
+	limit := 500
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	entities, err := h.manager.ListEntities(c.Request.Context(), "", "", limit)
+	if err != nil {
+		Error(c, err)
+		return
+	}
+	typeDist := make(map[string]int)
+	for _, e := range entities {
+		typeDist[e.EntityType]++
+	}
+	recent := entities
+	if len(recent) > 20 {
+		recent = recent[:20]
+	}
+
+	// 一次性查全量关系 / Fetch all relations in one query
+	relations, relErr := h.manager.ListAllRelations(c.Request.Context(), 5000)
+	if relErr != nil {
+		relations = nil
+	}
+	// 过滤：只保留两端都在实体集内的关系 / Filter: only keep relations where both ends are in entity set
+	entitySet := make(map[string]bool, len(entities))
+	for _, e := range entities {
+		entitySet[e.ID] = true
+	}
+	filtered := relations[:0]
+	for _, r := range relations {
+		if entitySet[r.SourceID] && entitySet[r.TargetID] {
+			filtered = append(filtered, r)
+		}
+	}
+
+	Success(c, &GraphStats{
+		TotalEntities:    len(entities),
+		TypeDistribution: typeDist,
+		RecentEntities:   recent,
+		Entities:         entities,
+		TotalRelations:   len(filtered),
+		Relations:        filtered,
+	})
 }

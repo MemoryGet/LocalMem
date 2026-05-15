@@ -1,12 +1,14 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -25,17 +27,23 @@ func NewOpenAIProvider(baseURL, apiKey, model string) *OpenAIProvider {
 		apiKey:  apiKey,
 		model:   model,
 		httpClient: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 180 * time.Second,
 		},
 	}
 }
+
+// ProviderBaseURL 返回 API 基础地址，实现 ModelInfoProvider / Returns API base URL (implements ModelInfoProvider)
+func (p *OpenAIProvider) ProviderBaseURL() string { return p.baseURL }
+
+// ProviderModel 返回模型名称，实现 ModelInfoProvider / Returns model name (implements ModelInfoProvider)
+func (p *OpenAIProvider) ProviderModel() string { return p.model }
 
 type openaiChatRequest struct {
 	Model          string          `json:"model"`
 	Messages       []ChatMessage   `json:"messages"`
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
 	Temperature    *float64        `json:"temperature,omitempty"`
-	MaxTokens      int             `json:"max_tokens,omitempty"`
+	MaxTokens      int             `json:"max_completion_tokens,omitempty"`
 }
 
 type openaiChatResponse struct {
@@ -114,4 +122,103 @@ func (p *OpenAIProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatRespo
 		CompletionTokens: result.Usage.CompletionTokens,
 		TotalTokens:      result.Usage.TotalTokens,
 	}, nil
+}
+
+// openaiStreamRequest 流式请求体 / Streaming request body
+type openaiStreamRequest struct {
+	Model          string          `json:"model"`
+	Messages       []ChatMessage   `json:"messages"`
+	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
+	Temperature    *float64        `json:"temperature,omitempty"`
+	Stream         bool            `json:"stream"`
+	StreamOptions  *struct {
+		IncludeUsage bool `json:"include_usage"`
+	} `json:"stream_options,omitempty"`
+}
+
+// openaiStreamChunk SSE 事件块 / SSE event chunk
+type openaiStreamChunk struct {
+	Choices []struct {
+		Delta        struct{ Content string `json:"content"` } `json:"delta"`
+		FinishReason string                                    `json:"finish_reason"`
+	} `json:"choices"`
+	Usage *struct{ TotalTokens int `json:"total_tokens"` } `json:"usage"`
+}
+
+// ChatStream 流式对话：首个 token 快速到达，彻底避免 awaiting-headers 超时
+// Streaming chat: first token arrives quickly, eliminates awaiting-headers timeout
+func (p *OpenAIProvider) ChatStream(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	body := openaiStreamRequest{
+		Model:       p.model,
+		Messages:    req.Messages,
+		Temperature: req.Temperature,
+		Stream:      true,
+		StreamOptions: &struct {
+			IncludeUsage bool `json:"include_usage"`
+		}{IncludeUsage: true},
+	}
+	// json_schema strict 与流式不兼容，降级为 json_object / json_schema strict incompatible with streaming, downgrade to json_object
+	if req.ResponseFormat != nil {
+		if req.ResponseFormat.Type == "json_schema" {
+			body.ResponseFormat = &ResponseFormat{Type: "json_object"}
+		} else {
+			body.ResponseFormat = req.ResponseFormat
+		}
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("llm stream: marshal: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		p.baseURL+"/chat/completions", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("llm stream: create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "text/event-stream")
+	if p.apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+	}
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("llm stream: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("llm stream: API status %d: %s", resp.StatusCode, string(b))
+	}
+
+	var sb strings.Builder
+	totalTokens := 0
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "[DONE]" {
+			break
+		}
+		var chunk openaiStreamChunk
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			continue
+		}
+		if len(chunk.Choices) > 0 {
+			sb.WriteString(chunk.Choices[0].Delta.Content)
+		}
+		if chunk.Usage != nil {
+			totalTokens = chunk.Usage.TotalTokens
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("llm stream: read SSE: %w", err)
+	}
+
+	return &ChatResponse{Content: sb.String(), TotalTokens: totalTokens}, nil
 }

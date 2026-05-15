@@ -92,7 +92,7 @@ func (r *EntityResolver) ResolveLayer1(ctx context.Context, mem *model.Memory) (
 			})
 		} else if r.candidateStore != nil {
 			// 未命中 → 候选 / No match → candidate
-			if err := r.candidateStore.UpsertCandidate(ctx, term, mem.Scope, mem.ID); err != nil {
+			if err := r.candidateStore.UpsertCandidate(ctx, term, "", mem.Scope, mem.ID); err != nil {
 				logger.Debug("layer1: upsert candidate failed", zap.String("term", term), zap.Error(err))
 			}
 		}

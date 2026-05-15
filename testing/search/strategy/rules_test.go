@@ -28,6 +28,28 @@ func TestRuleClassifier_Select(t *testing.T) {
 		{"general fallback", "一段普通的查询文本超过五个字", "", "exploration"},
 		{"general with intent", "一段普通文本", "general", "exploration"},
 		{"empty query", "", "", "exploration"},
+		// Aggregation patterns — only unambiguously computational markers route here
+		{"aggregation total en", "how much total did I spend on bikes", "", "aggregation"},
+		{"aggregation average", "what is the average age of my family", "", "aggregation"},
+		{"aggregation sum", "sum of all charity donations", "", "aggregation"},
+		{"aggregation combined", "combined expenses across all trips", "", "aggregation"},
+		{"aggregation in total", "how many hours in total did I spend driving", "", "aggregation"},
+		{"aggregation zh total", "我一共花了多少钱", "", "aggregation"},
+		{"aggregation zh how many", "我去过多少个城市", "", "aggregation"},
+		{"aggregation intent", "some query about things", "aggregation", "aggregation"},
+		// "how many" alone is point-retrieval, not aggregation — routes to exploration
+		{"how many point retrieval", "how many doctors did I visit", "", "exploration"},
+		// "overall" alone routes to exploration (falls through to default)
+		{"overall not aggregation", "overall spending this year", "", "exploration"},
+		// Temporal anchor beats aggregation pattern
+		{"how long temporal", "how long did last week's meeting take", "", "exploration"},
+		// Historical listing queries: temporal scope word + listing intent → aggregation
+		{"historical list basic", "之前我都做了哪些事情", "", "aggregation"},
+		{"historical list yiqian", "以前都做了什么事", "", "aggregation"},
+		{"historical list guoqu", "过去做过哪些任务", "", "aggregation"},
+		{"historical list suoyou", "之前完成了哪些项目", "", "aggregation"},
+		// Specific temporal anchor still wins even with listing intent
+		{"temporal anchor with list", "上周我都做了哪些事情", "", "exploration"},
 	}
 
 	for _, tt := range tests {

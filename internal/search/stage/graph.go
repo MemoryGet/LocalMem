@@ -32,7 +32,7 @@ const (
 	defaultGraphLimit       = 30
 	defaultGraphFTSTop      = 5
 	defaultGraphEntityLimit = 10
-	maxVisitedEntities      = 50
+	defaultMaxVisited       = 50
 )
 
 // GraphStage 图谱关联检索阶段 / Graph-based association retrieval stage
@@ -43,6 +43,7 @@ type GraphStage struct {
 	limit       int
 	ftsTop      int
 	entityLimit int
+	maxVisited  int     // BFS 最大访问实体数 / Max entities visited during BFS traversal
 	lambda      float64 // 时间衰减系数 / Time decay lambda
 }
 
@@ -85,6 +86,15 @@ func WithEntityLimit(limit int) GraphOption {
 	}
 }
 
+// WithMaxVisited 设置 BFS 遍历最大实体数（控制截断阈值）/ Set max entities visited during BFS traversal
+func WithMaxVisited(n int) GraphOption {
+	return func(s *GraphStage) {
+		if n > 0 {
+			s.maxVisited = n
+		}
+	}
+}
+
 // WithDecayLambda 设置时间衰减系数 / Set time decay lambda
 func WithDecayLambda(lambda float64) GraphOption {
 	return func(s *GraphStage) { s.lambda = lambda }
@@ -99,6 +109,7 @@ func NewGraphStage(graphStore GraphRetriever, ftsSearcher FTSSearcher, opts ...G
 		limit:       defaultGraphLimit,
 		ftsTop:      defaultGraphFTSTop,
 		entityLimit: defaultGraphEntityLimit,
+		maxVisited:  defaultMaxVisited,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -253,10 +264,10 @@ func (s *GraphStage) bfsTraverse(ctx context.Context, seeds map[string]int) map[
 		var nextEntities []string
 		for _, entityID := range currentEntities {
 			// 扇出限制 / Fan-out cap
-			if len(visited) >= maxVisitedEntities {
+			if len(visited) >= s.maxVisited {
 				logger.Info("graph: traversal truncated at entity cap",
 					zap.Int("visited", len(visited)),
-					zap.Int("max", maxVisitedEntities),
+					zap.Int("max", s.maxVisited),
 					zap.Int("depth", d),
 				)
 				break
@@ -282,7 +293,7 @@ func (s *GraphStage) bfsTraverse(ctx context.Context, seeds map[string]int) map[
 			}
 		}
 		currentEntities = nextEntities
-		if len(currentEntities) == 0 || len(visited) >= maxVisitedEntities {
+		if len(currentEntities) == 0 || len(visited) >= s.maxVisited {
 			break
 		}
 	}

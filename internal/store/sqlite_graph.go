@@ -283,6 +283,58 @@ func (s *SQLiteGraphStore) GetEntityRelations(ctx context.Context, entityID stri
 	return relations, nil
 }
 
+// GetRelationEvidence 查找使两个实体相连的记忆（证据链）/ Find memories that connect two entities
+func (s *SQLiteGraphStore) GetRelationEvidence(ctx context.Context, sourceID, targetID string, limit int) ([]*model.Memory, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	query := `
+		SELECT DISTINCT m.id, m.content, m.kind, m.excerpt, m.scope, m.created_at, m.updated_at, m.strength
+		FROM memories m
+		JOIN memory_entities me1 ON m.id = me1.memory_id AND me1.entity_id = ?
+		JOIN memory_entities me2 ON m.id = me2.memory_id AND me2.entity_id = ?
+		WHERE m.deleted_at IS NULL
+		ORDER BY m.created_at DESC
+		LIMIT ?`
+	rows, err := s.db.QueryContext(ctx, query, sourceID, targetID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get relation evidence: %w", err)
+	}
+	defer rows.Close()
+	var memories []*model.Memory
+	for rows.Next() {
+		m := &model.Memory{}
+		if err := rows.Scan(&m.ID, &m.Content, &m.Kind, &m.Excerpt, &m.Scope, &m.CreatedAt, &m.UpdatedAt, &m.Strength); err != nil {
+			return nil, err
+		}
+		memories = append(memories, m)
+	}
+	return memories, rows.Err()
+}
+
+// ListAllRelations 列出所有实体关系（无 scope 过滤，供监控使用）/ List all relations without scope filter
+func (s *SQLiteGraphStore) ListAllRelations(ctx context.Context, limit int) ([]*model.EntityRelation, error) {
+	if limit <= 0 {
+		limit = 5000
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at
+		 FROM entity_relations ORDER BY mention_count DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list all relations: %w", err)
+	}
+	defer rows.Close()
+	var relations []*model.EntityRelation
+	for rows.Next() {
+		rel, err := scanRelation(rows)
+		if err != nil {
+			return nil, err
+		}
+		relations = append(relations, rel)
+	}
+	return relations, rows.Err()
+}
+
 // CreateMemoryEntity 创建记忆-实体关联 / Create a memory-entity association
 func (s *SQLiteGraphStore) CreateMemoryEntity(ctx context.Context, me *model.MemoryEntity) error {
 	now := time.Now().UTC()

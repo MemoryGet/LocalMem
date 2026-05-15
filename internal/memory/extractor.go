@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"iclude/internal/config"
@@ -36,6 +37,9 @@ var defaultEntityTypes = map[string]bool{
 // defaultRelationTypes 默认关系类型（配置为空时兜底）/ Default relation types when config is empty
 var defaultRelationTypes = map[string]bool{
 	"uses": true, "knows": true, "belongs_to": true, "related_to": true,
+	"works_at": true, "colleague": true, "located_in": true, "created": true,
+	"participated_in": true, "founded": true, "visited": true, "member_of": true,
+	"reports_to": true, "manages": true, "friend_of": true, "part_of": true,
 }
 
 // extractLLMOutput LLM实体抽取输出（内部使用）/ LLM entity extraction output (internal)
@@ -101,6 +105,11 @@ type Extractor struct {
 	cfg            config.ExtractConfig
 	entityTypes    map[string]bool // 从配置加载 / Loaded from config
 	relationTypes  map[string]bool // 从配置加载 / Loaded from config
+
+	// 自适应批次阈值：首次 formBatches 调用时通过 llm.DetectContextWindow 探测，之后缓存。
+	// Adaptive batch threshold: detected on first formBatches call, cached thereafter.
+	detectedThreshold   int
+	detectThresholdOnce sync.Once
 }
 
 // NewExtractor 创建实体抽取器 / Create entity extractor
@@ -152,30 +161,42 @@ func (e *Extractor) GetMemoryStore() store.MemoryStore {
 func (e *Extractor) buildExtractPrompt() string {
 	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
 	relationList := strings.Join(mapKeys(e.relationTypes), ", ")
-	return fmt.Sprintf(`You are a knowledge extraction engine. Extract structured entities and relationships from the given text.
+	return fmt.Sprintf(`You are a knowledge extraction engine. Extract entities and relationships from the given text. The text may be in Chinese or English.
 
-Rules:
-- Entity types: %s
-- Relation types: %s
-- Output strict JSON with "entities" and "relations" arrays
-- Each entity has: name, entity_type, description
-- Each relation has: source (entity name), target (entity name), relation_type
-- Deduplicate: same entity appears only once
-- Relations: source is the actor, target is the object
-- Only extract entities and relations that are clearly stated in the text`, entityList, relationList)
+Entity type rules (MUST use exactly one of: %s):
+- person  : any human name, including Chinese names (e.g. 张明, 李华, 王芳)
+- org     : companies, organizations, institutions (e.g. 阿里巴巴, Google)
+- location: places, cities, countries (e.g. 北京, 上海, 中国)
+- tool    : software, frameworks, products, technologies
+- concept : abstract ideas — use ONLY when none of the above apply
+
+Relation type MUST be exactly one of: %s
+
+Output strict JSON: {"entities":[{"name":"...","entity_type":"...","description":"..."}],"relations":[{"source":"...","target":"...","relation_type":"..."}]}
+- entity_type and relation_type MUST be in English
+- entity names use the original language from the text
+- Deduplicate entities
+- Only extract what is clearly stated in the text`, entityList, relationList)
 }
 
 // buildEntityOnlyPrompt 构建仅实体抽取的提示词（不含关系）/ Build entity-only extraction prompt (no relations)
 func (e *Extractor) buildEntityOnlyPrompt() string {
 	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
-	return fmt.Sprintf(`You are a knowledge extraction engine. Extract entity names from the given text.
+	return fmt.Sprintf(`You are a knowledge extraction engine. Extract named entities from the given text. The text may be in Chinese or English.
 
+Entity type rules (MUST use exactly one of: %s):
+- person  : any human name, including Chinese names (e.g. 张明, 李华, 王芳)
+- org     : companies, organizations, institutions (e.g. 阿里巴巴, Google, 北京大学)
+- location: places, cities, countries, addresses (e.g. 北京, 杭州, 中国)
+- tool    : software, frameworks, products, technologies (e.g. Python, ChatGPT, iPhone)
+- concept : abstract ideas, topics, events — use ONLY when none of the above apply
+
+Output strict JSON: {"entities":[{"name":"...","entity_type":"...","description":"..."}],"relations":[]}
 Rules:
-- Entity types: %s
-- Output strict JSON with an "entities" array and an empty "relations" array
-- Each entity has: name, entity_type, description
+- entity_type MUST be exactly one of the types listed above, in English
+- Use the original language for entity names
 - Deduplicate: same entity appears only once
-- Only extract entities that are clearly stated in the text`, entityList)
+- Only extract entities clearly stated in the text`, entityList)
 }
 
 // buildBatchExtractPrompt 构建批量抽取提示词（按 index 独立处理）/ Build batch extraction prompt (process each item independently by index)
@@ -583,7 +604,7 @@ func (e *Extractor) resolveEntity(ctx context.Context, ent extractedEntity, scop
 	// 新实体：有候选存储则先进候选队列，否则直接入主图
 	// New entity: route to candidate store if available, else create directly
 	if e.candidateStore != nil {
-		if err := e.candidateStore.UpsertCandidate(ctx, ent.Name, scope, memoryID); err != nil {
+		if err := e.candidateStore.UpsertCandidate(ctx, ent.Name, ent.EntityType, scope, memoryID); err != nil {
 			logger.Warn("upsert candidate failed", zap.String("name", ent.Name), zap.Error(err))
 		}
 		return nil, false, nil
@@ -701,11 +722,23 @@ func (e *Extractor) resolveRelation(ctx context.Context, sourceID, targetID, rel
 // 批量实体抽取 / Batch entity extraction
 // ============================================================
 
-// defaultBatchTokenThreshold 默认每批 token 阈值（约 30-50 条，降低超时风险）/ Default batch token threshold (~30-50 items, reduces timeout risk)
-const defaultBatchTokenThreshold = 8000
+// defaultBatchTokenThreshold 默认每批 token 阈值（约 80-100 条）/ Default batch token threshold (~80-100 items)
+const defaultBatchTokenThreshold = 32000
 
 // ExtractBatch 批量实体抽取：按 token 阈值分批 → LLM 全局抽取 → 系统侧匹配归属 → 落库
 // Batch entity extraction: split by token threshold → global LLM extraction → system-side matching → store
+// defaultBatchConcurrency 批量抽取最大并发批次数 / Max concurrent batches for batch extraction
+const defaultBatchConcurrency = 20
+
+// batchLLMResult 单批 LLM 调用结果 / Result of a single batch LLM call
+type batchLLMResult struct {
+	batchIdx int
+	batch    []model.BatchExtractItem
+	output   *batchExtractOutput
+	tokens   int
+	err      error
+}
+
 func (e *Extractor) ExtractBatch(ctx context.Context, req *model.BatchExtractRequest) (*model.BatchExtractResponse, error) {
 	if len(req.Items) == 0 {
 		return &model.BatchExtractResponse{Results: make(map[string]*model.ExtractResponse)}, nil
@@ -724,39 +757,60 @@ func (e *Extractor) ExtractBatch(ctx context.Context, req *model.BatchExtractReq
 		BatchCount: len(batches),
 	}
 
-	for batchIdx, batch := range batches {
-		logger.Info("batch extraction started",
-			zap.Int("batch", batchIdx+1),
-			zap.Int("total_batches", len(batches)),
-			zap.Int("items", len(batch)),
-		)
+	// 并发调用 LLM（semaphore 控制最大并发数）/ Concurrent LLM calls with semaphore
+	concurrency := defaultBatchConcurrency
+	if c := e.cfg.BatchConcurrency; c > 0 {
+		concurrency = c
+	}
+	sem := make(chan struct{}, concurrency)
+	results := make([]batchLLMResult, len(batches))
+	var wg sync.WaitGroup
 
-		output, tokens, err := e.callBatchLLM(ctx, batch)
-		resp.TotalTokens += tokens
-		if err != nil {
-			logger.Warn("batch LLM call failed, skipping batch",
-				zap.Int("batch", batchIdx+1),
-				zap.Error(err),
+	for i, batch := range batches {
+		wg.Add(1)
+		go func(idx int, b []model.BatchExtractItem) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			logger.Info("batch extraction started",
+				zap.Int("batch", idx+1),
+				zap.Int("total_batches", len(batches)),
+				zap.Int("items", len(b)),
+			)
+			output, tokens, err := e.callBatchLLMWithRetry(ctx, b, idx+1)
+			results[idx] = batchLLMResult{batchIdx: idx, batch: b, output: output, tokens: tokens, err: err}
+		}(i, batch)
+	}
+	wg.Wait()
+
+	// 串行写入 DB（SQLite 不支持并发写）/ Serial DB writes (SQLite doesn't support concurrent writes)
+	for _, r := range results {
+		resp.TotalTokens += r.tokens
+		if r.err != nil {
+			logger.Warn("batch LLM call failed after retry, skipping batch",
+				zap.Int("batch", r.batchIdx+1),
+				zap.Error(r.err),
 			)
 			continue
 		}
-		if output == nil {
+		if r.output == nil {
 			logger.Warn("batch LLM returned nil output, skipping batch",
-				zap.Int("batch", batchIdx+1),
+				zap.Int("batch", r.batchIdx+1),
 			)
 			continue
 		}
 
 		// 按 index 精准归属，逐条处理 / Process each result by its memory index
-		for _, result := range output.Results {
-			if result.Index < 0 || result.Index >= len(batch) {
+		for _, result := range r.output.Results {
+			if result.Index < 0 || result.Index >= len(r.batch) {
 				logger.Warn("batch result index out of range",
 					zap.Int("index", result.Index),
-					zap.Int("batch_size", len(batch)),
+					zap.Int("batch_size", len(r.batch)),
 				)
 				continue
 			}
-			memID := batch[result.Index].MemoryID
+			memID := r.batch[result.Index].MemoryID
 			if resp.Results[memID] == nil {
 				resp.Results[memID] = &model.ExtractResponse{}
 			}
@@ -812,7 +866,12 @@ func (e *Extractor) ExtractBatch(ctx context.Context, req *model.BatchExtractReq
 func (e *Extractor) formBatches(items []model.BatchExtractItem) [][]model.BatchExtractItem {
 	threshold := e.cfg.BatchTokenThreshold
 	if threshold <= 0 {
-		threshold = defaultBatchTokenThreshold
+		// 首次调用时自适应探测（进程内只跑一次），之后复用缓存值。
+		// Auto-detect on first call (once per Extractor instance), reuse cached value after.
+		e.detectThresholdOnce.Do(func() {
+			e.detectedThreshold = llm.DetectContextWindow(context.Background(), e.llm)
+		})
+		threshold = e.detectedThreshold
 	}
 
 	var batches [][]model.BatchExtractItem
@@ -836,7 +895,231 @@ func (e *Extractor) formBatches(items []model.BatchExtractItem) [][]model.BatchE
 	return batches
 }
 
+// ─── 去重先行 + 流式 + 实体级标注 ───────────────────────────────────────────
+// Dedup-first + Streaming + Entity-level annotation batch extraction
+
+// properNounRe 匹配英文专有名词（大写开头的词组）/ Match English proper nouns
+var properNounRe = regexp.MustCompile(`\b[A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+)*\b`)
+
+// dedupCandidate 去重后的实体候选 / Deduplicated entity candidate
+type dedupCandidate struct {
+	Name  string
+	Items []int // 出现在哪些批次 item 中 / which batch item indices this name appears in
+}
+
+// dedupClassifyOutput LLM 去重分类输出（实体级 item 标注）/ Dedup classification output with entity-level item annotation
+type dedupClassifyOutput struct {
+	Entities []struct {
+		Name        string `json:"name"`
+		EntityType  string `json:"entity_type"`
+		Description string `json:"description"`
+		Items       []int  `json:"items"` // 来源 item 索引列表 / source item index list
+	} `json:"entities"`
+	Relations []struct {
+		Source       string `json:"source"`
+		Target       string `json:"target"`
+		RelationType string `json:"relation_type"`
+		Items        []int  `json:"items"` // 关系出现在哪些 item 中 / relation appears in which items
+	} `json:"relations"`
+}
+
+// collectDedupCandidates 从批次中提取去重候选实体
+// Extract deduplicated entity candidates from batch via regex scan
+func collectDedupCandidates(items []model.BatchExtractItem) []dedupCandidate {
+	nameToItems := make(map[string][]int)
+	for i, item := range items {
+		seen := make(map[string]bool)
+		for _, m := range properNounRe.FindAllString(item.Content, -1) {
+			if len([]rune(m)) < 2 {
+				continue
+			}
+			if !seen[m] {
+				seen[m] = true
+				nameToItems[m] = append(nameToItems[m], i)
+			}
+		}
+	}
+	candidates := make([]dedupCandidate, 0, len(nameToItems))
+	for name, idxs := range nameToItems {
+		candidates = append(candidates, dedupCandidate{Name: name, Items: idxs})
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].Name < candidates[j].Name })
+	return candidates
+}
+
+// callBatchLLMDedup 去重先行+流式+实体级标注的批量抽取
+// Dedup-first + streaming + entity-level annotation batch extraction
+// Returns (nil, 0, errNoCandidates) when regex finds no candidates — caller falls back to indexed batch.
+var errNoCandidates = fmt.Errorf("no regex candidates found")
+
+func (e *Extractor) callBatchLLMDedup(ctx context.Context, items []model.BatchExtractItem) (*batchExtractOutput, int, error) {
+	candidates := collectDedupCandidates(items)
+	if len(candidates) == 0 {
+		return nil, 0, errNoCandidates
+	}
+
+	// 构建候选名列表（附带 item 映射）供 LLM 分类 / Build candidate list with item mapping for LLM
+	type candidateEntry struct {
+		Name  string `json:"name"`
+		Items []int  `json:"items"`
+	}
+	entries := make([]candidateEntry, len(candidates))
+	for i, c := range candidates {
+		entries[i] = candidateEntry{Name: c.Name, Items: c.Items}
+	}
+
+	inputJSON, _ := json.Marshal(map[string]any{
+		"candidates": entries,
+		"total_items": len(items),
+	})
+
+	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
+	relationList := strings.Join(mapKeys(e.relationTypes), ", ")
+	systemPrompt := fmt.Sprintf(`You are a knowledge extraction engine.
+
+You receive a list of entity name candidates extracted from %d memory items, each with an "items" field listing which item indices contain that name.
+
+Your task:
+1. For each candidate that is a real entity, classify it: entity_type (%s), brief description
+2. Identify relations between entities that co-occur in the same item: relation_type (%s)
+3. Preserve the "items" field as-is from the input for each entity/relation
+
+Return JSON:
+{"entities":[{"name":"...","entity_type":"...","description":"...","items":[...]}],"relations":[{"source":"...","target":"...","relation_type":"...","items":[...]}]}
+
+Only include real entities (not common words). Relations must have source and target both present in the same item.`,
+		len(items), entityList, relationList)
+
+	temp := 0.1
+	req := &llm.ChatRequest{
+		Messages: []llm.ChatMessage{
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: string(inputJSON)},
+		},
+		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
+		Temperature:    &temp,
+	}
+
+	// 优先使用流式，避免 awaiting-headers 超时 / Prefer streaming to avoid awaiting-headers timeout
+	type streamProvider interface {
+		ChatStream(ctx context.Context, req *llm.ChatRequest) (*llm.ChatResponse, error)
+	}
+	var resp *llm.ChatResponse
+	var err error
+	if sp, ok := e.llm.(streamProvider); ok {
+		resp, err = sp.ChatStream(ctx, req)
+	} else {
+		resp, err = e.llm.Chat(ctx, req)
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var output dedupClassifyOutput
+	if jsonErr := json.Unmarshal([]byte(resp.Content), &output); jsonErr != nil {
+		return nil, resp.TotalTokens, fmt.Errorf("dedup parse: %w", jsonErr)
+	}
+
+	// 转换为 batchExtractOutput 格式 / Convert to batchExtractOutput format
+	result := &batchExtractOutput{Results: make([]batchExtractResult, len(items))}
+	for i := range result.Results {
+		result.Results[i].Index = i
+	}
+	for _, ent := range output.Entities {
+		ee := extractedEntity{Name: ent.Name, EntityType: ent.EntityType, Description: ent.Description}
+		for _, idx := range ent.Items {
+			if idx >= 0 && idx < len(items) {
+				result.Results[idx].Entities = append(result.Results[idx].Entities, ee)
+			}
+		}
+	}
+	for _, rel := range output.Relations {
+		rr := extractedRelation{Source: rel.Source, Target: rel.Target, RelationType: rel.RelationType}
+		for _, idx := range rel.Items {
+			if idx >= 0 && idx < len(items) {
+				result.Results[idx].Relations = append(result.Results[idx].Relations, rr)
+			}
+		}
+	}
+	return result, resp.TotalTokens, nil
+}
+
 // callBatchLLM 调用 LLM 进行批量抽取（结构化输入/输出，index 精准归属）/ Call LLM for batch extraction with indexed input/output
+// callBatchLLMWithRetry 超时自动对半重试：首次失败时拆成两半分别调用，合并结果
+// On timeout: split into two halves, call each, merge results
+func (e *Extractor) callBatchLLMWithRetry(ctx context.Context, items []model.BatchExtractItem, batchNum int) (*batchExtractOutput, int, error) {
+	// 优先走去重先行+流式路径，失败才降级到原始路径 / Prefer dedup+streaming, fallback to original on error
+	output, tokens, err := e.callBatchLLMDedup(ctx, items)
+	if err == nil {
+		return output, tokens, nil
+	}
+	logger.Warn("dedup extraction failed, falling back to indexed batch",
+		zap.Int("batch", batchNum), zap.Error(err))
+
+	output, tokens, err = e.callBatchLLM(ctx, items)
+	if err == nil {
+		return output, tokens, nil
+	}
+
+	// 非超时错误不重试 / Don't retry non-timeout errors
+	if ctx.Err() == nil && !isTimeoutOrServerError(err) {
+		return nil, tokens, err
+	}
+
+	if len(items) <= 1 {
+		return nil, tokens, err
+	}
+
+	logger.Info("batch LLM timed out, splitting in half and retrying",
+		zap.Int("batch", batchNum),
+		zap.Int("original_size", len(items)),
+	)
+
+	mid := len(items) / 2
+	out1, tok1, err1 := e.callBatchLLM(ctx, items[:mid])
+	out2, tok2, err2 := e.callBatchLLM(ctx, items[mid:])
+	totalTokens := tokens + tok1 + tok2
+
+	// 至少一半成功就返回合并结果 / Return merged result if at least one half succeeded
+	if err1 != nil && err2 != nil {
+		return nil, totalTokens, fmt.Errorf("both halves failed: %v / %v", err1, err2)
+	}
+
+	merged := &batchExtractOutput{}
+	if out1 != nil {
+		merged.Results = append(merged.Results, out1.Results...)
+	}
+	if out2 != nil {
+		// 第二半的 index 需要加上偏移量 / Offset second half indices
+		for _, r := range out2.Results {
+			r.Index += mid
+			merged.Results = append(merged.Results, r)
+		}
+	}
+
+	if err1 != nil {
+		logger.Warn("batch retry: first half failed", zap.Int("batch", batchNum), zap.Error(err1))
+	}
+	if err2 != nil {
+		logger.Warn("batch retry: second half failed", zap.Int("batch", batchNum), zap.Error(err2))
+	}
+
+	return merged, totalTokens, nil
+}
+
+// isTimeoutOrServerError 判断是否为超时或服务端错误（值得重试）/ Check if error is timeout or server error (retriable)
+func isTimeoutOrServerError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "deadline exceeded") ||
+		strings.Contains(msg, "timeout") ||
+		strings.Contains(msg, "status 502") ||
+		strings.Contains(msg, "status 503") ||
+		strings.Contains(msg, "status 429")
+}
+
 func (e *Extractor) callBatchLLM(ctx context.Context, items []model.BatchExtractItem) (*batchExtractOutput, int, error) {
 	input := batchExtractInput{
 		Memories: make([]batchMemoryItem, len(items)),

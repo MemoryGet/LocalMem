@@ -16,12 +16,24 @@ var relationalPatterns = regexp.MustCompile(`(?i)\b(related\s+to|associated\s+wi
 // 探索性关键词（复制自 preprocess.go，避免耦合）/ Exploratory keywords (copied from preprocess.go to avoid coupling)
 var exploratoryPatterns = regexp.MustCompile(`(?i)\b(how|why|what|when|where|which|explain|describe|summarize|overview)\b|怎么|为什么|什么|如何|谁|哪里|解释|描述|总结|概述|哪些`)
 
+// 聚合关键词（需要跨多条记忆做计算的模式，刻意保守以避免误路由）
+// Aggregation keywords (patterns requiring computation across memories — kept conservative to avoid misrouting)
+// Excluded: "how many/much/often/long" alone — too ambiguous; they match point-retrieval and temporal queries.
+var aggregationPatterns = regexp.MustCompile(`(?i)\b(total|average|sum\s+of|in\s+total|altogether|across\s+all|how\s+much\s+total)\b|一共|总共|总计|多少(个|次|钱|天)|平均|合计|累计|所有.*加起来`)
+
+// 历史列举模式：时间作用域词（非具体锚点）+ 列举意图 → aggregation
+// Historical listing: general past-scope word + listing intent → aggregation
+// Matches: "之前我都做了哪些事情", "以前都做了什么", "过去做过哪些任务"
+// Does NOT match specific anchors like "上周我都做了哪些事情" (上周 not in scope group)
+var historicalListPatterns = regexp.MustCompile(`(之前|以前|历史上|过去).*(都|哪些|所有)`)
+
 // intentToPipeline 意图→管线映射 / Intent to pipeline mapping
 var intentToPipeline = map[string]string{
-	"keyword":    pipeline.PipelinePrecision,
-	"semantic":   pipeline.PipelineSemantic,
-	"temporal":   pipeline.PipelineExploration,
-	"relational": pipeline.PipelineAssociation,
+	"keyword":      pipeline.PipelinePrecision,
+	"semantic":     pipeline.PipelineSemantic,
+	"temporal":     pipeline.PipelineExploration,
+	"relational":   pipeline.PipelineAssociation,
+	"aggregation":  pipeline.PipelineAggregation,
 }
 
 // shortQueryThreshold 短查询阈值（rune 数）/ Short query threshold in runes
@@ -44,9 +56,11 @@ func NewRuleClassifier(fallbackPipeline string) *RuleClassifier {
 //
 // Selection rules (in priority order):
 //  1. Query length < 5 runes → "fast"
+//  1.5. Historical listing (general past scope + listing intent) → "aggregation"
 //  2. Temporal patterns match → "exploration"
+//  2.5. Aggregation patterns match (only when no temporal anchor) → "aggregation"
 //  3. Relational patterns match → "association"
-//  4. Intent-based mapping (keyword/semantic/temporal/relational)
+//  4. Intent-based mapping (keyword/semantic/temporal/relational/aggregation)
 //  5. Exploratory patterns match (how/why/what) → "exploration"
 //  6. Default → fallbackPipeline
 func (c *RuleClassifier) Select(query string, intent string) string {
@@ -58,9 +72,21 @@ func (c *RuleClassifier) Select(query string, intent string) string {
 		return pipeline.PipelineFast
 	}
 
+	// 规则 1.5: 历史列举（时间作用域词 + 列举意图）→ aggregation
+	// Rule 1.5: historical listing (general past scope + listing intent) → aggregation
+	// Checked before temporal so "之前我都做了哪些事情" reaches aggregation instead of exploration.
+	if historicalListPatterns.MatchString(query) {
+		return pipeline.PipelineAggregation
+	}
+
 	// 规则 2: 时间模式 → exploration / Rule 2: temporal patterns → exploration
 	if temporalPatterns.MatchString(query) {
 		return pipeline.PipelineExploration
+	}
+
+	// 规则 2.5: 聚合模式（无时间锚点时）→ aggregation / Rule 2.5: aggregation patterns (only when no temporal anchor) → aggregation
+	if aggregationPatterns.MatchString(query) && !temporalPatterns.MatchString(query) {
+		return pipeline.PipelineAggregation
 	}
 
 	// 规则 3: 关联模式 → association / Rule 3: relational patterns → association

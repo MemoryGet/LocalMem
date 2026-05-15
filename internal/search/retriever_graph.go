@@ -16,9 +16,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// maxVisitedEntities 图谱遍历最大实体数，防止高连接度实体指数级扇出
-// Maximum visited entities during graph traversal to prevent exponential fan-out
-const maxVisitedEntities = 50
 
 // graphRetrieve 图谱关联检索 / Graph-based association retrieval
 // 通过 FTS5 反查实体，遍历图谱关系，获取关联记忆
@@ -89,6 +86,11 @@ func (r *Retriever) graphTraverseAndCollect(ctx context.Context, seedEntityIDs m
 		depth = 1
 	}
 
+	maxVisited := r.cfg.GraphMaxVisited
+	if maxVisited <= 0 {
+		maxVisited = 150
+	}
+
 	visited := make(map[string]int) // entityID → depth level
 	currentEntities := make([]string, 0, len(seedEntityIDs))
 	for id := range seedEntityIDs {
@@ -100,10 +102,10 @@ func (r *Retriever) graphTraverseAndCollect(ctx context.Context, seedEntityIDs m
 		var nextEntities []string
 		for _, entityID := range currentEntities {
 			// 扇出限制：已访问实体数超过上限时提前终止 / Fan-out limit: stop early when visited entities exceed cap
-			if len(visited) >= maxVisitedEntities {
+			if len(visited) >= maxVisited {
 				logger.Info("graph: traversal truncated at entity cap",
 					zap.Int("visited", len(visited)),
-					zap.Int("max", maxVisitedEntities),
+					zap.Int("max", maxVisited),
 					zap.Int("depth", d),
 				)
 				break
@@ -126,7 +128,7 @@ func (r *Retriever) graphTraverseAndCollect(ctx context.Context, seedEntityIDs m
 			}
 		}
 		currentEntities = nextEntities
-		if len(currentEntities) == 0 || len(visited) >= maxVisitedEntities {
+		if len(currentEntities) == 0 || len(visited) >= maxVisited {
 			break
 		}
 	}

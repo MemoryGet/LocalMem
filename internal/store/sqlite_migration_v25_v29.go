@@ -133,3 +133,27 @@ func migrateV26ToV27(db *sql.DB) error {
 	logger.Info("migration V26→V27 completed: confidence + entity_candidates")
 	return tx.Commit()
 }
+
+// migrateV27ToV28 entity_candidates 增加 entity_type 列 / Add entity_type column to entity_candidates
+func migrateV27ToV28(db *sql.DB) error {
+	logger.Info("executing migration V27→V28: entity_candidates entity_type")
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`ALTER TABLE entity_candidates ADD COLUMN entity_type TEXT DEFAULT 'concept'`); err != nil {
+		if !IsColumnExistsError(err) {
+			return err
+		}
+	}
+
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (28, datetime('now'))`); err != nil {
+		return err
+	}
+
+	logger.Info("migration V27→V28 completed: entity_candidates entity_type")
+	return tx.Commit()
+}

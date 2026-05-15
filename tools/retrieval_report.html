@@ -1,0 +1,6244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalMem 检索命中率测试报告</title>
+<style>
+:root {
+  --bg: #0d1117; --card: #161b22; --border: #30363d;
+  --text: #c9d1d9; --text2: #8b949e; --green: #3fb950;
+  --red: #f85149; --yellow: #d29922; --blue: #58a6ff;
+  --purple: #bc8cff;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', 'Noto Sans SC', sans-serif; padding: 24px; }
+.container { max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 28px; margin-bottom: 8px; }
+.subtitle { color: var(--text2); margin-bottom: 32px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+.card .label { color: var(--text2); font-size: 13px; margin-bottom: 4px; }
+.card .value { font-size: 32px; font-weight: 700; }
+.card .value.green { color: var(--green); }
+.card .value.red { color: var(--red); }
+.card .value.yellow { color: var(--yellow); }
+.card .value.blue { color: var(--blue); }
+.section { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+.section h2 { font-size: 18px; margin-bottom: 16px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--text2); font-weight: 600; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+tr:hover { background: rgba(88,166,255,0.05); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.tag-hit { background: rgba(63,185,80,0.15); color: var(--green); }
+.tag-miss { background: rgba(248,81,73,0.15); color: var(--red); }
+.tag-easy { background: rgba(63,185,80,0.15); color: var(--green); }
+.tag-medium { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.tag-hard { background: rgba(248,81,73,0.15); color: var(--red); }
+.bar-bg { background: var(--border); border-radius: 4px; height: 24px; position: relative; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; font-weight: 600; color: #fff; }
+.bar-fill.high { background: var(--green); }
+.bar-fill.mid { background: var(--yellow); }
+.bar-fill.low { background: var(--red); }
+.scroll-table { max-height: 600px; overflow-y: auto; }
+.scroll-table::-webkit-scrollbar { width: 6px; }
+.scroll-table::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>LocalMem 检索命中率测试报告</h1>
+<p class="subtitle">生成时间: 2026-05-06 18:58:29 | 种子数据: 83 条 | 查询数: 500 | 耗时: 48.4s | Rerank: remote</p>
+
+<div class="grid">
+  <div class="card"><div class="label">总命中率</div><div class="value yellow">73.6%</div></div>
+  <div class="card"><div class="label">命中/总数</div><div class="value blue">368/500</div></div>
+  <div class="card"><div class="label">Top-1 命中</div><div class="value green">61.0%</div></div>
+  <div class="card"><div class="label">Top-3 命中</div><div class="value green">70.6%</div></div>
+  <div class="card"><div class="label">Top-5 命中</div><div class="value green">71.6%</div></div>
+  <div class="card"><div class="label">未命中</div><div class="value red">132</div></div>
+</div>
+
+<div class="section">
+<h2>按查询类别分析</h2>
+<table>
+<thead><tr><th>类别</th><th>查询数</th><th>命中数</th><th>命中率</th><th>分布</th></tr></thead>
+<tbody>
+<tr>
+  <td>精确匹配</td>
+  <td>80</td>
+  <td>77</td>
+  <td>96.2%</td>
+  <td><div class="bar-bg"><div class="bar-fill high" style="width:96.25%">96%</div></div></td>
+</tr>
+<tr>
+  <td>近义词</td>
+  <td>80</td>
+  <td>57</td>
+  <td>71.2%</td>
+  <td><div class="bar-bg"><div class="bar-fill mid" style="width:71.25%">71%</div></div></td>
+</tr>
+<tr>
+  <td>模糊/口语</td>
+  <td>60</td>
+  <td>44</td>
+  <td>73.3%</td>
+  <td><div class="bar-bg"><div class="bar-fill mid" style="width:73.33333333333333%">73%</div></div></td>
+</tr>
+<tr>
+  <td>跨语言</td>
+  <td>40</td>
+  <td>12</td>
+  <td>30.0%</td>
+  <td><div class="bar-bg"><div class="bar-fill low" style="width:30.0%">30%</div></div></td>
+</tr>
+<tr>
+  <td>复合条件</td>
+  <td>60</td>
+  <td>58</td>
+  <td>96.7%</td>
+  <td><div class="bar-bg"><div class="bar-fill high" style="width:96.66666666666667%">97%</div></div></td>
+</tr>
+<tr>
+  <td>上下文推理</td>
+  <td>50</td>
+  <td>27</td>
+  <td>54.0%</td>
+  <td><div class="bar-bg"><div class="bar-fill low" style="width:54.0%">54%</div></div></td>
+</tr>
+<tr>
+  <td>实体查询</td>
+  <td>50</td>
+  <td>50</td>
+  <td>100.0%</td>
+  <td><div class="bar-bg"><div class="bar-fill high" style="width:100.0%">100%</div></div></td>
+</tr>
+<tr>
+  <td>隐含/间接</td>
+  <td>40</td>
+  <td>14</td>
+  <td>35.0%</td>
+  <td><div class="bar-bg"><div class="bar-fill low" style="width:35.0%">35%</div></div></td>
+</tr>
+<tr>
+  <td>否定/排除</td>
+  <td>20</td>
+  <td>17</td>
+  <td>85.0%</td>
+  <td><div class="bar-bg"><div class="bar-fill high" style="width:85.0%">85%</div></div></td>
+</tr>
+<tr>
+  <td>时间相关</td>
+  <td>20</td>
+  <td>12</td>
+  <td>60.0%</td>
+  <td><div class="bar-bg"><div class="bar-fill mid" style="width:60.0%">60%</div></div></td>
+</tr>
+</tbody></table></div>
+
+<div class="section">
+<h2>按难度分析</h2>
+<table>
+<thead><tr><th>难度</th><th>查询数</th><th>命中数</th><th>命中率</th><th>分布</th></tr></thead>
+<tbody>
+<tr>
+  <td><span class="tag tag-easy">简单</span></td>
+  <td>174</td>
+  <td>168</td>
+  <td>96.6%</td>
+  <td><div class="bar-bg"><div class="bar-fill high" style="width:96.55172413793103%">97%</div></div></td>
+</tr>
+<tr>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>182</td>
+  <td>143</td>
+  <td>78.6%</td>
+  <td><div class="bar-bg"><div class="bar-fill mid" style="width:78.57142857142857%">79%</div></div></td>
+</tr>
+<tr>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>144</td>
+  <td>57</td>
+  <td>39.6%</td>
+  <td><div class="bar-bg"><div class="bar-fill low" style="width:39.58333333333333%">40%</div></div></td>
+</tr>
+</tbody></table></div>
+
+<div class="section">
+<h2>未命中查询详情 (132 条)</h2>
+<div class="scroll-table">
+<table>
+<thead><tr><th>#</th><th>查询</th><th>期望关键词</th><th>类别</th><th>难度</th><th>返回结果数</th></tr></thead>
+<tbody>
+<tr>
+  <td>48</td>
+  <td>v1.0 正式版</td>
+  <td>v1.0</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>58</td>
+  <td>5年后端经验</td>
+  <td>5年</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>70</td>
+  <td>生日 10月</td>
+  <td>10月15日</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+  <td>34</td>
+</tr>
+<tr>
+  <td>82</td>
+  <td>夜间模式</td>
+  <td>暗色主题</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>83</td>
+  <td>代码编辑器键盘映射</td>
+  <td>Vim 键位</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>84</td>
+  <td>终端工具美化</td>
+  <td>powerlevel10k</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>34</td>
+</tr>
+<tr>
+  <td>87</td>
+  <td>早晨饮品习惯</td>
+  <td>美式咖啡</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>104</td>
+  <td>思考推理模块</td>
+  <td>reflect</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>112</td>
+  <td>内存溢出问题</td>
+  <td>OOM</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>114</td>
+  <td>协程异常处理</td>
+  <td>goroutine</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>119</td>
+  <td>并发数据竞争</td>
+  <td>TOCTOU</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>124</td>
+  <td>每周例会时间</td>
+  <td>周五</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>130</td>
+  <td>持续集成流水线</td>
+  <td>GitHub Actions</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>135</td>
+  <td>定时检查任务</td>
+  <td>Heartbeat</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>136</td>
+  <td>开发者技术栈</td>
+  <td>全栈</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>137</td>
+  <td>工作年限</td>
+  <td>5年</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>141</td>
+  <td>客户端开发库</td>
+  <td>Python SDK</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>35</td>
+</tr>
+<tr>
+  <td>143</td>
+  <td>NLP 信息提取</td>
+  <td>实体抽取</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>145</td>
+  <td>宠物猫</td>
+  <td>小橘</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>146</td>
+  <td>运动爱好</td>
+  <td>打篮球</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>148</td>
+  <td>在读技术书</td>
+  <td>DDIA</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>149</td>
+  <td>出生日期</td>
+  <td>10月15日</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>151</td>
+  <td>上下文窗口大小限制</td>
+  <td>token</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>156</td>
+  <td>请求处理管道</td>
+  <td>中间件</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>157</td>
+  <td>Unicode 长度计算</td>
+  <td>rune</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>159</td>
+  <td>异步任务安全</td>
+  <td>recover</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>163</td>
+  <td>我的终端长什么样</td>
+  <td>powerlevel10k</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>165</td>
+  <td>我讨厌什么语言</td>
+  <td>Java</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>169</td>
+  <td>我用什么写文章</td>
+  <td>Markdown</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>181</td>
+  <td>为什么不用结巴分词</td>
+  <td>jieba</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>189</td>
+  <td>遇到过内存炸了没</td>
+  <td>OOM</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>195</td>
+  <td>权限漏洞怎么回事</td>
+  <td>scope</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>196</td>
+  <td>并发写有什么问题</td>
+  <td>TOCTOU</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>198</td>
+  <td>谁写前端</td>
+  <td>李明</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>201</td>
+  <td>每周什么时候开会</td>
+  <td>周五</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>212</td>
+  <td>有什么后台任务</td>
+  <td>Heartbeat</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>213</td>
+  <td>我是做什么的</td>
+  <td>全栈</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>214</td>
+  <td>我工作多久了</td>
+  <td>5年</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>215</td>
+  <td>我在学什么新语言</td>
+  <td>Rust</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>216</td>
+  <td>我家有宠物吗</td>
+  <td>小橘</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>217</td>
+  <td>周末都干嘛</td>
+  <td>打篮球</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>220</td>
+  <td>我什么时候过生日</td>
+  <td>10月15日</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>221</td>
+  <td>What theme does the user prefer</td>
+  <td>暗色主题</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>222</td>
+  <td>database migration reason</td>
+  <td>PostgreSQL</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>223</td>
+  <td>vector database setup</td>
+  <td>Qdrant</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>224</td>
+  <td>full text search algorithm</td>
+  <td>BM25</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>226</td>
+  <td>logging library</td>
+  <td>Zap</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>228</td>
+  <td>frontend testing dashboard</td>
+  <td>Vue 3</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>231</td>
+  <td>reflection engine design</td>
+  <td>reflect</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>232</td>
+  <td>memory decay model</td>
+  <td>衰减</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>233</td>
+  <td>document parsing pipeline</td>
+  <td>Docling</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>234</td>
+  <td>concurrent write issue</td>
+  <td>锁死</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>235</td>
+  <td>out of memory problem</td>
+  <td>OOM</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>236</td>
+  <td>search recall improvement</td>
+  <td>召回率</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>238</td>
+  <td>interface missing method</td>
+  <td>GetRelation</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>239</td>
+  <td>idempotent migration</td>
+  <td>幂等</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>28</td>
+</tr>
+<tr>
+  <td>240</td>
+  <td>code duplication refactor</td>
+  <td>scanDest</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>241</td>
+  <td>authorization check missing</td>
+  <td>scope</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>243</td>
+  <td>backend tech lead</td>
+  <td>张伟</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>244</td>
+  <td>product manager name</td>
+  <td>王芳</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>245</td>
+  <td>best friend info</td>
+  <td>陈浩</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>246</td>
+  <td>weekly meeting schedule</td>
+  <td>周五</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>248</td>
+  <td>release date v1.0</td>
+  <td>v1.0</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>251</td>
+  <td>system layer architecture</td>
+  <td>五层</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>254</td>
+  <td>background health check</td>
+  <td>Heartbeat</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>255</td>
+  <td>user tech stack</td>
+  <td>全栈</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>257</td>
+  <td>pet cat info</td>
+  <td>小橘</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>258</td>
+  <td>birthday date</td>
+  <td>10月15日</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>259</td>
+  <td>book currently reading</td>
+  <td>DDIA</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>260</td>
+  <td>business trip plan</td>
+  <td>东京</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>285</td>
+  <td>5月1日 v1.0 发布 SDK</td>
+  <td>v1.0</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>307</td>
+  <td>10月15日 生日</td>
+  <td>10月15日</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+  <td>35</td>
+</tr>
+<tr>
+  <td>323</td>
+  <td>系统有几种搜索方式</td>
+  <td>三路</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>325</td>
+  <td>数据可靠性怎么保证</td>
+  <td>dual-write</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>330</td>
+  <td>系统安全性如何</td>
+  <td>scope</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>331</td>
+  <td>部署需要哪些组件</td>
+  <td>docker-compose</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>35</td>
+</tr>
+<tr>
+  <td>332</td>
+  <td>测试环境怎么搭</td>
+  <td>test.db</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>334</td>
+  <td>配置文件怎么管理</td>
+  <td>config.yaml</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>336</td>
+  <td>API 有速率限制吗</td>
+  <td>Rate limiter</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>35</td>
+</tr>
+<tr>
+  <td>337</td>
+  <td>大文件会不会出问题</td>
+  <td>LimitReader</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>339</td>
+  <td>知识图谱是做什么的</td>
+  <td>GraphStore</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>340</td>
+  <td>中文搜索有什么坑</td>
+  <td>rune</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>341</td>
+  <td>怎么理解记忆的强度</td>
+  <td>strength</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>345</td>
+  <td>怎么避免重复记忆</td>
+  <td>Consolidation</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>34</td>
+</tr>
+<tr>
+  <td>346</td>
+  <td>过期记忆怎么处理</td>
+  <td>Heartbeat</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>35</td>
+</tr>
+<tr>
+  <td>349</td>
+  <td>请求处理流程是怎样的</td>
+  <td>中间件</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>352</td>
+  <td>代码规模有多大</td>
+  <td>Store</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>353</td>
+  <td>谁在用这个项目</td>
+  <td>Codex CLI</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>35</td>
+</tr>
+<tr>
+  <td>361</td>
+  <td>数据一致性怎么保证</td>
+  <td>事务</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>362</td>
+  <td>接口有文档吗</td>
+  <td>API</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>35</td>
+</tr>
+<tr>
+  <td>363</td>
+  <td>系统扩展性如何</td>
+  <td>Qdrant</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>364</td>
+  <td>性能瓶颈在哪</td>
+  <td>SQLite</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>365</td>
+  <td>有没有缓存机制</td>
+  <td>mmap</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>367</td>
+  <td>项目有几个二进制</td>
+  <td>cmd</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>35</td>
+</tr>
+<tr>
+  <td>370</td>
+  <td>项目最近的变更</td>
+  <td>FTS5</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>6</td>
+</tr>
+<tr>
+  <td>421</td>
+  <td>我有什么宠物</td>
+  <td>小橘</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>422</td>
+  <td>我周末有什么活动</td>
+  <td>打篮球</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>423</td>
+  <td>下次旅行去哪</td>
+  <td>东京</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>424</td>
+  <td>有什么好书推荐</td>
+  <td>DDIA</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>425</td>
+  <td>我多大了</td>
+  <td>10月15日</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>37</td>
+</tr>
+<tr>
+  <td>427</td>
+  <td>团队有几个人</td>
+  <td>张伟</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>429</td>
+  <td>项目最大的技术挑战</td>
+  <td>召回率</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>39</td>
+</tr>
+<tr>
+  <td>430</td>
+  <td>系统最脆弱的部分</td>
+  <td>SQLite</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>431</td>
+  <td>还有什么功能没做完</td>
+  <td>v1.0</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>434</td>
+  <td>数据丢失的风险</td>
+  <td>dual-write</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>435</td>
+  <td>部署时要注意什么</td>
+  <td>docker-compose</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>34</td>
+</tr>
+<tr>
+  <td>436</td>
+  <td>代码质量如何保证</td>
+  <td>GitHub Actions</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>439</td>
+  <td>开发效率工具有哪些</td>
+  <td>tmux</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>36</td>
+</tr>
+<tr>
+  <td>441</td>
+  <td>监控告警方案</td>
+  <td>Heartbeat</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>442</td>
+  <td>扩展性瓶颈</td>
+  <td>Qdrant</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>446</td>
+  <td>代码风格规范</td>
+  <td>Zap</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>448</td>
+  <td>历史遗留问题</td>
+  <td>V10</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>449</td>
+  <td>最近踩过的坑</td>
+  <td>OOM</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>450</td>
+  <td>性能调优手段</td>
+  <td>WAL</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>452</td>
+  <td>项目依赖了哪些外部服务</td>
+  <td>OpenAI</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>39</td>
+</tr>
+<tr>
+  <td>454</td>
+  <td>运维复杂度</td>
+  <td>docker-compose</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>32</td>
+</tr>
+<tr>
+  <td>456</td>
+  <td>工作生活平衡</td>
+  <td>打篮球</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>457</td>
+  <td>技术选型理由</td>
+  <td>Go 语言</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>33</td>
+</tr>
+<tr>
+  <td>458</td>
+  <td>团队协作方式</td>
+  <td>周五</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>459</td>
+  <td>知识管理方法</td>
+  <td>ingest_conversation</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>37</td>
+</tr>
+<tr>
+  <td>460</td>
+  <td>最近的里程碑</td>
+  <td>MCP</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>467</td>
+  <td>没有 ON DELETE CASCADE</td>
+  <td>级联</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>476</td>
+  <td>mock 测试预测不准</td>
+  <td>元数据</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>34</td>
+</tr>
+<tr>
+  <td>477</td>
+  <td>白名单不能有兜底</td>
+  <td>白名单</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>481</td>
+  <td>最近的代码改动</td>
+  <td>FTS5</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>482</td>
+  <td>上周修了什么 bug</td>
+  <td>FTS5</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>485</td>
+  <td>4月份要做什么</td>
+  <td>MCP</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>486</td>
+  <td>5月份的截止日期</td>
+  <td>v1.0</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>492</td>
+  <td>最近的 deadline</td>
+  <td>4月15日</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>31</td>
+</tr>
+<tr>
+  <td>494</td>
+  <td>猫养了几年</td>
+  <td>3岁</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>497</td>
+  <td>上一次安全事故</td>
+  <td>tag_handler</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+  <td>30</td>
+</tr>
+<tr>
+  <td>500</td>
+  <td>过生日是哪天</td>
+  <td>10月15日</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-easy">简单</span></td>
+  <td>30</td>
+</tr>
+</tbody></table></div></div>
+
+<div class="section">
+<h2>全部查询结果</h2>
+<div class="scroll-table">
+<table>
+<thead><tr><th>#</th><th>查询</th><th>期望</th><th>命中</th><th>排名</th><th>分数</th><th>类别</th><th>难度</th></tr></thead>
+<tbody>
+<tr>
+  <td>1</td>
+  <td>暗色主题</td>
+  <td>暗色主题</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.531233</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>2</td>
+  <td>dark mode</td>
+  <td>dark mode</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.607547</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>3</td>
+  <td>Vim 键位</td>
+  <td>Vim 键位</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.658020</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>4</td>
+  <td>oh-my-zsh</td>
+  <td>oh-my-zsh</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.921312</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>5</td>
+  <td>powerlevel10k</td>
+  <td>powerlevel10k</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>6</td>
+  <td>Go 语言开发后端</td>
+  <td>Go 语言</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>39.985632</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>7</td>
+  <td>Spring Boot</td>
+  <td>Spring Boot</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.665707</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>8</td>
+  <td>美式咖啡</td>
+  <td>美式咖啡</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.724231</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>9</td>
+  <td>SQLite 本地存储</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>31.887230</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>10</td>
+  <td>极简设计</td>
+  <td>极简设计</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.279040</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>11</td>
+  <td>tmux 终端</td>
+  <td>tmux</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.641168</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>12</td>
+  <td>Markdown 文档</td>
+  <td>Markdown</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>12.564941</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>13</td>
+  <td>阿里云 ECS</td>
+  <td>阿里云 ECS</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.209500</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>14</td>
+  <td>PostgreSQL 迁移</td>
+  <td>PostgreSQL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.015581</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>15</td>
+  <td>Qdrant 向量数据库</td>
+  <td>Qdrant</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>40.886619</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>16</td>
+  <td>iclude 模块名</td>
+  <td>iclude</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.740481</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>17</td>
+  <td>BM25 算法</td>
+  <td>BM25</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.558821</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>18</td>
+  <td>8080 端口</td>
+  <td>8080</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.854962</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>19</td>
+  <td>Gin 框架</td>
+  <td>Gin 框架</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.586029</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>20</td>
+  <td>Zap 日志</td>
+  <td>Zap</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.869357</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>21</td>
+  <td>text-embedding-3-small</td>
+  <td>text-embedding-3-small</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>37.690225</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>22</td>
+  <td>WAL 模式</td>
+  <td>WAL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.869357</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>23</td>
+  <td>Vue 3 Vite</td>
+  <td>Vue 3</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.531233</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>24</td>
+  <td>RRF 算法</td>
+  <td>RRF</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.764559</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>25</td>
+  <td>simple tokenizer</td>
+  <td>simple tokenizer</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.435223</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>26</td>
+  <td>reflect 反思引擎</td>
+  <td>reflect</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>44.353533</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>27</td>
+  <td>数据库迁移 V0</td>
+  <td>迁移</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>29.502562</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>28</td>
+  <td>FTS5 OR 逻辑</td>
+  <td>OR</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.443285</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>29</td>
+  <td>MCP stdio</td>
+  <td>stdio</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.155504</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>30</td>
+  <td>dual-write</td>
+  <td>dual-write</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.169792</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>31</td>
+  <td>指数衰减</td>
+  <td>指数衰减</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>32</td>
+  <td>Docling Tika</td>
+  <td>Docling</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.869357</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>33</td>
+  <td>LLM 三级 fallback</td>
+  <td>fallback</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>44.872074</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>34</td>
+  <td>busy_timeout</td>
+  <td>busy_timeout</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.210362</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>35</td>
+  <td>io.LimitReader</td>
+  <td>LimitReader</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.210362</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>36</td>
+  <td>defer recover</td>
+  <td>recover</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.435223</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>37</td>
+  <td>GetRelation 方法</td>
+  <td>GetRelation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.931558</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>38</td>
+  <td>scanDest 结构体</td>
+  <td>scanDest</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.414059</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>39</td>
+  <td>scope 授权</td>
+  <td>scope</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.104864</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>40</td>
+  <td>TOCTOU 竞态</td>
+  <td>TOCTOU</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.378489</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>41</td>
+  <td>张伟 后端</td>
+  <td>张伟</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.303774</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>42</td>
+  <td>李明 前端</td>
+  <td>李明</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>43</td>
+  <td>王芳 产品</td>
+  <td>王芳</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.607547</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>44</td>
+  <td>陈浩 朋友</td>
+  <td>陈浩</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.377128</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>45</td>
+  <td>技术周会</td>
+  <td>技术周会</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.869357</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>46</td>
+  <td>4月15日 MCP</td>
+  <td>4月15日</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>13.907201</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>47</td>
+  <td>Q2 召回率</td>
+  <td>召回率</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.816795</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>48</td>
+  <td>v1.0 正式版</td>
+  <td>v1.0</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>49</td>
+  <td>OPENAI_API_KEY</td>
+  <td>OPENAI_API_KEY</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>41.480916</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>50</td>
+  <td>docker-compose</td>
+  <td>docker-compose</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.038706</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>51</td>
+  <td>GitHub Actions</td>
+  <td>GitHub Actions</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.586029</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>52</td>
+  <td>五层架构</td>
+  <td>五层</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.908208</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>53</td>
+  <td>MemoryStore 18方法</td>
+  <td>MemoryStore</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>43.181264</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>54</td>
+  <td>config.yaml 优先级</td>
+  <td>config.yaml</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>36.479777</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>55</td>
+  <td>retention_tier</td>
+  <td>retention_tier</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.506350</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>56</td>
+  <td>Heartbeat 心跳</td>
+  <td>Heartbeat</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.492309</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>57</td>
+  <td>全栈开发</td>
+  <td>全栈</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.846309</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>58</td>
+  <td>5年后端经验</td>
+  <td>5年</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>59</td>
+  <td>Rust 重写</td>
+  <td>Rust</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.759670</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>60</td>
+  <td>mem_Tao</td>
+  <td>mem_Tao</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.902026</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>61</td>
+  <td>ingest_conversation</td>
+  <td>ingest_conversation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.665707</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>62</td>
+  <td>Python SDK</td>
+  <td>Python SDK</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.759670</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>63</td>
+  <td>配置生成器</td>
+  <td>配置生成器</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>13.860321</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>64</td>
+  <td>实体抽取</td>
+  <td>实体抽取</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.403807</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>65</td>
+  <td>Codex CLI</td>
+  <td>Codex CLI</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.052980</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>66</td>
+  <td>小橘 橘猫</td>
+  <td>小橘</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.665707</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>67</td>
+  <td>打篮球</td>
+  <td>打篮球</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.421194</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>68</td>
+  <td>日本东京</td>
+  <td>东京</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.665707</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>69</td>
+  <td>DDIA</td>
+  <td>DDIA</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.217611</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>70</td>
+  <td>生日 10月</td>
+  <td>10月15日</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>71</td>
+  <td>MarkdownChunker</td>
+  <td>MarkdownChunker</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.362115</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>72</td>
+  <td>token 预算</td>
+  <td>token</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.911112</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>73</td>
+  <td>Content 权重</td>
+  <td>权重</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.202496</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>74</td>
+  <td>MaxOpen=5</td>
+  <td>MaxOpen</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.391562</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>75</td>
+  <td>Rate limiter</td>
+  <td>Rate limiter</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.549749</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>76</td>
+  <td>Consolidation</td>
+  <td>Consolidation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.217611</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>77</td>
+  <td>中间件链 CORS</td>
+  <td>CORS</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.783123</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>78</td>
+  <td>[]rune 中文</td>
+  <td>rune</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.246403</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>79</td>
+  <td>幂等 迁移</td>
+  <td>幂等</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.165692</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>80</td>
+  <td>OOM Docling</td>
+  <td>OOM</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.457834</td>
+  <td>精确匹配</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>81</td>
+  <td>深色模式 编辑器</td>
+  <td>暗色主题</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.443019</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>82</td>
+  <td>夜间模式</td>
+  <td>暗色主题</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>83</td>
+  <td>代码编辑器键盘映射</td>
+  <td>Vim 键位</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>84</td>
+  <td>终端工具美化</td>
+  <td>powerlevel10k</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>85</td>
+  <td>后端开发语言选择</td>
+  <td>Go 语言</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>5</td>
+  <td>5.475846</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>86</td>
+  <td>不喜欢啰嗦的编程语言</td>
+  <td>Java</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>4.959031</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>87</td>
+  <td>早晨饮品习惯</td>
+  <td>美式咖啡</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>88</td>
+  <td>本地数据库选型</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>5.991747</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>89</td>
+  <td>UI 设计风格</td>
+  <td>极简设计</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>23.024532</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>90</td>
+  <td>终端窗口分屏工具</td>
+  <td>tmux</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.037194</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>91</td>
+  <td>写作文档格式</td>
+  <td>Markdown</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>4.471739</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>92</td>
+  <td>云服务器地区</td>
+  <td>阿里云</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.763076</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>93</td>
+  <td>数据库技术栈变更</td>
+  <td>PostgreSQL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>9</td>
+  <td>4.416692</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>94</td>
+  <td>向量搜索引擎</td>
+  <td>Qdrant</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.883643</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>95</td>
+  <td>全文检索排名算法</td>
+  <td>BM25</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>5.918216</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>96</td>
+  <td>HTTP 服务端口号</td>
+  <td>8080</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.204290</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>97</td>
+  <td>Web 框架选型</td>
+  <td>Gin</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.466283</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>98</td>
+  <td>结构化日志组件</td>
+  <td>Zap</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>23.581989</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>99</td>
+  <td>文本向量化模型</td>
+  <td>embedding</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>4.974580</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>100</td>
+  <td>数据库日志模式</td>
+  <td>WAL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>11.829284</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>101</td>
+  <td>测试可视化界面</td>
+  <td>Vue 3</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>5.580213</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>102</td>
+  <td>多路结果融合算法</td>
+  <td>RRF</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>24.086476</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>103</td>
+  <td>分词器选择</td>
+  <td>tokenizer</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.928575</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>104</td>
+  <td>思考推理模块</td>
+  <td>reflect</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>105</td>
+  <td>Schema 升级方案</td>
+  <td>迁移</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.561523</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>106</td>
+  <td>搜索词组合策略</td>
+  <td>OR</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.581968</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>107</td>
+  <td>AI 工具集成协议</td>
+  <td>MCP</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>7.188028</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>108</td>
+  <td>双写一致性策略</td>
+  <td>dual-write</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.581968</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>109</td>
+  <td>记忆衰退机制</td>
+  <td>衰减</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.602540</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>110</td>
+  <td>文档解析工具链</td>
+  <td>Docling</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>11.343792</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>111</td>
+  <td>数据库死锁问题</td>
+  <td>锁死</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>9</td>
+  <td>4.376288</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>112</td>
+  <td>内存溢出问题</td>
+  <td>OOM</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>113</td>
+  <td>搜索召回率低</td>
+  <td>召回率</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>33.512665</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>114</td>
+  <td>协程异常处理</td>
+  <td>goroutine</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>115</td>
+  <td>接口方法缺失</td>
+  <td>GetRelation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>12.287479</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>116</td>
+  <td>数据库升级回放失败</td>
+  <td>幂等</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>6</td>
+  <td>4.318542</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>117</td>
+  <td>重复代码问题</td>
+  <td>scanDest</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.239990</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>118</td>
+  <td>权限检查遗漏</td>
+  <td>scope</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>5.106734</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>119</td>
+  <td>并发数据竞争</td>
+  <td>TOCTOU</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>120</td>
+  <td>后端负责人</td>
+  <td>张伟</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.303774</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>121</td>
+  <td>前端开发者</td>
+  <td>李明</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>122</td>
+  <td>产品负责人</td>
+  <td>王芳</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>7.908208</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>123</td>
+  <td>大学同学</td>
+  <td>陈浩</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.763076</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>124</td>
+  <td>每周例会时间</td>
+  <td>周五</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>125</td>
+  <td>MCP 测试截止日期</td>
+  <td>4月15日</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>11.821121</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>126</td>
+  <td>季度 OKR 目标</td>
+  <td>Q2</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.581968</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>127</td>
+  <td>版本发布日期</td>
+  <td>5月1日</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.561523</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>128</td>
+  <td>API 密钥存储位置</td>
+  <td>OPENAI_API_KEY</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>4.140155</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>129</td>
+  <td>容器编排配置</td>
+  <td>docker-compose</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>5</td>
+  <td>4.471739</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>130</td>
+  <td>持续集成流水线</td>
+  <td>GitHub Actions</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>131</td>
+  <td>系统分层设计</td>
+  <td>五层</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.010417</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>132</td>
+  <td>存储接口数量</td>
+  <td>MemoryStore</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>5.452788</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>133</td>
+  <td>配置文件加载规则</td>
+  <td>config.yaml</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.513249</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>134</td>
+  <td>记忆保留级别</td>
+  <td>retention_tier</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.602540</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>135</td>
+  <td>定时检查任务</td>
+  <td>Heartbeat</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>136</td>
+  <td>开发者技术栈</td>
+  <td>全栈</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>137</td>
+  <td>工作年限</td>
+  <td>5年</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>138</td>
+  <td>性能优化语言</td>
+  <td>Rust</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.419900</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>139</td>
+  <td>git 用户名</td>
+  <td>mem_Tao</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.451013</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>140</td>
+  <td>对话批量存储工具</td>
+  <td>ingest_conversation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>21.338035</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>141</td>
+  <td>客户端开发库</td>
+  <td>Python SDK</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>142</td>
+  <td>配置可视化工具</td>
+  <td>配置生成器</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>10.592234</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>143</td>
+  <td>NLP 信息提取</td>
+  <td>实体抽取</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>144</td>
+  <td>CLI 插件集成</td>
+  <td>Codex CLI</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.230024</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>145</td>
+  <td>宠物猫</td>
+  <td>小橘</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>146</td>
+  <td>运动爱好</td>
+  <td>打篮球</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>147</td>
+  <td>海外出差</td>
+  <td>东京</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.932925</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>148</td>
+  <td>在读技术书</td>
+  <td>DDIA</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>149</td>
+  <td>出生日期</td>
+  <td>10月15日</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>150</td>
+  <td>文档分块策略</td>
+  <td>MarkdownChunker</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.623242</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>151</td>
+  <td>上下文窗口大小限制</td>
+  <td>token</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>152</td>
+  <td>BM25 字段权重</td>
+  <td>权重</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.262300</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>153</td>
+  <td>数据库连接配置</td>
+  <td>MaxOpen</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>5.078175</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>154</td>
+  <td>接口限流配置</td>
+  <td>Rate limiter</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>8</td>
+  <td>4.457849</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>155</td>
+  <td>记忆合并功能</td>
+  <td>Consolidation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>23.214580</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>156</td>
+  <td>请求处理管道</td>
+  <td>中间件</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>157</td>
+  <td>Unicode 长度计算</td>
+  <td>rune</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>158</td>
+  <td>响应体大小限制</td>
+  <td>LimitReader</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>23.559905</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>159</td>
+  <td>异步任务安全</td>
+  <td>recover</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>160</td>
+  <td>并发写入冲突</td>
+  <td>UNIQUE 约束</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>7.351395</td>
+  <td>近义词</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>161</td>
+  <td>我平时用什么主题</td>
+  <td>暗色主题</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.581968</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>162</td>
+  <td>我用的什么编辑器插件</td>
+  <td>Vim</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>7.099815</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>163</td>
+  <td>我的终端长什么样</td>
+  <td>powerlevel10k</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>164</td>
+  <td>我为什么选 Go</td>
+  <td>Go 语言</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.052093</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>165</td>
+  <td>我讨厌什么语言</td>
+  <td>Java</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>166</td>
+  <td>我早上喝什么</td>
+  <td>美式咖啡</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.957798</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>167</td>
+  <td>为什么不用大数据库</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>4.485716</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>168</td>
+  <td>我喜欢什么样的 UI</td>
+  <td>极简设计</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>4.943580</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>169</td>
+  <td>我用什么写文章</td>
+  <td>Markdown</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>170</td>
+  <td>服务器在哪里</td>
+  <td>阿里云</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.763076</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>171</td>
+  <td>为什么换了数据库</td>
+  <td>PostgreSQL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>6</td>
+  <td>4.692736</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>172</td>
+  <td>向量库跑在哪</td>
+  <td>Qdrant</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.883643</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>173</td>
+  <td>搜索是怎么排序的</td>
+  <td>BM25</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.480999</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>174</td>
+  <td>服务跑在哪个端口</td>
+  <td>8080</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.623388</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>175</td>
+  <td>用的什么 web 框架</td>
+  <td>Gin</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.466283</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>176</td>
+  <td>怎么打日志的</td>
+  <td>Zap</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.406028</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>177</td>
+  <td>embedding 用的啥</td>
+  <td>embedding</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.603878</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>178</td>
+  <td>数据库性能怎么调的</td>
+  <td>WAL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>4.485716</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>179</td>
+  <td>前端用什么框架</td>
+  <td>Vue 3</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.581968</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>180</td>
+  <td>搜索结果怎么合在一起的</td>
+  <td>RRF</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.188028</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>181</td>
+  <td>为什么不用结巴分词</td>
+  <td>jieba</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>182</td>
+  <td>reflect 为什么单独放</td>
+  <td>循环依赖</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.750851</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>183</td>
+  <td>数据库怎么升级的</td>
+  <td>迁移</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>4.499781</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>184</td>
+  <td>搜索为什么用 OR</td>
+  <td>OR</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>7.224627</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>185</td>
+  <td>Qdrant 写失败怎么办</td>
+  <td>dual-write</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>23.508511</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>186</td>
+  <td>记忆会不会过期</td>
+  <td>衰减</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.602540</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>187</td>
+  <td>PDF 怎么解析的</td>
+  <td>Docling</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.338402</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>188</td>
+  <td>之前数据库卡住过吗</td>
+  <td>锁死</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>10</td>
+  <td>4.376288</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>189</td>
+  <td>遇到过内存炸了没</td>
+  <td>OOM</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>190</td>
+  <td>搜索不准怎么回事</td>
+  <td>召回率</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.421891</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>191</td>
+  <td>goroutine 挂了怎么办</td>
+  <td>recover</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.834970</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>192</td>
+  <td>接口少方法怎么处理的</td>
+  <td>GetRelation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>11.604841</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>193</td>
+  <td>数据库重跑会崩吗</td>
+  <td>幂等</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.620123</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>194</td>
+  <td>有重复代码怎么改的</td>
+  <td>scanDest</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.239990</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>195</td>
+  <td>权限漏洞怎么回事</td>
+  <td>scope</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>196</td>
+  <td>并发写有什么问题</td>
+  <td>TOCTOU</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>197</td>
+  <td>项目里谁管后端</td>
+  <td>张伟</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>5.561156</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>198</td>
+  <td>谁写前端</td>
+  <td>李明</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>199</td>
+  <td>产品需求谁定的</td>
+  <td>王芳</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.746792</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>200</td>
+  <td>我最好的朋友是谁</td>
+  <td>陈浩</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.377128</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>201</td>
+  <td>每周什么时候开会</td>
+  <td>周五</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>202</td>
+  <td>MCP 什么时候要测完</td>
+  <td>4月15日</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>4</td>
+  <td>5.389040</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>203</td>
+  <td>今年的检索目标是什么</td>
+  <td>95%</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>12.554496</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>204</td>
+  <td>正式版什么时候发</td>
+  <td>5月1日</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.419900</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>205</td>
+  <td>API key 放哪了</td>
+  <td>OPENAI_API_KEY</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.645909</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>206</td>
+  <td>怎么用 Docker 部署</td>
+  <td>docker-compose</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.772494</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>207</td>
+  <td>CI 用的什么</td>
+  <td>GitHub Actions</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.932925</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>208</td>
+  <td>系统架构是怎样的</td>
+  <td>五层</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.010417</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>209</td>
+  <td>有多少个存储接口</td>
+  <td>8</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>5.452788</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>210</td>
+  <td>配置是怎么加载的</td>
+  <td>config.yaml</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>13.530581</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>211</td>
+  <td>记忆能保存多久</td>
+  <td>retention_tier</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.602540</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>212</td>
+  <td>有什么后台任务</td>
+  <td>Heartbeat</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>213</td>
+  <td>我是做什么的</td>
+  <td>全栈</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>214</td>
+  <td>我工作多久了</td>
+  <td>5年</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>215</td>
+  <td>我在学什么新语言</td>
+  <td>Rust</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>216</td>
+  <td>我家有宠物吗</td>
+  <td>小橘</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>217</td>
+  <td>周末都干嘛</td>
+  <td>打篮球</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>218</td>
+  <td>最近要出差吗</td>
+  <td>东京</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.932925</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>219</td>
+  <td>最近在看什么书</td>
+  <td>DDIA</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.834970</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>220</td>
+  <td>我什么时候过生日</td>
+  <td>10月15日</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>模糊/口语</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>221</td>
+  <td>What theme does the user prefer</td>
+  <td>暗色主题</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>222</td>
+  <td>database migration reason</td>
+  <td>PostgreSQL</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>223</td>
+  <td>vector database setup</td>
+  <td>Qdrant</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>224</td>
+  <td>full text search algorithm</td>
+  <td>BM25</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>225</td>
+  <td>HTTP framework choice</td>
+  <td>Gin</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.029203</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>226</td>
+  <td>logging library</td>
+  <td>Zap</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>227</td>
+  <td>embedding model name</td>
+  <td>embedding</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.683103</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>228</td>
+  <td>frontend testing dashboard</td>
+  <td>Vue 3</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>229</td>
+  <td>result fusion algorithm</td>
+  <td>RRF</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.419900</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>230</td>
+  <td>tokenizer selection</td>
+  <td>tokenizer</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.834970</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>231</td>
+  <td>reflection engine design</td>
+  <td>reflect</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>232</td>
+  <td>memory decay model</td>
+  <td>衰减</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>233</td>
+  <td>document parsing pipeline</td>
+  <td>Docling</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>234</td>
+  <td>concurrent write issue</td>
+  <td>锁死</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>235</td>
+  <td>out of memory problem</td>
+  <td>OOM</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>236</td>
+  <td>search recall improvement</td>
+  <td>召回率</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>237</td>
+  <td>goroutine panic recovery</td>
+  <td>recover</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.591701</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>238</td>
+  <td>interface missing method</td>
+  <td>GetRelation</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>239</td>
+  <td>idempotent migration</td>
+  <td>幂等</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>240</td>
+  <td>code duplication refactor</td>
+  <td>scanDest</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>241</td>
+  <td>authorization check missing</td>
+  <td>scope</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>242</td>
+  <td>race condition TOCTOU</td>
+  <td>TOCTOU</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.351395</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>243</td>
+  <td>backend tech lead</td>
+  <td>张伟</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>244</td>
+  <td>product manager name</td>
+  <td>王芳</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>245</td>
+  <td>best friend info</td>
+  <td>陈浩</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>246</td>
+  <td>weekly meeting schedule</td>
+  <td>周五</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>247</td>
+  <td>Q2 OKR target</td>
+  <td>Q2</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.443019</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>248</td>
+  <td>release date v1.0</td>
+  <td>v1.0</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>249</td>
+  <td>API key storage</td>
+  <td>OPENAI_API_KEY</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>21.554715</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>250</td>
+  <td>CI/CD pipeline setup</td>
+  <td>GitHub Actions</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>23.798776</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>251</td>
+  <td>system layer architecture</td>
+  <td>五层</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>252</td>
+  <td>config loading priority</td>
+  <td>config.yaml</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.513249</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>253</td>
+  <td>memory retention levels</td>
+  <td>retention_tier</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>13.864045</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>254</td>
+  <td>background health check</td>
+  <td>Heartbeat</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>255</td>
+  <td>user tech stack</td>
+  <td>全栈</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>256</td>
+  <td>user GitHub username</td>
+  <td>mem_Tao</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.686133</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>257</td>
+  <td>pet cat info</td>
+  <td>小橘</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>258</td>
+  <td>birthday date</td>
+  <td>10月15日</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>259</td>
+  <td>book currently reading</td>
+  <td>DDIA</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>260</td>
+  <td>business trip plan</td>
+  <td>东京</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>跨语言</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>261</td>
+  <td>Go 语言 微服务 并发</td>
+  <td>Go 语言</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>40.152688</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>262</td>
+  <td>SQLite WAL 连接池</td>
+  <td>WAL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>13.695486</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>263</td>
+  <td>暗色主题 编辑器 终端</td>
+  <td>暗色主题</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>44.366240</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>264</td>
+  <td>BM25 权重 content abstract</td>
+  <td>BM25</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>33.464796</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>265</td>
+  <td>Gin Zap 中间件</td>
+  <td>Gin</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.926988</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>266</td>
+  <td>RRF 多路检索 k=60</td>
+  <td>RRF</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>41.836521</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>267</td>
+  <td>Docling Tika fallback</td>
+  <td>Docling</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>33.738714</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>268</td>
+  <td>MCP stdio SSE 协议</td>
+  <td>MCP</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>41.907157</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>269</td>
+  <td>SQLite Qdrant 双写</td>
+  <td>dual-write</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>12.041135</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>270</td>
+  <td>Docker Compose Qdrant Docling</td>
+  <td>docker-compose</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>51.941609</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>271</td>
+  <td>张伟 Go 分布式</td>
+  <td>张伟</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.279040</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>272</td>
+  <td>陈浩 腾讯 算法</td>
+  <td>陈浩</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>25.641203</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>273</td>
+  <td>Go TypeScript 全栈</td>
+  <td>全栈</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>25.582814</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>274</td>
+  <td>阿里云 上海 ECS</td>
+  <td>阿里云</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>26.342531</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>275</td>
+  <td>FTS5 OR 中文 召回率</td>
+  <td>OR</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>29.043701</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>276</td>
+  <td>goroutine panic recover</td>
+  <td>recover</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>27.652834</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>277</td>
+  <td>TOCTOU SELECT INSERT 并发</td>
+  <td>TOCTOU</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>25.500153</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>278</td>
+  <td>Vue Vite 5173</td>
+  <td>Vue 3</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>26.835007</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>279</td>
+  <td>Vim VS Code IDEA 键位</td>
+  <td>Vim</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>53.538943</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>280</td>
+  <td>zsh oh-my-zsh powerlevel10k</td>
+  <td>oh-my-zsh</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>28.254165</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>281</td>
+  <td>日本 东京 AI 会议</td>
+  <td>东京</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>43.215766</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>282</td>
+  <td>DDIA 数据密集型应用</td>
+  <td>DDIA</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.143649</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>283</td>
+  <td>小橘 橘猫 3岁</td>
+  <td>小橘</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.665707</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>284</td>
+  <td>4月15日 MCP 测试 deadline</td>
+  <td>4月15日</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>19.296241</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>285</td>
+  <td>5月1日 v1.0 发布 SDK</td>
+  <td>v1.0</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>286</td>
+  <td>GraphStore GetRelation 归属验证</td>
+  <td>GetRelation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>41.770267</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>287</td>
+  <td>scanDest scanMemory 重构</td>
+  <td>scanDest</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>27.149964</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>288</td>
+  <td>tag_handler scope 安全评分</td>
+  <td>tag_handler</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>61.442229</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>289</td>
+  <td>io.LimitReader Docling OOM</td>
+  <td>LimitReader</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>43.773377</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>290</td>
+  <td>busy_timeout 并发 SQLite 锁</td>
+  <td>busy_timeout</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>41.108190</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>291</td>
+  <td>用户偏好 Go 不喜欢 Java</td>
+  <td>Go 语言</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>28.395206</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>292</td>
+  <td>tmux screen 终端多窗口</td>
+  <td>tmux</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>45.727514</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>293</td>
+  <td>Markdown 不用 Word 文档</td>
+  <td>Markdown</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>20.228561</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>294</td>
+  <td>PostgreSQL SQLite 迁移原因</td>
+  <td>PostgreSQL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>28.935569</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>295</td>
+  <td>Embedding OpenAI 1536 维度</td>
+  <td>embedding</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>36.607161</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>296</td>
+  <td>reflect 独立包 循环依赖</td>
+  <td>reflect</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>43.283884</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>297</td>
+  <td>simple 分词 jieba 部署复杂</td>
+  <td>tokenizer</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>24.116218</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>298</td>
+  <td>V0 V11 迁移 幂等</td>
+  <td>幂等</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>33.917344</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>299</td>
+  <td>三层 fallback JSON 正则 LLM</td>
+  <td>fallback</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>50.898132</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>300</td>
+  <td>中文 rune 字节 chunk</td>
+  <td>rune</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>23.296391</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>301</td>
+  <td>Python SDK retain recall scan</td>
+  <td>Python SDK</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>73.408917</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>302</td>
+  <td>basic standard premium 模板</td>
+  <td>basic</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>54.746327</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>303</td>
+  <td>extract POST memories id</td>
+  <td>实体抽取</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>45.161123</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>304</td>
+  <td>Codex CLI integrations 集成</td>
+  <td>Codex CLI</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>43.056263</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>305</td>
+  <td>ingest conversation 批量 对话</td>
+  <td>ingest_conversation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>54.200770</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>306</td>
+  <td>周六 篮球 体育馆</td>
+  <td>打篮球</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.421194</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>307</td>
+  <td>10月15日 生日</td>
+  <td>10月15日</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>308</td>
+  <td>8081 MCP SSE</td>
+  <td>8081</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.743010</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>309</td>
+  <td>test.db 测试数据库 独立</td>
+  <td>test.db</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>55.678988</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>310</td>
+  <td>debug info 日志级别</td>
+  <td>日志级别</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>43.788239</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>311</td>
+  <td>.env OPENAI_API_KEY git</td>
+  <td>OPENAI_API_KEY</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>55.887850</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>312</td>
+  <td>5年 阿里云 后端</td>
+  <td>阿里云</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.176506</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>313</td>
+  <td>Rust 重写 检索 性能</td>
+  <td>Rust</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>42.831633</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>314</td>
+  <td>mem_Tao GitHub 用户名</td>
+  <td>mem_Tao</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>55.612732</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>315</td>
+  <td>Heartbeat 衰减审计 孤儿清理</td>
+  <td>Heartbeat</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>73.969234</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>316</td>
+  <td>31字段 Memory 模型</td>
+  <td>31</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>52.788118</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>317</td>
+  <td>CORS RateLimit Auth Identity</td>
+  <td>CORS</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>65.740931</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>318</td>
+  <td>MarkdownChunker 标题 段落 递归</td>
+  <td>MarkdownChunker</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>56.172692</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>319</td>
+  <td>Consolidation 相似度 min_age</td>
+  <td>Consolidation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>46.088057</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>320</td>
+  <td>retrieve 10req/s burst 20</td>
+  <td>Rate limiter</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>55.932139</td>
+  <td>复合条件</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>321</td>
+  <td>为什么搜索不准</td>
+  <td>召回率</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.421891</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>322</td>
+  <td>为什么不用外部数据库</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>4.345538</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>323</td>
+  <td>系统有几种搜索方式</td>
+  <td>三路</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>324</td>
+  <td>记忆会自动消失吗</td>
+  <td>衰减</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.396923</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>325</td>
+  <td>数据可靠性怎么保证</td>
+  <td>dual-write</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>326</td>
+  <td>搜索结果怎么排名</td>
+  <td>RRF</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.188028</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>327</td>
+  <td>为什么要做实体抽取</td>
+  <td>实体抽取</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>22.145140</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>328</td>
+  <td>文档怎么导入系统</td>
+  <td>Docling</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>4.345538</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>329</td>
+  <td>怎么跟 AI 工具集成</td>
+  <td>MCP</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>4.804062</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>330</td>
+  <td>系统安全性如何</td>
+  <td>scope</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>331</td>
+  <td>部署需要哪些组件</td>
+  <td>docker-compose</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>332</td>
+  <td>测试环境怎么搭</td>
+  <td>test.db</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>333</td>
+  <td>项目有 SDK 吗</td>
+  <td>Python SDK</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.971618</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>334</td>
+  <td>配置文件怎么管理</td>
+  <td>config.yaml</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>335</td>
+  <td>日志怎么查</td>
+  <td>Zap</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.406028</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>336</td>
+  <td>API 有速率限制吗</td>
+  <td>Rate limiter</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>337</td>
+  <td>大文件会不会出问题</td>
+  <td>LimitReader</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>338</td>
+  <td>并发安全怎么做</td>
+  <td>busy_timeout</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>6.441473</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>339</td>
+  <td>知识图谱是做什么的</td>
+  <td>GraphStore</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>340</td>
+  <td>中文搜索有什么坑</td>
+  <td>rune</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>341</td>
+  <td>怎么理解记忆的强度</td>
+  <td>strength</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>342</td>
+  <td>项目的 CI 流程</td>
+  <td>GitHub Actions</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.466283</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>343</td>
+  <td>反思引擎有什么用</td>
+  <td>reflect</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>24.001933</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>344</td>
+  <td>分块策略怎么设计</td>
+  <td>MarkdownChunker</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.416265</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>345</td>
+  <td>怎么避免重复记忆</td>
+  <td>Consolidation</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>346</td>
+  <td>过期记忆怎么处理</td>
+  <td>Heartbeat</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>347</td>
+  <td>项目的技术栈是什么</td>
+  <td>Go</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>11.947223</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>348</td>
+  <td>有几种记忆类型</td>
+  <td>retention_tier</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.602540</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>349</td>
+  <td>请求处理流程是怎样的</td>
+  <td>中间件</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>350</td>
+  <td>为什么要三级 fallback</td>
+  <td>fallback</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>23.435490</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>351</td>
+  <td>怎么保证迁移安全</td>
+  <td>幂等</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>5.553411</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>352</td>
+  <td>代码规模有多大</td>
+  <td>Store</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>353</td>
+  <td>谁在用这个项目</td>
+  <td>Codex CLI</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>354</td>
+  <td>有没有前端界面</td>
+  <td>Vue 3</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.581968</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>355</td>
+  <td>向量搜索怎么做</td>
+  <td>Qdrant</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.419900</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>356</td>
+  <td>全文搜索引擎是什么</td>
+  <td>FTS5</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.328841</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>357</td>
+  <td>MCP 有哪些工具</td>
+  <td>ingest_conversation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>11.876272</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>358</td>
+  <td>怎么配置不同环境</td>
+  <td>basic</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>7</td>
+  <td>4.331998</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>359</td>
+  <td>对话记录怎么保存</td>
+  <td>ingest_conversation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>5.840790</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>360</td>
+  <td>实体关系怎么提取</td>
+  <td>LLM</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.356475</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>361</td>
+  <td>数据一致性怎么保证</td>
+  <td>事务</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>362</td>
+  <td>接口有文档吗</td>
+  <td>API</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>363</td>
+  <td>系统扩展性如何</td>
+  <td>Qdrant</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>364</td>
+  <td>性能瓶颈在哪</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>365</td>
+  <td>有没有缓存机制</td>
+  <td>mmap</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>366</td>
+  <td>怎么做自动化测试</td>
+  <td>test</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>5.580213</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>367</td>
+  <td>项目有几个二进制</td>
+  <td>cmd</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>368</td>
+  <td>用户的学习计划</td>
+  <td>Rust</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>20.185705</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>369</td>
+  <td>谁是技术决策者</td>
+  <td>张伟</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>6.386068</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>370</td>
+  <td>项目最近的变更</td>
+  <td>FTS5</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>上下文推理</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>371</td>
+  <td>张伟</td>
+  <td>张伟</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.303774</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>372</td>
+  <td>李明</td>
+  <td>李明</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>373</td>
+  <td>王芳</td>
+  <td>王芳</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.303774</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>374</td>
+  <td>陈浩</td>
+  <td>陈浩</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.133031</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>375</td>
+  <td>小橘</td>
+  <td>小橘</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>376</td>
+  <td>SQLite</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>5.921368</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>377</td>
+  <td>Qdrant</td>
+  <td>Qdrant</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.513021</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>378</td>
+  <td>Gin</td>
+  <td>Gin</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.305092</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>379</td>
+  <td>Zap</td>
+  <td>Zap</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>380</td>
+  <td>Vue</td>
+  <td>Vue</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.253175</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>381</td>
+  <td>Vite</td>
+  <td>Vite</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.303774</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>382</td>
+  <td>Docker</td>
+  <td>Docker</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.465618</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>383</td>
+  <td>GitHub</td>
+  <td>GitHub</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.357666</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>384</td>
+  <td>OpenAI</td>
+  <td>OpenAI</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.279052</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>385</td>
+  <td>阿里云</td>
+  <td>阿里云</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.176506</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>386</td>
+  <td>腾讯</td>
+  <td>腾讯</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.133031</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>387</td>
+  <td>东京</td>
+  <td>东京</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>388</td>
+  <td>Rust</td>
+  <td>Rust</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.557767</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>389</td>
+  <td>Go</td>
+  <td>Go</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.177178</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>390</td>
+  <td>Java</td>
+  <td>Java</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>391</td>
+  <td>TypeScript</td>
+  <td>TypeScript</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.303774</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>392</td>
+  <td>Python</td>
+  <td>Python</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.557767</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>393</td>
+  <td>Docling</td>
+  <td>Docling</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.536504</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>394</td>
+  <td>Tika</td>
+  <td>Tika</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>395</td>
+  <td>BM25</td>
+  <td>BM25</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.161051</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>396</td>
+  <td>RRF</td>
+  <td>RRF</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.274874</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>397</td>
+  <td>MCP</td>
+  <td>MCP</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.019007</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>398</td>
+  <td>FTS5</td>
+  <td>FTS5</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.019007</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>399</td>
+  <td>WAL</td>
+  <td>WAL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>400</td>
+  <td>DDIA</td>
+  <td>DDIA</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.217611</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>401</td>
+  <td>Codex</td>
+  <td>Codex</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.492847</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>402</td>
+  <td>Heartbeat</td>
+  <td>Heartbeat</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.246154</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>403</td>
+  <td>Vim</td>
+  <td>Vim</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.496969</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>404</td>
+  <td>tmux</td>
+  <td>tmux</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.362115</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>405</td>
+  <td>Markdown</td>
+  <td>Markdown</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.975267</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>406</td>
+  <td>powerlevel10k</td>
+  <td>powerlevel10k</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.332853</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>407</td>
+  <td>oh-my-zsh</td>
+  <td>oh-my-zsh</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.921312</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>408</td>
+  <td>MemoryStore</td>
+  <td>MemoryStore</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.091320</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>409</td>
+  <td>GraphStore</td>
+  <td>GraphStore</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.051841</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>410</td>
+  <td>MarkdownChunker</td>
+  <td>MarkdownChunker</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.362115</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>411</td>
+  <td>scanDest</td>
+  <td>scanDest</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.049988</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>412</td>
+  <td>mem_Tao</td>
+  <td>mem_Tao</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.902026</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>413</td>
+  <td>iclude</td>
+  <td>iclude</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.227460</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>414</td>
+  <td>Consolidation</td>
+  <td>Consolidation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.217611</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>415</td>
+  <td>LimitReader</td>
+  <td>LimitReader</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.105181</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>416</td>
+  <td>TOCTOU</td>
+  <td>TOCTOU</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.189244</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>417</td>
+  <td>GetRelation</td>
+  <td>GetRelation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>9.105181</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>418</td>
+  <td>tag_handler</td>
+  <td>tag_handler</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>16.054726</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>419</td>
+  <td>busy_timeout</td>
+  <td>busy_timeout</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.210362</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>420</td>
+  <td>text-embedding-3-small</td>
+  <td>text-embedding-3-small</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>37.690225</td>
+  <td>实体查询</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>421</td>
+  <td>我有什么宠物</td>
+  <td>小橘</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>422</td>
+  <td>我周末有什么活动</td>
+  <td>打篮球</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>423</td>
+  <td>下次旅行去哪</td>
+  <td>东京</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>424</td>
+  <td>有什么好书推荐</td>
+  <td>DDIA</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>425</td>
+  <td>我多大了</td>
+  <td>10月15日</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>426</td>
+  <td>我认识谁在大厂工作</td>
+  <td>腾讯</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>7.306425</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>427</td>
+  <td>团队有几个人</td>
+  <td>张伟</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>428</td>
+  <td>我会几种语言</td>
+  <td>Go</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.581968</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>429</td>
+  <td>项目最大的技术挑战</td>
+  <td>召回率</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>430</td>
+  <td>系统最脆弱的部分</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>431</td>
+  <td>还有什么功能没做完</td>
+  <td>v1.0</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>432</td>
+  <td>需要注意的安全问题</td>
+  <td>scope</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.035063</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>433</td>
+  <td>影响搜索效果的因素</td>
+  <td>BM25</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>6.278467</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>434</td>
+  <td>数据丢失的风险</td>
+  <td>dual-write</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>435</td>
+  <td>部署时要注意什么</td>
+  <td>docker-compose</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>436</td>
+  <td>代码质量如何保证</td>
+  <td>GitHub Actions</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>437</td>
+  <td>用户体验怎么优化</td>
+  <td>极简设计</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>7</td>
+  <td>2.105960</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>438</td>
+  <td>存储成本怎么控制</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.188028</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>439</td>
+  <td>开发效率工具有哪些</td>
+  <td>tmux</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>440</td>
+  <td>文档管理方式</td>
+  <td>Markdown</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>4.471739</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>441</td>
+  <td>监控告警方案</td>
+  <td>Heartbeat</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>442</td>
+  <td>扩展性瓶颈</td>
+  <td>Qdrant</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>443</td>
+  <td>接口设计质量</td>
+  <td>MemoryStore</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>4</td>
+  <td>5.452788</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>444</td>
+  <td>测试覆盖情况</td>
+  <td>test</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>5.580213</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>445</td>
+  <td>数据备份策略</td>
+  <td>SQLite</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.993341</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>446</td>
+  <td>代码风格规范</td>
+  <td>Zap</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>447</td>
+  <td>上线前要检查什么</td>
+  <td>scope</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>3</td>
+  <td>4.947149</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>448</td>
+  <td>历史遗留问题</td>
+  <td>V10</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>449</td>
+  <td>最近踩过的坑</td>
+  <td>OOM</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>450</td>
+  <td>性能调优手段</td>
+  <td>WAL</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>451</td>
+  <td>中文场景的特殊处理</td>
+  <td>rune</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>6</td>
+  <td>4.027221</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>452</td>
+  <td>项目依赖了哪些外部服务</td>
+  <td>OpenAI</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>453</td>
+  <td>有哪些自动化工具</td>
+  <td>配置生成器</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>4.943580</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>454</td>
+  <td>运维复杂度</td>
+  <td>docker-compose</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>455</td>
+  <td>用户画像</td>
+  <td>全栈</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>9</td>
+  <td>2.309762</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>456</td>
+  <td>工作生活平衡</td>
+  <td>打篮球</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>457</td>
+  <td>技术选型理由</td>
+  <td>Go 语言</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>458</td>
+  <td>团队协作方式</td>
+  <td>周五</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>459</td>
+  <td>知识管理方法</td>
+  <td>ingest_conversation</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>460</td>
+  <td>最近的里程碑</td>
+  <td>MCP</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>隐含/间接</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>461</td>
+  <td>不用 PostgreSQL 的原因</td>
+  <td>PostgreSQL</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>14.627124</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>462</td>
+  <td>不喜欢 Java</td>
+  <td>Java</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.531643</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+<tr>
+  <td>463</td>
+  <td>不用 screen</td>
+  <td>tmux</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>18.724231</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>464</td>
+  <td>不用 Word</td>
+  <td>Markdown</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>7.908208</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>465</td>
+  <td>不用 jieba 分词</td>
+  <td>simple tokenizer</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.621817</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>466</td>
+  <td>Qdrant 失败不回滚</td>
+  <td>dual-write</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>44.728115</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>467</td>
+  <td>没有 ON DELETE CASCADE</td>
+  <td>级联</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>468</td>
+  <td>缺少 GetRelation</td>
+  <td>GetRelation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>17.157022</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>469</td>
+  <td>不支持交互式输入</td>
+  <td>MCP</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>4.707482</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>470</td>
+  <td>不喜欢动画效果</td>
+  <td>极简设计</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>34.090795</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>471</td>
+  <td>不喜欢过多装饰</td>
+  <td>极简设计</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>24.787022</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>472</td>
+  <td>不用 Google Docs</td>
+  <td>Markdown</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>22.308320</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>473</td>
+  <td>Spring Boot 太冗长</td>
+  <td>Java</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>37.331413</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>474</td>
+  <td>jieba 部署复杂不用</td>
+  <td>simple</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>15.205094</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>475</td>
+  <td>非幂等迁移 V10</td>
+  <td>V10</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>25.113318</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>476</td>
+  <td>mock 测试预测不准</td>
+  <td>元数据</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>477</td>
+  <td>白名单不能有兜底</td>
+  <td>白名单</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>478</td>
+  <td>不要绕过 Manager</td>
+  <td>Manager</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.443019</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>479</td>
+  <td>不能直接调 Store 写</td>
+  <td>Manager</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.581968</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>480</td>
+  <td>避免 len(s) 处理中文</td>
+  <td>rune</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>12.109442</td>
+  <td>否定/排除</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>481</td>
+  <td>最近的代码改动</td>
+  <td>FTS5</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>482</td>
+  <td>上周修了什么 bug</td>
+  <td>FTS5</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>483</td>
+  <td>下个月的计划</td>
+  <td>东京</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.932925</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>484</td>
+  <td>这个季度目标</td>
+  <td>Q2</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>6.581968</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>485</td>
+  <td>4月份要做什么</td>
+  <td>MCP</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>486</td>
+  <td>5月份的截止日期</td>
+  <td>v1.0</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>487</td>
+  <td>3月底做了什么</td>
+  <td>V8</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.957798</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>488</td>
+  <td>每天早上做什么</td>
+  <td>美式咖啡</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>25.277712</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>489</td>
+  <td>每周五要做什么</td>
+  <td>周五</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.932925</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>490</td>
+  <td>每周六做什么</td>
+  <td>打篮球</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>8.008015</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>491</td>
+  <td>今年的发布计划</td>
+  <td>v1.0</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>6.561523</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>492</td>
+  <td>最近的 deadline</td>
+  <td>4月15日</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>493</td>
+  <td>什么时候迁移完的数据库</td>
+  <td>3月底</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>2</td>
+  <td>10.747173</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>494</td>
+  <td>猫养了几年</td>
+  <td>3岁</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>495</td>
+  <td>认识朋友多久了</td>
+  <td>大学</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>12.939415</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>496</td>
+  <td>commit 4da099c 做了什么</td>
+  <td>FTS5</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>24.302955</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-medium">中等</span></td>
+</tr>
+<tr>
+  <td>497</td>
+  <td>上一次安全事故</td>
+  <td>tag_handler</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>498</td>
+  <td>最新完成的功能</td>
+  <td>ingest_conversation</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>5</td>
+  <td>4.707482</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>499</td>
+  <td>什么时候开始学 Rust</td>
+  <td>Rust</td>
+  <td><span class="tag tag-hit">HIT</span></td>
+  <td>1</td>
+  <td>7.407269</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-hard">困难</span></td>
+</tr>
+<tr>
+  <td>500</td>
+  <td>过生日是哪天</td>
+  <td>10月15日</td>
+  <td><span class="tag tag-miss">MISS</span></td>
+  <td>-</td>
+  <td>-</td>
+  <td>时间相关</td>
+  <td><span class="tag tag-easy">简单</span></td>
+</tr>
+</tbody></table></div></div>
+
+<div class="section" style="text-align:center; color:var(--text2); font-size:13px;">
+  <p>LocalMem Retrieval Test Report | FTS5 (BM25, simple tokenizer) | SQLite only mode | Rerank: remote</p>
+</div>
+
+</div></body></html>

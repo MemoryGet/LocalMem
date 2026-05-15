@@ -50,13 +50,14 @@ type EntityProfile struct {
 
 // EntityCandidate 候选实体（待晋升）/ Candidate entity pending promotion
 type EntityCandidate struct {
-	Name      string    `json:"name"`
-	Scope     string    `json:"scope,omitempty"`
-	FirstSeen time.Time `json:"first_seen"`
-	HitCount  int       `json:"hit_count"`
-	MemoryIDs []string  `json:"memory_ids"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Name       string    `json:"name"`
+	EntityType string    `json:"entity_type,omitempty"`
+	Scope      string    `json:"scope,omitempty"`
+	FirstSeen  time.Time `json:"first_seen"`
+	HitCount   int       `json:"hit_count"`
+	MemoryIDs  []string  `json:"memory_ids"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // Tag 标签 / Tag for memory categorization

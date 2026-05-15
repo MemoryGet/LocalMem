@@ -8,10 +8,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"iclude/internal/config"
+	"iclude/internal/embed"
 	"iclude/internal/llm"
 	"iclude/internal/memory"
 	"iclude/internal/model"
@@ -19,6 +22,48 @@ import (
 	"iclude/internal/store"
 	"iclude/pkg/tokenizer"
 )
+
+var configOnce sync.Once
+
+// loadTestConfig 加载 config.yaml 和 .env（向上查找项目根目录）
+// Load config.yaml and .env by walking up to project root.
+// Safe to call multiple times; only runs once per process.
+// Explicitly loads .env from the project root so ${ENV_VAR} references in config.yaml
+// expand correctly even when tests run with CWD = package directory.
+func loadTestConfig() {
+	configOnce.Do(func() {
+		projectRoot := ""
+		if os.Getenv("ICLUDE_CONFIG_PATH") == "" {
+			dir, _ := os.Getwd()
+			for {
+				candidate := filepath.Join(dir, "config.yaml")
+				if _, err := os.Stat(candidate); err == nil {
+					_ = os.Setenv("ICLUDE_CONFIG_PATH", candidate)
+					projectRoot = dir
+					break
+				}
+				parent := filepath.Dir(dir)
+				if parent == dir {
+					break
+				}
+				dir = parent
+			}
+		} else {
+			projectRoot = filepath.Dir(os.Getenv("ICLUDE_CONFIG_PATH"))
+		}
+		// 显式加载项目根目录的 .env，godotenv.autoload 只找 CWD，测试时 CWD=package 目录会找不到
+		// Explicitly load .env from project root — godotenv.autoload only checks CWD (= package dir during tests)
+		if projectRoot != "" {
+			_ = godotenv.Load(filepath.Join(projectRoot, ".env"))
+		}
+		if err := config.LoadConfig(); err != nil {
+			fmt.Printf("  loadTestConfig: warn: %v\n", err)
+		}
+	})
+}
+
+// LoadTestConfig 对外暴露配置加载，供测试文件调用 / Exported for use from *_test.go files.
+func LoadTestConfig() { loadTestConfig() }
 
 // Runner 评测运行器 / Evaluation runner
 type Runner struct {
@@ -120,6 +165,11 @@ func (r *Runner) RetrieveRaw(ctx context.Context, query string, limit int) ([]*m
 	return r.retriever.Retrieve(ctx, &model.RetrieveRequest{Query: query, Limit: limit})
 }
 
+// Retriever 暴露底层检索器（用于 RetrieveWithDebug 等高级接口）/ Expose retriever for advanced use
+func (r *Runner) Retriever() *search.Retriever {
+	return r.retriever
+}
+
 // SeedOne 播种单条记忆 / Seed a single memory
 func (r *Runner) SeedOne(ctx context.Context, seed SeedMemory) error {
 	_, err := r.manager.Create(ctx, &model.CreateMemoryRequest{
@@ -144,21 +194,91 @@ func buildTokenizer(o *runnerOpts) (tokenizer.Tokenizer, error) {
 	}
 }
 
-// resolveLLMProvider 从环境变量创建 LLM Provider / Create LLM provider from env vars
+// resolveEmbedder 创建 embedder，config.yaml 优先、env var 兜底
+// Create embedder: config.yaml values first, env var fallback for backward compat.
+func resolveEmbedder() (store.Embedder, error) {
+	loadTestConfig()
+	embCfg := config.AppConfig.LLM.Embedding
+
+	// config.yaml 优先（字段已由 LoadConfig 展开）/ config.yaml first (fields expanded by LoadConfig)
+	if embCfg.BaseURL != "" && embCfg.APIKey != "" {
+		return embed.NewOpenAICompatibleEmbedder(embCfg.BaseURL, embCfg.APIKey, embCfg.Model), nil
+	}
+	if embCfg.Provider == "openai" && embCfg.APIKey != "" {
+		return embed.NewOpenAIEmbedder(embCfg.APIKey, embCfg.Model), nil
+	}
+
+	// env var 兜底（向后兼容）/ Env var fallback (backward compat)
+	embModel := firstNonEmpty(os.Getenv("EMBEDDING_MODEL"), "Qwen3-Embedding-8B")
+	apiBase := firstNonEmpty(os.Getenv("EMBEDDING_API_BASE"), os.Getenv("EMBEDDING_BASE_URL"))
+	apiKey := firstNonEmpty(os.Getenv("EMBEDDING_API_KEY"), os.Getenv("OPENAI_API_KEY"))
+	provider := os.Getenv("EMBEDDING_PROVIDER")
+
+	if apiBase != "" {
+		if apiKey == "" {
+			return nil, fmt.Errorf("EMBEDDING_API_KEY (or OPENAI_API_KEY) required when EMBEDDING_API_BASE is set")
+		}
+		return embed.NewOpenAICompatibleEmbedder(apiBase, apiKey, embModel), nil
+	}
+	if provider == "openai" {
+		if apiKey == "" {
+			return nil, fmt.Errorf("OPENAI_API_KEY required for EMBEDDING_PROVIDER=openai")
+		}
+		return embed.NewOpenAIEmbedder(apiKey, embModel), nil
+	}
+
+	// Ollama — 探测可用性，不通则 fallback 到 OpenAI / Probe Ollama; fallback to OpenAI if unreachable
+	ollamaBase := firstNonEmpty(os.Getenv("EMBEDDING_BASE_URL"), "http://localhost:11434")
+	ollamaModel := firstNonEmpty(os.Getenv("EMBEDDING_MODEL"), "bge-m3")
+	ollamaEmb := embed.NewOllamaEmbedder(ollamaBase, ollamaModel)
+	if _, probeErr := ollamaEmb.Embed(context.Background(), "ping"); probeErr != nil {
+		if apiKey == "" {
+			return nil, fmt.Errorf("Ollama unreachable (%v) and no EMBEDDING_API_KEY/OPENAI_API_KEY set", probeErr)
+		}
+		fmt.Printf("  resolveEmbedder: Ollama unreachable, falling back to OpenAI (%s)\n", embModel)
+		return embed.NewOpenAIEmbedder(apiKey, embModel), nil
+	}
+	return ollamaEmb, nil
+}
+
+// resolveLLMProvider 创建 LLM Provider，config.yaml 优先、env var 兜底
+// Create LLM provider: config.yaml first, env var fallback for backward compat.
 func resolveLLMProvider() llm.Provider {
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	if apiKey == "" {
-		return nil
+	loadTestConfig()
+	llmCfg := config.AppConfig.LLM
+
+	// config.yaml 优先（字段已由 LoadConfig 展开）/ config.yaml first (fields expanded by LoadConfig)
+	if llmCfg.OpenAI.BaseURL != "" && llmCfg.OpenAI.APIKey != "" {
+		return llm.NewOpenAIProvider(llmCfg.OpenAI.BaseURL, llmCfg.OpenAI.APIKey, llmCfg.OpenAI.Model)
 	}
-	baseURL := os.Getenv("OPENAI_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://api.openai.com/v1"
+
+	// env var 兜底（向后兼容）/ Env var fallback (backward compat)
+	if localURL := firstNonEmpty(os.Getenv("LOCAL_API_BASE"), os.Getenv("LLM_BASE_URL")); localURL != "" {
+		apiKey := firstNonEmpty(os.Getenv("LOCAL_API_KEY"), os.Getenv("LLM_API_KEY"), os.Getenv("OPENAI_API_KEY"), "local")
+		llmModel := firstNonEmpty(os.Getenv("LOCAL_MODEL"), os.Getenv("LLM_MODEL"), os.Getenv("OPENAI_MODEL"), "default")
+		return llm.NewOpenAIProvider(localURL, apiKey, llmModel)
 	}
-	model := os.Getenv("OPENAI_MODEL")
-	if model == "" {
-		model = "gpt-5.4"
+	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
+		llmModel := firstNonEmpty(os.Getenv("OPENAI_MODEL"), os.Getenv("LLM_MODEL"), "gpt-4o-mini")
+		return llm.NewOpenAIProvider("https://api.openai.com/v1", apiKey, llmModel)
 	}
-	return llm.NewOpenAIProvider(baseURL, apiKey, model)
+	return nil
+}
+
+// HasLLMConfig 检查是否有可用的 LLM 配置 / Check if an LLM provider can be resolved.
+func HasLLMConfig() bool {
+	loadTestConfig()
+	return config.AppConfig.LLM.OpenAI.APIKey != "" || os.Getenv("OPENAI_API_KEY") != ""
+}
+
+// firstNonEmpty 返回第一个非空字符串 / Return first non-empty string
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // buildRetrievalConfig 根据模式构建检索配置 / Build retrieval config for the given mode
@@ -192,6 +312,24 @@ func buildRetrievalConfig(mode string) config.RetrievalConfig {
 			TopK:        20,
 			ScoreWeight: 0.7,
 		}
+	case "fts+hyde":
+		// FTS + 意图感知 HyDE（仅 Semantic 意图触发，需要 Qdrant + LLM）
+		cfg.Preprocess.Enabled = true
+		cfg.Preprocess.UseLLM = true
+		cfg.Preprocess.LLMTimeout = 10 * time.Second
+		cfg.Preprocess.HyDEEnabled = true
+		cfg.Preprocess.HyDEWeight = 0.8
+		cfg.Preprocess.HyDEMinRunes = 25
+		cfg.Rerank = config.RerankConfig{
+			Enabled:     true,
+			Provider:    "remote",
+			BaseURL:     os.Getenv("RERANK_BASE_URL"),
+			APIKey:      os.Getenv("RERANK_API_KEY"),
+			Model:       os.Getenv("RERANK_MODEL"),
+			TopK:        20,
+			ScoreWeight: 0.7,
+			Timeout:     10 * time.Second,
+		}
 	}
 	return cfg
 }
@@ -204,11 +342,12 @@ func (r *Runner) Run(ctx context.Context, ds *EvalDataset, mode string) (*EvalRe
 	// 播种记忆 / Seed memories
 	for i, seed := range ds.SeedMemories {
 		req := &model.CreateMemoryRequest{
-			Content:     seed.Content,
-			Kind:        seed.Kind,
-			SubKind:     seed.SubKind,
-			MemoryClass: seed.MemoryClass,
-			Scope:       "eval/test",
+			Content:       seed.Content,
+			Kind:          seed.Kind,
+			SubKind:       seed.SubKind,
+			MemoryClass:   seed.MemoryClass,
+			Scope:         "eval/test",
+			RetentionTier: model.TierPermanent,
 		}
 		if _, err := r.manager.Create(ctx, req); err != nil {
 			return nil, fmt.Errorf("Run: seed memory %d: %w", i, err)

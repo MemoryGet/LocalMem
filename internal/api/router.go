@@ -125,6 +125,8 @@ func SetupRouter(deps *RouterDeps) *gin.Engine {
 			v1.POST("/entities", withIdentity(graphHandler.CreateEntity))
 			v1.GET("/entities", withIdentity(graphHandler.ListEntities))
 			v1.GET("/entities/search", withIdentity(graphHandler.SearchEntities))
+			v1.GET("/graph/stats", graphHandler.GetGraphStats)
+			v1.GET("/graph/evidence", graphHandler.GetRelationEvidence)
 			v1.GET("/entities/:id", withIdentity(graphHandler.GetEntity))
 			v1.GET("/entities/:id/profile", withIdentity(graphHandler.GetEntityProfile))
 			v1.PUT("/entities/:id", withIdentity(graphHandler.UpdateEntity))

@@ -29,6 +29,7 @@ func RegisterBuiltins(registry *pipeline.Registry, deps Deps) []pipeline.Stage {
 	registry.Register(buildAssociation(deps))
 	registry.Register(buildFast(deps))
 	registry.Register(buildFull(deps))
+	registry.Register(buildAggregation(deps))
 
 	return postStages
 }
@@ -43,6 +44,7 @@ func buildPrecision(deps Deps) *pipeline.Pipeline {
 				stage.NewGraphStage(deps.GraphStore, deps.FTSSearcher,
 					stage.WithMaxDepth(2), stage.WithLimit(30),
 					stage.WithFTSTop(5), stage.WithEntityLimit(10),
+					stage.WithMaxVisited(deps.Cfg.GraphMaxVisited),
 					stage.WithDecayLambda(deps.Cfg.RelationDecayLambda),
 				),
 				stage.NewFTSStage(deps.FTSSearcher, 30),
@@ -66,6 +68,7 @@ func buildExploration(deps Deps) *pipeline.Pipeline {
 				stage.NewGraphStage(deps.GraphStore, deps.FTSSearcher,
 					stage.WithMaxDepth(2), stage.WithLimit(30),
 					stage.WithFTSTop(5), stage.WithEntityLimit(10),
+					stage.WithMaxVisited(deps.Cfg.GraphMaxVisited),
 					stage.WithDecayLambda(deps.Cfg.RelationDecayLambda),
 				),
 				stage.NewFTSStage(deps.FTSSearcher, 30),
@@ -107,6 +110,7 @@ func buildAssociation(deps Deps) *pipeline.Pipeline {
 				stage.NewGraphStage(deps.GraphStore, deps.FTSSearcher,
 					stage.WithMaxDepth(3), stage.WithLimit(30),
 					stage.WithFTSTop(5), stage.WithEntityLimit(10),
+					stage.WithMaxVisited(deps.Cfg.GraphMaxVisited),
 					stage.WithDecayLambda(deps.Cfg.RelationDecayLambda),
 				),
 			}},
@@ -114,6 +118,20 @@ func buildAssociation(deps Deps) *pipeline.Pipeline {
 			{Stages: []pipeline.Stage{stage.NewFilterStage(0.2)}},
 		},
 		Fallback: pipeline.PipelinePrecision,
+	}
+}
+
+// buildAggregation 聚合查询管线: 穷举实体召回 → trim
+// Aggregation pipeline: exhaustive entity recall sorted by time. No merge/rerank.
+func buildAggregation(deps Deps) *pipeline.Pipeline {
+	return &pipeline.Pipeline{
+		Name: pipeline.PipelineAggregation,
+		Stages: []pipeline.StageGroup{
+			{Stages: []pipeline.Stage{
+				stage.NewExhaustiveStage(deps.GraphStore, deps.Timeline, 0), // 0 = default max (200)
+			}},
+		},
+		// No fallback: ExhaustiveStage returns gracefully when no entities found
 	}
 }
 
@@ -140,6 +158,7 @@ func buildFull(deps Deps) *pipeline.Pipeline {
 				stage.NewGraphStage(deps.GraphStore, deps.FTSSearcher,
 					stage.WithMaxDepth(2), stage.WithLimit(30),
 					stage.WithFTSTop(5), stage.WithEntityLimit(10),
+					stage.WithMaxVisited(deps.Cfg.GraphMaxVisited),
 					stage.WithDecayLambda(deps.Cfg.RelationDecayLambda),
 				),
 				stage.NewFTSStage(deps.FTSSearcher, 30),

@@ -1,0 +1,146 @@
+{
+  "mode": "shared-DB (fts+qdrant+graph) — 243 memories, 558 entities",
+  "dataset": "longmemeval-oracle",
+  "timestamp": "2026-05-08T10:47:11.3813522+08:00",
+  "metrics": {
+    "total": 10,
+    "hit_rate": 90,
+    "mrr": 0.508452380952381,
+    "ndcg@5": 0.506160631164485,
+    "ndcg@10": 0.5710404521763912,
+    "recall@1": 0.4,
+    "recall@3": 0.5,
+    "recall@5": 0.6,
+    "recall@10": 0.8
+  },
+  "by_category": {
+    "temporal-reasoning": {
+      "total": 10,
+      "hit_rate": 90,
+      "mrr": 0.508452380952381,
+      "ndcg@5": 0.506160631164485,
+      "ndcg@10": 0.5710404521763912,
+      "recall@1": 0.4,
+      "recall@3": 0.5,
+      "recall@5": 0.6,
+      "recall@10": 0.8
+    }
+  },
+  "by_difficulty": {
+    "medium": {
+      "total": 10,
+      "hit_rate": 90,
+      "mrr": 0.508452380952381,
+      "ndcg@5": 0.506160631164485,
+      "ndcg@10": 0.5710404521763912,
+      "recall@1": 0.4,
+      "recall@3": 0.5,
+      "recall@5": 0.6,
+      "recall@10": 0.8
+    }
+  },
+  "cases": [
+    {
+      "query": "What was the first issue I had with my new car after its first service?",
+      "expected": "GPS system not functioning correctly",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 7,
+      "score": 0.5157917342159994,
+      "result_count": 7
+    },
+    {
+      "query": "Which event did I attend first, the 'Effective Time Management' workshop or the 'Data Analysis using Python' webinar?",
+      "expected": "'Data Analysis using Python' webinar",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 0.5331849473324276,
+      "result_count": 9
+    },
+    {
+      "query": "Which vehicle did I take care of first in February, the bike or the car?",
+      "expected": "bike",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 2,
+      "score": 0.5835950708441474,
+      "result_count": 7
+    },
+    {
+      "query": "Which device did I got first, the Samsung Galaxy S22 or the Dell XPS 13?",
+      "expected": "Samsung Galaxy S22",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 0.625,
+      "result_count": 10
+    },
+    {
+      "query": "How many days before the team meeting I was preparing for did I attend the workshop on 'Effective Communication in the Workplace'?",
+      "expected": "7 days. 8 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 4,
+      "score": 0.48042804592864097,
+      "result_count": 9
+    },
+    {
+      "query": "How many days had passed between the Sunday mass at St. Mary's Church and the Ash Wednesday service at the cathedral?",
+      "expected": "30 days. 31 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 15,
+      "score": 0.3181947463806717,
+      "result_count": 15
+    },
+    {
+      "query": "How many days did it take for me to find a house I loved after starting to work with Rachel?",
+      "expected": "14 days. 15 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 8,
+      "score": 0.5166924840798797,
+      "result_count": 8
+    },
+    {
+      "query": "Which seeds were started first, the tomatoes or the marigolds?",
+      "expected": "Tomatoes",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 0.5022222222222222,
+      "result_count": 9
+    },
+    {
+      "query": "How many days had passed between the Hindu festival of Holi and the Sunday mass at St. Mary's Church?",
+      "expected": "21 days. 22 days (including the last day) is also acceptable.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": false,
+      "rank": -1,
+      "score": 0,
+      "result_count": 12
+    },
+    {
+      "query": "How many days before the 'Rack Fest' did I participate in the 'Turbocharged Tuesdays' event?",
+      "expected": "4 days.",
+      "category": "temporal-reasoning",
+      "difficulty": "medium",
+      "hit": true,
+      "rank": 1,
+      "score": 0.5726056811937483,
+      "result_count": 12
+    }
+  ],
+  "duration": 310247640600,
+  "git_commit": "661526c"
+}

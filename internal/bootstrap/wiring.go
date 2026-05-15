@@ -3,8 +3,10 @@ package bootstrap
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"iclude/internal/heartbeat"
 	"iclude/internal/llm"
 	"iclude/internal/logger"
+	"iclude/internal/maintenance"
 	"iclude/internal/memory"
 	"iclude/internal/model"
 	"iclude/internal/queue"
@@ -166,18 +169,28 @@ func initEmbedder(ctx context.Context, cfg config.Config) (store.Embedder, error
 	}
 
 	embCfg := cfg.LLM.Embedding
-	var apiKeyOrURL string
+
+	var embedder store.Embedder
 	switch embCfg.Provider {
 	case "openai":
-		apiKeyOrURL = cfg.LLM.OpenAI.APIKey
+		apiKey := embCfg.APIKey
+		if apiKey == "" {
+			apiKey = cfg.LLM.OpenAI.APIKey
+		}
+		if embCfg.BaseURL != "" {
+			// 自定义 OpenAI 兼容端点（如 pocketcity、SiliconFlow 等）
+			embedder = embed.NewOpenAICompatibleEmbedder(embCfg.BaseURL, apiKey, embCfg.Model)
+		} else {
+			embedder = embed.NewOpenAIEmbedder(apiKey, embCfg.Model)
+		}
 	case "ollama":
-		apiKeyOrURL = cfg.LLM.Ollama.BaseURL
-	}
-
-	embedder, err := embed.NewEmbedder(embCfg.Provider, embCfg.Model, apiKeyOrURL)
-	if err != nil {
-		logger.Warn("failed to create embedder, vector features disabled", zap.Error(err))
-		return nil, nil
+		baseURL := embCfg.BaseURL
+		if baseURL == "" {
+			baseURL = cfg.LLM.Ollama.BaseURL
+		}
+		embedder = embed.NewOllamaEmbedder(baseURL, embCfg.Model)
+	default:
+		return nil, fmt.Errorf("unsupported embedding provider: %s", embCfg.Provider)
 	}
 
 	logger.Info("embedder initialized",
@@ -504,6 +517,22 @@ func initScheduler(ctx context.Context, stores *store.Stores, mgrs managers, llm
 	if cfg.Heartbeat.Enabled {
 		hbEngine := heartbeat.NewEngine(stores.MemoryStore, stores.GraphStore, stores.VectorStore, stores.CandidateStore, llmProvider, cfg.Heartbeat)
 		sched.Register("heartbeat", cfg.Heartbeat.Interval, hbEngine.Run)
+	}
+	// Backfill: entity extraction for memories without entities
+	// 回填：为缺少实体关联的记忆补抽取
+	if mgrs.extractor != nil && stores.MemoryStore != nil {
+		if db, ok := stores.MemoryStore.DB().(*sql.DB); ok && db != nil {
+			dataDir := filepath.Dir(cfg.Storage.SQLite.Path)
+			be := maintenance.NewBulkExtractor(db, mgrs.extractor, dataDir)
+			sched.Register("backfill-extract", 10*time.Minute, be.Run)
+		}
+	}
+	// Backfill: vectorization for memories missing from Qdrant
+	// 回填：为 Qdrant 中缺失的记忆补向量
+	if stores.VectorStore != nil && stores.Embedder != nil {
+		dataDir := filepath.Dir(cfg.Storage.SQLite.Path)
+		bv := maintenance.NewBulkVectorizer(stores.MemoryStore, stores.VectorStore, stores.Embedder, cfg.Storage.Qdrant.Collection, dataDir)
+		sched.Register("backfill-vectorize", 10*time.Minute, bv.Run)
 	}
 	// Register queue worker inside scheduler block
 	// 在 scheduler 块内注册队列 worker

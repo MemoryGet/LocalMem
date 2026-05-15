@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"iclude/internal/store"
@@ -15,11 +17,13 @@ import (
 // 编译期接口实现检查 / Compile-time interface compliance check
 var _ store.Embedder = (*OpenAIEmbedder)(nil)
 
-// OpenAIEmbedder OpenAI 向量嵌入客户端 / OpenAI embeddings API adapter
+// OpenAIEmbedder OpenAI 向量嵌入客户端（兼容任意 OpenAI 格式 API）
+// OpenAI embeddings API adapter (compatible with any OpenAI-format API)
 type OpenAIEmbedder struct {
-	apiKey string
-	model  string
-	client *http.Client
+	apiKey  string
+	model   string
+	baseURL string // embeddings endpoint, e.g. https://api.openai.com/v1/embeddings
+	client  *http.Client
 }
 
 type openaiEmbedRequest struct {
@@ -50,12 +54,26 @@ func truncateForEmbedding(text string) string {
 	return text
 }
 
-// NewOpenAIEmbedder 创建 OpenAI 嵌入客户端 / Create a new OpenAI embedding client
+// NewOpenAIEmbedder 创建 OpenAI 嵌入客户端（官方端点）/ Create OpenAI embedding client (official endpoint)
 func NewOpenAIEmbedder(apiKey, model string) *OpenAIEmbedder {
 	return &OpenAIEmbedder{
-		apiKey: apiKey,
-		model:  model,
-		client: &http.Client{Timeout: 30 * time.Second},
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: openaiEmbeddingsURL,
+		client:  &http.Client{Timeout: 30 * time.Second},
+	}
+}
+
+// NewOpenAICompatibleEmbedder 创建兼容 OpenAI 格式的嵌入客户端（自定义 base URL）
+// Create OpenAI-compatible embedding client with custom base URL.
+// baseURL should be the API root, e.g. "https://my-api.com/v1" — "/embeddings" is appended automatically.
+func NewOpenAICompatibleEmbedder(baseURL, apiKey, model string) *OpenAIEmbedder {
+	embURL := strings.TrimRight(baseURL, "/") + "/embeddings"
+	return &OpenAIEmbedder{
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: embURL,
+		client:  &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -92,7 +110,10 @@ func (e *OpenAIEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]fl
 }
 
 // maxRetries 嵌入请求最大重试次数 / Max retries for embedding requests
-const maxRetries = 3
+const maxRetries = 5
+
+// rateLimitBackoff 429 默认退避基准 / Default backoff base for 429 rate-limit responses
+const rateLimitBackoff = 10 * time.Second
 
 func (e *OpenAIEmbedder) doRequest(ctx context.Context, input any) ([][]float32, error) {
 	reqBody := openaiEmbedRequest{
@@ -108,65 +129,88 @@ func (e *OpenAIEmbedder) doRequest(ctx context.Context, input any) ([][]float32,
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
-			// 指数退避: 1s, 2s / Exponential backoff
-			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+			// 指数退避: 1s, 2s for 5xx; 10s, 20s, 40s… for 429 / Backoff: quick for 5xx, slow for rate-limit
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()
-			case <-time.After(backoff):
+			case <-time.After(time.Duration(1<<uint(attempt-1)) * time.Second):
 			}
 		}
 
-		result, statusCode, err := e.doSingleRequest(ctx, bodyBytes)
+		result, statusCode, retryAfter, err := e.doSingleRequest(ctx, bodyBytes)
 		if err == nil {
 			return result, nil
 		}
 		lastErr = err
 
-		// 仅对 429(速率限制) 和 5xx(服务端错误) 重试 / Retry only on 429 and 5xx
-		if statusCode > 0 && statusCode != http.StatusTooManyRequests && statusCode < 500 {
+		switch {
+		case statusCode == http.StatusTooManyRequests,
+			statusCode == http.StatusOK:
+			// 429: 标准限速  / Standard rate-limit.
+			// 200 + 非 JSON: 反向代理将限速页以 HTTP 200 返回（HTML body）
+			// 200 + non-JSON: reverse-proxy returning a rate-limit HTML page with HTTP 200.
+			// Both need a long backoff before retry.
+			wait := retryAfter
+			if wait <= 0 {
+				wait = rateLimitBackoff * time.Duration(1<<uint(attempt))
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(wait):
+			}
+		case statusCode > 0 && statusCode < 500:
+			// 4xx（非 429/200）不重试 / Other 4xx: do not retry
 			return nil, err
 		}
 	}
 	return nil, fmt.Errorf("embedding request failed after %d attempts: %w", maxRetries, lastErr)
 }
 
-func (e *OpenAIEmbedder) doSingleRequest(ctx context.Context, bodyBytes []byte) ([][]float32, int, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, openaiEmbeddingsURL, bytes.NewReader(bodyBytes))
+func (e *OpenAIEmbedder) doSingleRequest(ctx context.Context, bodyBytes []byte) ([][]float32, int, time.Duration, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.baseURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to create request: %w", err)
+		return nil, 0, 0, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+e.apiKey)
 
 	resp, err := e.client.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %w", err)
+		return nil, 0, 0, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// 解析 Retry-After 头（秒数）/ Parse Retry-After header (seconds)
+	var retryAfter time.Duration
+	if ra := resp.Header.Get("Retry-After"); ra != "" {
+		if secs, parseErr := strconv.Atoi(ra); parseErr == nil && secs > 0 {
+			retryAfter = time.Duration(secs) * time.Second
+		}
+	}
 
 	const maxEmbedResponseSize = 10 << 20 // 10 MB
 	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxEmbedResponseSize))
 	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
+		return nil, resp.StatusCode, retryAfter, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, resp.StatusCode, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBytes))
+		return nil, resp.StatusCode, retryAfter, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	var result openaiEmbedResponse
 	if err := json.Unmarshal(respBytes, &result); err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, resp.StatusCode, retryAfter, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if result.Error != nil {
-		return nil, resp.StatusCode, fmt.Errorf("API error: %s", result.Error.Message)
+		return nil, resp.StatusCode, retryAfter, fmt.Errorf("API error: %s", result.Error.Message)
 	}
 
 	embeddings := make([][]float32, len(result.Data))
 	for i, d := range result.Data {
 		embeddings[i] = d.Embedding
 	}
-	return embeddings, resp.StatusCode, nil
+	return embeddings, resp.StatusCode, 0, nil
 }

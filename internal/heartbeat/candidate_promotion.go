@@ -21,9 +21,13 @@ func (e *Engine) runCandidatePromotion(ctx context.Context, minHits int) error {
 	}
 
 	for _, c := range candidates {
+		entityType := c.EntityType
+		if entityType == "" {
+			entityType = "concept"
+		}
 		entity := &model.Entity{
 			Name:       c.Name,
-			EntityType: "concept",
+			EntityType: entityType,
 			Scope:      c.Scope,
 		}
 		if err := e.graphStore.CreateEntity(ctx, entity); err != nil {

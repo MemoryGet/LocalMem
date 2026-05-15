@@ -10,41 +10,45 @@ storage:
         abstract: 5.0    # 摘要权重
         summary: 3.0     # 概述权重
     tokenizer:
-      provider: "simple"           # noop(不分词) | simple(内置Unicode分词) | gse(原生Go分词) | jieba(结巴HTTP服务)
+      provider: "jieba"            # noop(不分词) | simple(内置Unicode分词) | gse(原生Go分词) | jieba(结巴HTTP服务)
       jieba_url: "http://localhost:8866"  # 仅 provider=jieba 时需要
   qdrant:
     enabled: true
     url: "http://localhost:6333"
     collection: "memories"
-    dimension: 1536         # text-embedding-3-small 输出维度
+    dimension: 4096         # Qwen3-Embedding-8B 输出维度
 
 partitions:
   enabled: false
   catalog_path: "./data/partitions.db"  # 分区目录库
 
-llm:  # 多轮检索所需
+llm:  # 多轮检索所需 / Required for multi-round retrieval
+  # 优先级：LOCAL_API_BASE（本地推理）→ OPENAI_API_KEY（云端兜底）
+  # Priority: LOCAL_API_BASE (local) → OPENAI_API_KEY (cloud fallback)
   default_provider: "openai"
   openai:
-    api_key: "${OPENAI_API_KEY}"
-    base_url: ""  # 留空使用 OpenAI 默认，可改为兼容 API 地址 / Empty uses OpenAI default, can be set to compatible API URL
-    model: "gpt-4"
+    api_key: "${LOCAL_API_KEY}"         # 本地推理模型 key / Local inference model key
+    base_url: "${LOCAL_API_BASE}"       # 本地兼容 API 地址 / Local compatible API base URL
+    model: "${LOCAL_MODEL}"             # 本地模型名 / Local model name
+  fallback:
+    - name: "openai-cloud"
+      base_url: "https://api.openai.com/v1"
+      api_key: "${OPENAI_API_KEY}"      # 云端兜底 / Cloud fallback
+      model: "${FALLBACK_MODEL}"
+  ollama:
+    base_url: "http://localhost:11434"
   embedding:
-    provider: "openai"               # openai | ollama
-    model: "text-embedding-3-small"
-    # 推荐中文场景使用 BGE-M3 (通过 Ollama):
-    # provider: "ollama"
-    # model: "bge-m3"               # 多语言 SOTA, 1024 维
+    provider: "openai"                  # 使用 OpenAI 兼容 API / Use OpenAI-compatible API
+    model: "${EMBEDDING_MODEL}"         # Qwen3-Embedding-8B
+    base_url: "${EMBEDDING_API_BASE}"   # https://ai.pocketcity.com/v1
+    api_key: "${EMBEDDING_API_KEY}"     # 嵌入服务 key / Embedding service key
 
 auth:
-  enabled: true
-  # api_keys — 每个 key 绑定一个 team_id / Each key maps to a team_id
-  # api_keys:
-  #   - key: "your-secret-api-key-here"
-  #     team_id: "default"
+  enabled: false
 
 server:
   port: 8080
-  auth_enabled: true
+  auth_enabled: false
 
 # Reflect 反思引擎配置 / Reflect engine configuration
 reflect:
@@ -60,25 +64,28 @@ extract:
   normalize_enabled: true
   normalize_candidates: 20
   timeout: 30s
+  resolver:
+    candidate_promote_min: 1    # 每条记忆的实体直接晋升，无需多次出现
 
   # 分阶段抽取 / Split extraction (entity-only fast model + async relation extraction)
-  fast_model_enabled: false          # 开启后实体名走小模型同步抽取 / Enable fast model for entity-only extraction
-  fast_model_base_url: ""            # 例: http://localhost:11434/v1 (Ollama) / Fast model base URL
-  fast_model_api_key: ""             # 本地模型留空 / Leave empty for local models
-  fast_model_id: ""                  # 例: qwen2.5:3b / Fast model ID
-  relation_extract_enabled: false    # 开启后关系抽取走异步 Queue / Enable async relation extraction via queue
+  fast_model_enabled: true           # 开启后实体名走小模型同步抽取 / Enable fast model for entity-only extraction
+  fast_model_base_url: "${LOCAL_API_BASE}"
+  fast_model_api_key: "${LOCAL_API_KEY}"
+  fast_model_id: "openai-mirror/gpt-oss-20b"
+  relation_extract_enabled: true     # 开启后关系抽取走异步 Queue / Enable async relation extraction via queue
 
 # Retrieval 检索配置 / Retrieval configuration
 retrieval:
   graph_enabled: true
-  graph_depth: 1
+  graph_depth: 3
   graph_weight: 0.8
   fts_weight: 1.0
   qdrant_weight: 1.0
   graph_fts_top: 5
   graph_entity_limit: 10
-  default_limit: 10              # 默认召回条数（请求未指定时使用）/ Default recall result count
-  experience_recall_limit: 3     # B7 经验主动召回条数 / B7 proactive experience recall count
+  graph_max_visited: 50          # BFS 最大访问实体数（过大引入噪声反降 MRR）/ Max BFS visited entities (larger values add noise and hurt MRR)
+  default_limit: 20              # 默认召回条数（请求未指定时使用）/ Default recall result count
+  experience_recall_limit: 6     # B7 经验主动召回条数 / B7 proactive experience recall count
   access_alpha: 0.15     # 访问频率阻尼系数（0=不加权，越大越倾向高访问记忆）/ Access frequency damping (0=none)
 
   # 精排 / Re-ranking
@@ -86,8 +93,8 @@ retrieval:
   rerank:
     enabled: true
     provider: "remote"
-    base_url: "http://localhost:8868"   # BGE-Reranker sidecar (tools/reranker_server.py)
-    api_key: ""
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: "${RERANK_API_KEY}"
     model: "BAAI/bge-reranker-v2-m3"
     top_k: 20
     score_weight: 0.7
@@ -121,7 +128,7 @@ retrieval:
 
 # Scheduler 后台调度器 / Background scheduler
 scheduler:
-  enabled: false                       # 生产环境建议开启 / Recommended enabled in production
+  enabled: true                        # 需要开启才能运行 heartbeat
   cleanup_interval: 6h                 # 过期记忆清理间隔 / Expired memory cleanup interval
   access_flush_interval: 5m            # 访问计数批量写入间隔 / Access count flush interval
   consolidation_interval: 24h          # 记忆归纳间隔 / Memory consolidation interval
@@ -136,12 +143,12 @@ consolidation:
 
 # Heartbeat 自主巡检引擎 / Autonomous inspection engine
 heartbeat:
-  enabled: false                       # 生产环境建议开启 / Recommended enabled in production
-  interval: 6h                         # 巡检间隔 / Inspection interval
-  contradiction_enabled: true          # 开启矛盾检测（需要 Qdrant + LLM）/ Enable contradiction detection
-  contradiction_max_comparisons: 50    # 每次最多对比记忆对数量 / Max pairs per run
-  decay_audit_min_age_days: 90         # 衰减审计：仅审计 90 天以上的记忆 / Min age for decay audit
-  decay_audit_threshold: 0.1           # 衰减审计：强度低于此值触发警告 / Strength threshold for audit warning
+  enabled: true
+  interval: 30s
+  contradiction_enabled: false
+  candidate_promote_min_hits: 1
+  decay_audit_min_age_days: 9999
+  promotion_enabled: false             # 禁用记忆层级晋升，避免 panic
 
 # MCP 服务器配置 / MCP server configuration
 mcp:
