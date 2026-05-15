@@ -353,3 +353,9 @@ type RetrieveResponse struct {
 	Truncated   bool            `json:"truncated"`
 	Debug       any             `json:"debug,omitempty"` // 管线 trace（仅 debug=true 时返回）/ Pipeline trace (only when debug=true)
 }
+
+// RetrievalContextType 检索上下文类型 / Retrieval context type constants
+const (
+	RetrievalContextPoint       = "point"       // 单条记忆可回答 / Single memory answers the query
+	RetrievalContextAggregation = "aggregation" // 需要跨记忆聚合计算 / Requires aggregation across memories
+)

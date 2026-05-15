@@ -8,4 +8,5 @@ const (
 	PipelineAssociation = "association"
 	PipelineFast        = "fast"
 	PipelineFull        = "full"
+	PipelineAggregation = "aggregation"
 )

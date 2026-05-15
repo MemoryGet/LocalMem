@@ -84,7 +84,10 @@ func (r *Retriever) SetPipelineComponents(executor *pipeline.Executor, agent *st
 
 // InitPipeline 初始化管线系统 / Initialize pipeline system
 // 在 NewRetriever 后、首次 Retrieve 前调用 / Call after NewRetriever, before first Retrieve
-func (r *Retriever) InitPipeline() {
+// extraPostStages 可选的额外后处理 stage，插入到内置 Trim/Disclosure 之前
+// extraPostStages: optional stages inserted BEFORE the final trim/disclosure stage
+// so they operate on the full candidate list before it is cut to Limit.
+func (r *Retriever) InitPipeline(extraPostStages ...pipeline.Stage) {
 	registry := pipeline.NewRegistry()
 	deps := builtin.Deps{
 		FTSSearcher:  r.memStore,
@@ -96,6 +99,16 @@ func (r *Retriever) InitPipeline() {
 		Cfg:          r.cfg,
 	}
 	postStages := builtin.RegisterBuiltins(registry, deps)
+	if len(extraPostStages) > 0 && len(postStages) > 0 {
+		// Insert before the last built-in stage (Trim or Disclosure) so extra stages
+		// (e.g. LLM reranker) see all candidates before the list is cut to Limit.
+		insertAt := len(postStages) - 1
+		merged := make([]pipeline.Stage, 0, len(postStages)+len(extraPostStages))
+		merged = append(merged, postStages[:insertAt]...)
+		merged = append(merged, extraPostStages...)
+		merged = append(merged, postStages[insertAt])
+		postStages = merged
+	}
 
 	r.executor = pipeline.NewExecutor(registry, pipeline.WithPostStages(postStages...))
 
@@ -122,7 +135,8 @@ func (r *Retriever) selectPipelineWithPlan(ctx context.Context, req *model.Retri
 // RetrieveResult 检索结果（含可选调试信息）/ Retrieve result with optional debug info
 type RetrieveResult struct {
 	Results      []*model.SearchResult
-	PipelineInfo *PipelineDebugInfo    // 仅 debug=true 时填充 / Only populated when debug=true
+	ContextType  string                  // "point" | "aggregation" — reflects pipeline context type
+	PipelineInfo *PipelineDebugInfo      // 仅 debug=true 时填充 / Only populated when debug=true
 	Disclosure   *model.DisclosureResult // 渐进式披露结果 / Progressive disclosure result
 }
 
@@ -141,13 +155,65 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 		pipelineName, plan = r.selectPipelineWithPlan(ctx, req)
 	}
 
+	// 1b. 预处理（含意图感知 HyDE）/ Preprocessing with intent-aware HyDE
+	var prepPlan *QueryPlan
+	if r.preprocessor != nil && req.Query != "" {
+		scope := ""
+		if req.Filters != nil {
+			scope = req.Filters.Scope
+		}
+		if pp, err := r.preprocessor.Process(ctx, req.Query, scope); err == nil {
+			prepPlan = pp
+		} else {
+			logger.Debug("pipeline: preprocess failed, continuing without", zap.Error(err))
+		}
+	}
+
 	// 2. 构建初始状态 / Build initial state
 	state := pipeline.NewState(req.Query, r.resolveIdentity(req))
+	// 将预处理结果映射到 pipeline.QueryPlan / Map preprocess result to pipeline.QueryPlan
+	if prepPlan != nil {
+		if plan == nil {
+			plan = &pipeline.QueryPlan{}
+		}
+		if len(prepPlan.Keywords) > 0 {
+			plan.Keywords = prepPlan.Keywords
+		}
+		if len(prepPlan.Entities) > 0 {
+			plan.Entities = prepPlan.Entities
+		}
+		if prepPlan.SemanticQuery != "" {
+			plan.SemanticQuery = prepPlan.SemanticQuery
+		}
+		plan.Intent = string(prepPlan.Intent)
+		plan.Temporal = prepPlan.Temporal
+		plan.HyDEDoc = prepPlan.HyDEDoc
+	}
 	state.Plan = plan
 	state.Metadata["request"] = req
 	state.Filters = req.Filters
+
+	// HyDE embedding 混入：将 HyDE 文档向量与原始查询向量加权混合 / Blend HyDE doc embedding with query embedding
 	if len(req.Embedding) > 0 {
 		state.Embedding = req.Embedding
+	} else if prepPlan != nil && prepPlan.HyDEDoc != "" && r.embedder != nil {
+		// 先计算原始 query embedding / Compute original query embedding
+		origEmb, origErr := r.embedder.Embed(ctx, req.Query)
+		if origErr == nil && len(origEmb) > 0 {
+			// 计算 HyDE 文档 embedding / Compute HyDE doc embedding
+			hydeEmb, hydeErr := r.embedder.Embed(ctx, prepPlan.HyDEDoc)
+			if hydeErr == nil && len(hydeEmb) == len(origEmb) {
+				w := r.cfg.Preprocess.ResolvedHyDEWeight()
+				blended := make([]float32, len(origEmb))
+				for i := range origEmb {
+					blended[i] = float32(1-w)*origEmb[i] + float32(w)*hydeEmb[i]
+				}
+				state.Embedding = blended
+				logger.Debug("pipeline: HyDE embedding blended", zap.Float64("weight", w))
+			} else {
+				state.Embedding = origEmb
+			}
+		}
 	}
 
 	// 3. 执行管线 / Execute pipeline
@@ -168,7 +234,13 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 	// 5. 实体发现：批量加载命中记忆的关联实体 / Entity discovery: batch-load entities for result memories
 	r.enrichWithEntities(ctx, result.Candidates)
 
-	out := &RetrieveResult{Results: result.Candidates}
+	out := &RetrieveResult{
+		Results:     result.Candidates,
+		ContextType: result.ContextType,
+	}
+	if out.ContextType == "" {
+		out.ContextType = model.RetrievalContextPoint
+	}
 	// 6. 填充调试信息 / Populate debug info if requested
 	if req.Debug {
 		out.PipelineInfo = &PipelineDebugInfo{
@@ -233,7 +305,10 @@ func (r *Retriever) RetrieveWithDebug(ctx context.Context, req *model.RetrieveRe
 	if err != nil {
 		return nil, err
 	}
-	return &RetrieveResult{Results: results}, nil
+	return &RetrieveResult{
+		Results:     results,
+		ContextType: model.RetrievalContextPoint,
+	}, nil
 }
 
 // retrieveLegacy 旧检索逻辑（管线未初始化时的 fallback）/ Legacy retrieval logic (fallback when pipeline not initialized)

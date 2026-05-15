@@ -8,14 +8,14 @@ import (
 	"iclude/internal/search/pipeline/builtin"
 )
 
-// TestRegisterBuiltins_AllPipelinesRegistered 全部 6 条内置管线注册成功
-// All 6 built-in pipelines registered successfully
+// TestRegisterBuiltins_AllPipelinesRegistered 全部 7 条内置管线注册成功
+// All 7 built-in pipelines registered successfully
 func TestRegisterBuiltins_AllPipelinesRegistered(t *testing.T) {
 	reg := pipeline.NewRegistry()
 	deps := builtin.Deps{} // 全 nil，仅测试注册 / all nil, just testing registration
 	postStages := builtin.RegisterBuiltins(reg, deps)
 
-	expected := []string{"precision", "exploration", "semantic", "association", "fast", "full"}
+	expected := []string{"precision", "exploration", "semantic", "association", "fast", "full", "aggregation"}
 	for _, name := range expected {
 		if reg.Get(name) == nil {
 			t.Errorf("pipeline %q not registered", name)
@@ -246,5 +246,27 @@ func TestRegisterBuiltins_StageNames(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestRegisterBuiltins_IncludesAggregation 聚合管线已注册 / aggregation pipeline is registered
+func TestRegisterBuiltins_IncludesAggregation(t *testing.T) {
+	reg := pipeline.NewRegistry()
+	builtin.RegisterBuiltins(reg, builtin.Deps{})
+	p := reg.Get(pipeline.PipelineAggregation)
+	if p == nil {
+		t.Fatal("aggregation pipeline not registered")
+	}
+	if p.Name != pipeline.PipelineAggregation {
+		t.Errorf("aggregation pipeline name = %q, want %q", p.Name, pipeline.PipelineAggregation)
+	}
+	if len(p.Stages) != 1 {
+		t.Errorf("aggregation should have 1 stage group, got %d", len(p.Stages))
+	}
+	if len(p.Stages[0].Stages) == 0 {
+		t.Fatal("aggregation group[0] has no stages")
+	}
+	if p.Stages[0].Stages[0].Name() != "exhaustive" {
+		t.Errorf("aggregation first stage = %q, want %q", p.Stages[0].Stages[0].Name(), "exhaustive")
 	}
 }

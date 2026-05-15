@@ -25,12 +25,13 @@ type GraphRetriever interface {
 
 // Source 标签常量 / Source label constants
 const (
-	SourceFTS      = "sqlite"
-	SourceGraph    = "graph"
-	SourceVector   = "vector"
-	SourceTemporal = "temporal"
-	SourceHybrid   = "hybrid"
-	SourceCore     = "core"
+	SourceFTS        = "sqlite"
+	SourceGraph      = "graph"
+	SourceVector     = "vector"
+	SourceTemporal   = "temporal"
+	SourceHybrid     = "hybrid"
+	SourceCore       = "core"
+	SourceExhaustive = "exhaustive"
 )
 
 // VectorSearcher 向量检索所需的最小接口 / Minimal interface for vector search

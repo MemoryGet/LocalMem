@@ -48,6 +48,7 @@ type PipelineState struct {
 	Metadata     map[string]interface{}
 	Traces       []StageTrace
 	PipelineName string
+	ContextType  string // 检索上下文类型，由管线写入 / Set by pipeline, read by retriever
 }
 
 // StageTrace 单个 stage 的执行记录 / Execution trace for a single stage
