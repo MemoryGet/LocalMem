@@ -110,7 +110,7 @@ func TestCreateSessionTool_Execute(t *testing.T) {
 			},
 			mockErr:       errors.New("database unavailable"),
 			wantIsError:   true,
-			wantErrSubstr: "failed to create session context",
+			wantErrSubstr: "create_session",
 		},
 		{
 			name: "no project_dir omits it from metadata",

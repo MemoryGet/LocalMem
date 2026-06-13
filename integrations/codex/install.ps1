@@ -196,6 +196,58 @@ if (Test-Path $codexFile) {
     }
 }
 
+# ── 安装 iclude-memory skill（兼容 Claude Code）/ Install iclude-memory skill ──
+$skillUrl = "https://raw.githubusercontent.com/$REPO/main/integrations/claude/skills/iclude-memory/SKILL.md"
+
+# 若用户同时安装了 Claude Code，写入 ~/.claude/skills/
+# If user also has Claude Code, install to ~/.claude/skills/
+$claudeSkillDir = "$env:USERPROFILE\.claude\skills\iclude-memory"
+if (Test-Path "$env:USERPROFILE\.claude") {
+    New-Item -ItemType Directory -Path $claudeSkillDir -Force | Out-Null
+    try {
+        Invoke-WebRequest -Uri $skillUrl -OutFile "$claudeSkillDir\SKILL.md" -UseBasicParsing
+        Info "iclude-memory skill installed to $claudeSkillDir\SKILL.md (Claude Code)"
+    } catch {
+        Warn "Could not download Claude Code skill file"
+    }
+}
+
+# 将 skill 核心内容注入 ~/.codex/AGENTS.md（标记隔离）
+# Inject skill content into ~/.codex/AGENTS.md with markers
+$codexAgents = "$codexDir\AGENTS.md"
+$beginMarker = "<!-- ICLUDE-SKILL:BEGIN -->"
+$endMarker = "<!-- ICLUDE-SKILL:END -->"
+
+if (Test-Path $codexAgents) {
+    $content = Get-Content -Path $codexAgents -Raw
+    if ($content -match [regex]::Escape($beginMarker)) {
+        $content = $content -replace "(?s)$([regex]::Escape($beginMarker)).*?$([regex]::Escape($endMarker))\r?\n?", ''
+        Set-Content -Path $codexAgents -Value $content.TrimEnd() -Encoding UTF8
+    }
+}
+
+$skillBlock = @"
+
+<!-- ICLUDE-SKILL:BEGIN -->
+## iclude Memory Protocol (Retain Quality)
+
+TRIGGER when: user asks to save/remember/store something; about to call iclude_retain; a decision or important fact emerges.
+
+### Mandatory Retain Sequence
+1. ``iclude_recall(query="<topic keywords>", limit=5)`` — find related prior memories
+2. Evaluate: are any results topically related?
+3. ``iclude_retain(content=..., summary=..., derived_from=[related IDs])``
+
+### Summary Rules
+- Third person ("Caroline was promoted", NOT "She was promoted")
+- No pronouns — name every entity explicitly
+- Self-contained, 2-3 sentences max
+<!-- ICLUDE-SKILL:END -->
+"@
+
+Add-Content -Path $codexAgents -Value $skillBlock -Encoding UTF8
+Info "iclude-memory skill content injected into $codexAgents"
+
 Write-Host ""
 Info "Installation complete!"
 Write-Host ""

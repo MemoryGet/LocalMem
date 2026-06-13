@@ -56,10 +56,13 @@ func (t *SimpleTokenizer) Name() string {
 	return "simple"
 }
 
-// isCJK 判断是否为 CJK 字符 / Check if rune is CJK
-func isCJK(r rune) bool {
+// IsCJK 判断是否为 CJK 字符（汉字/韩文/日文假名）/ Check if rune is CJK (Han/Hangul/Hiragana/Katakana)
+func IsCJK(r rune) bool {
 	return unicode.Is(unicode.Han, r) ||
 		unicode.Is(unicode.Hangul, r) ||
 		unicode.Is(unicode.Hiragana, r) ||
 		unicode.Is(unicode.Katakana, r)
 }
+
+// isCJK 包内私有别名 / package-private alias
+func isCJK(r rune) bool { return IsCJK(r) }

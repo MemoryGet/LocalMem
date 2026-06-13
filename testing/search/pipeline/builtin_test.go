@@ -21,8 +21,8 @@ func TestRegisterBuiltins_AllPipelinesRegistered(t *testing.T) {
 			t.Errorf("pipeline %q not registered", name)
 		}
 	}
-	if len(postStages) != 3 {
-		t.Errorf("expected 3 post-stages, got %d", len(postStages))
+	if len(postStages) != 2 {
+		t.Errorf("expected 2 post-stages (core+trim, MMR disabled), got %d", len(postStages))
 	}
 }
 
@@ -87,8 +87,8 @@ func TestRegisterBuiltins_ExplorationNoFallback(t *testing.T) {
 	if p.Fallback != "" {
 		t.Errorf("exploration should have no fallback, got %q", p.Fallback)
 	}
-	if len(p.Stages) != 4 {
-		t.Errorf("exploration should have 4 stage groups, got %d", len(p.Stages))
+	if len(p.Stages) != 6 {
+		t.Errorf("exploration should have 6 stage groups, got %d", len(p.Stages))
 	}
 	if !p.Stages[0].Parallel {
 		t.Error("exploration first group should be parallel")
@@ -107,8 +107,8 @@ func TestRegisterBuiltins_SemanticStructure(t *testing.T) {
 	if p.Fallback != "exploration" {
 		t.Errorf("semantic fallback = %q, want %q", p.Fallback, "exploration")
 	}
-	if len(p.Stages) != 4 {
-		t.Errorf("semantic should have 4 stage groups, got %d", len(p.Stages))
+	if len(p.Stages) != 5 {
+		t.Errorf("semantic should have 5 stage groups, got %d", len(p.Stages))
 	}
 	// 第一组并行: vector + fts / First group parallel: vector + fts
 	if !p.Stages[0].Parallel {
@@ -173,8 +173,8 @@ func TestRegisterBuiltins_FullStructure(t *testing.T) {
 	if p.Fallback != "precision" {
 		t.Errorf("full fallback = %q, want %q", p.Fallback, "precision")
 	}
-	if len(p.Stages) != 4 {
-		t.Errorf("full should have 4 stage groups, got %d", len(p.Stages))
+	if len(p.Stages) != 5 {
+		t.Errorf("full should have 5 stage groups, got %d", len(p.Stages))
 	}
 	// 第一组并行: graph + fts + vector / First group parallel: graph + fts + vector
 	if !p.Stages[0].Parallel {
@@ -186,26 +186,48 @@ func TestRegisterBuiltins_FullStructure(t *testing.T) {
 }
 
 // TestRegisterBuiltins_PostStageNames 后处理 stage 名称正确
-// Post-processing stage names are correct
+// Post-processing stage names are correct.
+// Sub-tests cover two cases: MMR disabled (default) and MMR enabled.
 func TestRegisterBuiltins_PostStageNames(t *testing.T) {
-	reg := pipeline.NewRegistry()
-	deps := builtin.Deps{
-		Cfg: config.RetrievalConfig{
-			AccessAlpha: 0.5,
-			MMR:         config.MMRConfig{Lambda: 0.7},
-		},
-	}
-	postStages := builtin.RegisterBuiltins(reg, deps)
-
-	expectedNames := []string{"mmr", "core", "trim"}
-	if len(postStages) != len(expectedNames) {
-		t.Fatalf("expected %d post-stages, got %d", len(expectedNames), len(postStages))
-	}
-	for i, name := range expectedNames {
-		if postStages[i].Name() != name {
-			t.Errorf("post-stage[%d] name = %q, want %q", i, postStages[i].Name(), name)
+	t.Run("mmr_disabled", func(t *testing.T) {
+		reg := pipeline.NewRegistry()
+		deps := builtin.Deps{
+			Cfg: config.RetrievalConfig{
+				AccessAlpha: 0.5,
+				MMR:         config.MMRConfig{Lambda: 0.7}, // configured but not enabled
+			},
 		}
-	}
+		postStages := builtin.RegisterBuiltins(reg, deps)
+		expectedNames := []string{"core", "trim"}
+		if len(postStages) != len(expectedNames) {
+			t.Fatalf("expected %d post-stages, got %d", len(expectedNames), len(postStages))
+		}
+		for i, name := range expectedNames {
+			if postStages[i].Name() != name {
+				t.Errorf("post-stage[%d] name = %q, want %q", i, postStages[i].Name(), name)
+			}
+		}
+	})
+
+	t.Run("mmr_enabled", func(t *testing.T) {
+		reg := pipeline.NewRegistry()
+		deps := builtin.Deps{
+			Cfg: config.RetrievalConfig{
+				AccessAlpha: 0.5,
+				MMR:         config.MMRConfig{Enabled: true, Lambda: 0.7},
+			},
+		}
+		postStages := builtin.RegisterBuiltins(reg, deps)
+		expectedNames := []string{"mmr", "core", "trim"}
+		if len(postStages) != len(expectedNames) {
+			t.Fatalf("expected %d post-stages, got %d", len(expectedNames), len(postStages))
+		}
+		for i, name := range expectedNames {
+			if postStages[i].Name() != name {
+				t.Errorf("post-stage[%d] name = %q, want %q", i, postStages[i].Name(), name)
+			}
+		}
+	})
 }
 
 // TestRegisterBuiltins_StageNames 每条管线中 stage 名称验证
@@ -219,12 +241,12 @@ func TestRegisterBuiltins_StageNames(t *testing.T) {
 		// 每组中第一个 stage 的名称 / Name of first stage in each group
 		firstStageNames []string
 	}{
-		{"precision", []string{"graph", "merge", "filter", "rerank_graph"}},
-		{"exploration", []string{"graph", "merge", "filter", "rerank_overlap"}},
-		{"semantic", []string{"vector", "merge", "filter", "rerank_overlap"}},
+		{"precision", []string{"graph", "fts_rewrite_retry", "merge", "filter", "rerank_graph"}},
+		{"exploration", []string{"graph", "fts_rewrite_retry", "merge", "temporal_filter", "filter", "rerank_overlap"}},
+		{"semantic", []string{"vector", "fts_rewrite_retry", "merge", "filter", "rerank_overlap"}},
 		{"association", []string{"graph", "rerank_graph", "filter"}},
 		{"fast", []string{"fts", "filter"}},
-		{"full", []string{"graph", "merge", "filter", "rerank_overlap"}},
+		{"full", []string{"graph", "fts_rewrite_retry", "merge", "filter", "rerank_overlap"}},
 	}
 
 	for _, tt := range tests {

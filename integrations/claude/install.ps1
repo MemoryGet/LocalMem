@@ -129,6 +129,18 @@ if ((Test-Path $mcpFile) -and (Get-Content $mcpFile -Raw) -like "*iclude*") {
     Info "Claude Code MCP config written to $mcpFile"
 }
 
+# ── 安装 iclude-memory skill / Install iclude-memory skill for Claude Code ──
+$skillDir = "$claudeDir\skills\iclude-memory"
+$skillFile = "$skillDir\SKILL.md"
+New-Item -ItemType Directory -Path $skillDir -Force | Out-Null
+$skillUrl = "https://raw.githubusercontent.com/$REPO/main/integrations/claude/skills/iclude-memory/SKILL.md"
+try {
+    Invoke-WebRequest -Uri $skillUrl -OutFile $skillFile -UseBasicParsing
+    Info "iclude-memory skill installed to $skillFile"
+} catch {
+    Warn "Could not download skill file. Install manually from: $skillUrl"
+}
+
 Write-Host ""
 Info "Installation complete!"
 Write-Host ""

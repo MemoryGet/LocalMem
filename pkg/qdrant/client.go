@@ -112,6 +112,20 @@ func (c *Client) EnsureCollection(ctx context.Context) error {
 	return nil
 }
 
+// DropCollection 删除集合（不存在时静默忽略）/ Drop collection, silently ignore if not found
+func (c *Client) DropCollection(ctx context.Context) error {
+	url := fmt.Sprintf("%s/collections/%s", c.baseURL, c.collection)
+	resp, err := c.doRequest(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("drop collection %q: %w", c.collection, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	return c.readError(resp, "drop collection")
+}
+
 // CollectionExists 检查集合是否存在 / Check whether collection exists
 func (c *Client) CollectionExists(ctx context.Context) (bool, error) {
 	url := fmt.Sprintf("%s/collections/%s", c.baseURL, c.collection)

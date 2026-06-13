@@ -15,6 +15,7 @@ import (
 	"iclude/internal/model"
 	"iclude/internal/search/pipeline"
 	"iclude/internal/search/pipeline/builtin"
+	"iclude/internal/search/stage"
 	"iclude/internal/search/strategy"
 	"iclude/pkg/scoring"
 	"iclude/internal/store"
@@ -90,13 +91,47 @@ func (r *Retriever) SetPipelineComponents(executor *pipeline.Executor, agent *st
 func (r *Retriever) InitPipeline(extraPostStages ...pipeline.Stage) {
 	registry := pipeline.NewRegistry()
 	deps := builtin.Deps{
-		FTSSearcher:  r.memStore,
-		GraphStore:   r.graphStore,
-		VectorStore:  r.vecStore,
-		Embedder:     r.embedder,
-		Timeline:     r.memStore,
-		CoreProvider: r.coreProvider,
-		Cfg:          r.cfg,
+		FTSSearcher:            r.memStore,
+		GraphStore:             r.graphStore,
+		VectorStore:            r.vecStore,
+		Embedder:               r.embedder,
+		Timeline:               r.memStore,
+		CoreProvider:           r.coreProvider,
+		Cfg:                    r.cfg,
+		VectorQueryInstruction: r.cfg.VectorQueryInstruction,
+	}
+	// GraphEnabled=false: 将 graphStore 置 nil，管线内 GraphStage 自动跳过
+	// GraphEnabled=false: nil out graphStore so GraphStage auto-skips in all pipelines
+	if !r.cfg.GraphEnabled {
+		deps.GraphStore = nil
+	}
+	// 自动注入 hub 检测（graphStore 实现 SalienceChecker 时）/ Auto-wire hub detection when available
+	if r.graphStore != nil && r.cfg.GraphSalienceMaxCount > 0 {
+		if sc, ok := r.graphStore.(stage.SalienceChecker); ok {
+			deps.SalienceChecker = sc
+			deps.SalienceMaxCount = r.cfg.GraphSalienceMaxCount
+		}
+	}
+	// Option B: FTS 优先种子策略 / FTS-first seed strategy
+	if r.cfg.GraphFTSFirstSeeds {
+		deps.FTSFirstSeeds = true
+	}
+	// GraphTermExpander: 自动注入（graphStore 非 nil 且实现该接口时）
+	// Auto-wire GraphTermExpander when graphStore is non-nil and implements the interface
+	if r.graphStore != nil {
+		if expander, ok := r.graphStore.(stage.GraphTermExpander); ok {
+			deps.GraphTermExpander = expander
+		}
+	}
+	// HyDEGenerator: LLM 可用时注入，FTS 不足时按需生成假设文档（不对每条查询提前生成）
+	// Auto-wire HyDEGenerator when LLM is available; on-demand generation only when FTS is insufficient.
+	if r.llm != nil {
+		deps.HyDEGenerator = &llmHyDEAdapter{provider: r.llm}
+	}
+	// Tokenizer: 从 preprocessor 取出注入，供 FTS retry 内容词提取（gse/jieba/simple）
+	// Auto-wire tokenizer from preprocessor for bilingual content term extraction in FTS retry.
+	if r.preprocessor != nil {
+		deps.Tokenizer = r.preprocessor.Tokenizer()
 	}
 	postStages := builtin.RegisterBuiltins(registry, deps)
 	if len(extraPostStages) > 0 && len(postStages) > 0 {
@@ -112,7 +147,11 @@ func (r *Retriever) InitPipeline(extraPostStages ...pipeline.Stage) {
 
 	r.executor = pipeline.NewExecutor(registry, pipeline.WithPostStages(postStages...))
 
-	rc := strategy.NewRuleClassifier(pipeline.PipelineExploration)
+	fallback := r.cfg.Strategy.FallbackPipeline
+	if fallback == "" {
+		fallback = pipeline.PipelineExploration
+	}
+	rc := strategy.NewRuleClassifier(fallback)
 	r.ruleClassifier = rc
 	// Strategy Agent: 仅 cfg.Strategy.UseLLM=true 时使用 LLM，否则纯规则分类 / Use LLM only when explicitly enabled
 	var strategyLLM llm.Provider
@@ -128,6 +167,9 @@ func (r *Retriever) selectPipelineWithPlan(ctx context.Context, req *model.Retri
 	if r.strategyAgent != nil {
 		name, plan, _ := r.strategyAgent.Select(ctx, req.Query)
 		return name, plan
+	}
+	if fb := r.cfg.Strategy.FallbackPipeline; fb != "" {
+		return fb, nil
 	}
 	return pipeline.PipelineExploration, nil // 最终 fallback / ultimate fallback
 }
@@ -187,6 +229,7 @@ func (r *Retriever) retrieveViaPipeline(ctx context.Context, req *model.Retrieve
 		}
 		plan.Intent = string(prepPlan.Intent)
 		plan.Temporal = prepPlan.Temporal
+		plan.TemporalAnchor = prepPlan.TemporalAnchor
 		plan.HyDEDoc = prepPlan.HyDEDoc
 	}
 	state.Plan = plan
@@ -671,5 +714,33 @@ func (r *Retriever) enrichWithEntities(ctx context.Context, results []*model.Sea
 // Timeline 时间线查询 / Timeline query
 func (r *Retriever) Timeline(ctx context.Context, req *model.TimelineRequest) ([]*model.Memory, error) {
 	return r.memStore.ListTimeline(ctx, req)
+}
+
+// llmHyDEAdapter 将 llm.Provider 适配为 stage.HyDEGenerator
+// Adapts llm.Provider to the stage.HyDEGenerator interface.
+// Called only when FTSRewriteRetryStage determines FTS results are insufficient.
+type llmHyDEAdapter struct {
+	provider llm.Provider
+}
+
+// GenerateHyDE 用 LLM 生成假设性答案文档，供 FTS 扩词使用
+// Generate a hypothetical answer document for FTS term expansion.
+func (a *llmHyDEAdapter) GenerateHyDE(ctx context.Context, query string) (string, error) {
+	resp, err := a.provider.Chat(ctx, &llm.ChatRequest{
+		Messages: []llm.ChatMessage{
+			{
+				Role: "system",
+				Content: `You are a memory retrieval assistant.
+Based on the user's question, write a short passage (50-100 words) that might exist in a memory database as an answer to this question.
+Write in the SAME LANGUAGE as the user's question.
+Output ONLY the passage content — no prefix, label, or explanation.`,
+			},
+			{Role: "user", Content: query},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(resp.Content), nil
 }
 

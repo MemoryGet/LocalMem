@@ -88,6 +88,12 @@ retrieval:
   experience_recall_limit: 6     # B7 经验主动召回条数 / B7 proactive experience recall count
   access_alpha: 0.15     # 访问频率阻尼系数（0=不加权，越大越倾向高访问记忆）/ Access frequency damping (0=none)
 
+  # 查询侧非对称检索指令（仅对支持 instruction 的 embedding 模型有效，如 Qwen3-Embedding-8B）
+  # Asymmetric retrieval instruction for query-side embedding only.
+  # Documents in Qdrant are indexed without instruction — no re-indexing required.
+  # Remove or leave empty to disable.
+  vector_query_instruction: "Instruct: Given a question, retrieve the most relevant document passage that answers it."
+
   # 精排 / Re-ranking
   # provider: "overlap"(无外部依赖) | "remote"(BGE/Jina/Cohere HTTP sidecar)
   rerank:
@@ -118,6 +124,13 @@ retrieval:
     hyde_enabled: true     # 启用 HyDE / Enable Hypothetical Document Embedding
     hyde_weight: 0.8       # HyDE 向量混合权重 / HyDE vector blend weight
     hyde_min_runes: 25     # HyDE 触发的最小 rune 长度 / Min rune length to trigger HyDE
+
+  # 管线路由策略 / Pipeline routing strategy
+  strategy:
+    use_llm: false          # LLM 辅助管线选择（false=纯规则，延迟低）/ LLM-assisted routing (false=rule-only, lower latency)
+    fallback_pipeline: semantic  # 默认管线（semantic=向量+FTS，exploration=图+FTS+时序）
+                                 # semantic: vector+FTS via RRF — best for document knowledge base
+                                 # exploration: graph+FTS+temporal — best for conversational memories
 
   # 级联检索阈值 / Cascade retrieval thresholds (Path C temporal tuning)
   cascade:
@@ -152,7 +165,7 @@ heartbeat:
 
 # MCP 服务器配置 / MCP server configuration
 mcp:
-  enabled: false                   # 手动开启 / Opt-in
+  enabled: true                    # 手动开启 / Opt-in
   port: 8081
   default_team_id: "default"
   default_owner_id: "mcp-user"

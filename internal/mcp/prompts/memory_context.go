@@ -74,7 +74,10 @@ func (p *MemoryContextPrompt) Get(ctx context.Context, arguments map[string]stri
 
 	memJSON, _ := json.MarshalIndent(results, "", "  ")
 	systemText := fmt.Sprintf(
-		"## Relevant memories from IClude\n\n```json\n%s\n```\n\nUse the above memories as context when answering the following question.",
+		"## Relevant memories from IClude\n\n```json\n%s\n```\n\n"+
+			"Use the above as context. When this exchange produces facts worth retaining:\n"+
+			"1. iclude_recall(topic keywords)\n"+
+			"2. iclude_retain(summary=..., derived_from=[related IDs])",
 		string(memJSON),
 	)
 

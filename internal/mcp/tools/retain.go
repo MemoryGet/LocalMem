@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"strings"
 
+	"iclude/internal/logger"
 	"iclude/internal/mcp"
 	"iclude/internal/model"
+
+	"go.uber.org/zap"
 )
 
 // MemoryCreator 记忆创建接口 / Interface for creating memories
@@ -21,20 +24,28 @@ type RetainPolicyChecker interface {
 	GetByScope(ctx context.Context, scope string) (*model.ScopePolicy, error)
 }
 
+// DerivationAdder 记忆溯源写入接口 / Interface for writing derivation links
+type DerivationAdder interface {
+	AddDerivations(ctx context.Context, sourceIDs []string, targetID string) error
+}
+
 // RetainTool iclude_retain 工具 / iclude_retain tool handler
 type RetainTool struct {
 	manager       MemoryCreator
 	policyChecker RetainPolicyChecker // 可为 nil / may be nil
+	derivStore    DerivationAdder     // 可为 nil / may be nil
 }
 
 // NewRetainTool 创建 retain 工具 / Create retain tool
-func NewRetainTool(manager MemoryCreator, policyChecker RetainPolicyChecker) *RetainTool {
-	return &RetainTool{manager: manager, policyChecker: policyChecker}
+func NewRetainTool(manager MemoryCreator, policyChecker RetainPolicyChecker, derivStore DerivationAdder) *RetainTool {
+	return &RetainTool{manager: manager, policyChecker: policyChecker, derivStore: derivStore}
 }
 
 // retainArgs iclude_retain 工具参数 / iclude_retain tool arguments
 type retainArgs struct {
 	Content     string            `json:"content"`
+	Summary     string            `json:"summary,omitempty"`      // 自包含摘要 / Self-contained summary
+	DerivedFrom []string          `json:"derived_from,omitempty"` // 来源记忆 ID / Source memory IDs
 	Scope       string            `json:"scope,omitempty"`
 	Kind        string            `json:"kind,omitempty"`
 	Tags        []string          `json:"tags,omitempty"`
@@ -48,12 +59,19 @@ type retainArgs struct {
 // Definition 返回工具元数据定义 / Return tool metadata definition
 func (t *RetainTool) Definition() mcp.ToolDefinition {
 	return mcp.ToolDefinition{
-		Name:        "iclude_retain",
-		Description: "**Call before the session ends** to persist key decisions, facts, and outcomes from this conversation. Also use whenever a notable fact, preference, or decision emerges mid-conversation.",
+		Name: "iclude_retain",
+		Description: "Persist a semantic memory unit.\n\n" +
+			"WHEN TO CALL: Only when a meaningful fact, decision, or topic exchange is complete.\n" +
+			"WHEN NOT TO CALL: Confirmations, mid-topic turns, unresolved questions.\n\n" +
+			"REQUIRED SEQUENCE:\n" +
+			"1. iclude_recall(query = topic keywords) — find related prior memories\n" +
+			"2. iclude_retain with summary + derived_from from step 1",
 		InputSchema: json.RawMessage(`{
             "type":"object",
             "properties":{
                 "content":{"type":"string","description":"The memory content to save"},
+                "summary":{"type":"string","description":"Self-contained 2-3 sentence summary. Third person, no pronouns, all entities named. Write BEFORE calling retain."},
+                "derived_from":{"type":"array","items":{"type":"string"},"description":"IDs of related prior memories from iclude_recall. Creates topic-chain links."},
                 "scope":{"type":"string","description":"Scope rules: user preferences/habits → 'user/{owner_id}'; project knowledge/decisions/architecture → use project scope from session context; uncertain → omit and system auto-derives from session"},
                 "kind":{"type":"string","description":"Memory kind (fact, decision, preference, etc.)"},
                 "tags":{"type":"array","items":{"type":"string"},"description":"Optional tags"},
@@ -110,6 +128,8 @@ func (t *RetainTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 
 	mem := &model.Memory{
 		Content:     args.Content,
+		Summary:     args.Summary,
+		DerivedFrom: args.DerivedFrom,
 		Scope:       scope,
 		Kind:        args.Kind,
 		ContextID:   args.ContextID,
@@ -128,6 +148,14 @@ func (t *RetainTool) Execute(ctx context.Context, arguments json.RawMessage) (*m
 	created, err := t.manager.Create(ctx, mem)
 	if err != nil {
 		return toolError("retain", err)
+	}
+
+	// 写入溯源链接（非致命）/ Write derivation links (non-fatal)
+	if len(args.DerivedFrom) > 0 && t.derivStore != nil {
+		if err := t.derivStore.AddDerivations(ctx, args.DerivedFrom, created.ID); err != nil {
+			logger.Warn("retain: failed to write derivation links",
+				zap.String("memory_id", created.ID), zap.Error(err))
+		}
 	}
 
 	resp := map[string]any{"id": created.ID, "content": created.Content}

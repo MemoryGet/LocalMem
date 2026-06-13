@@ -270,6 +270,10 @@ type GraphStore interface {
 	// CreateRelation 创建关系 / Create an entity relation
 	CreateRelation(ctx context.Context, rel *model.EntityRelation) error
 
+	// UpsertRelation 原子创建或累加关系：冲突时 mention_count+1，保留首次 id/created_at/source_memory_id/weight
+	// Atomically create or accumulate a relation; on UNIQUE conflict increments mention_count.
+	UpsertRelation(ctx context.Context, rel *model.EntityRelation) (*model.EntityRelation, error)
+
 	// DeleteRelation 删除关系 / Delete an entity relation
 	DeleteRelation(ctx context.Context, id string) error
 

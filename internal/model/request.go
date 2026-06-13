@@ -198,11 +198,12 @@ type UpdateEntityRequest struct {
 
 // CreateEntityRelationRequest 创建实体关系请求 / Create entity relation request DTO
 type CreateEntityRelationRequest struct {
-	SourceID     string         `json:"source_id" binding:"required"`
-	TargetID     string         `json:"target_id" binding:"required"`
-	RelationType string         `json:"relation_type" binding:"required"`
-	Weight       float64        `json:"weight,omitempty"`
-	Metadata     map[string]any `json:"metadata,omitempty"`
+	SourceID       string         `json:"source_id" binding:"required"`
+	TargetID       string         `json:"target_id" binding:"required"`
+	RelationType   string         `json:"relation_type" binding:"required"`
+	Weight         float64        `json:"weight,omitempty"`
+	SourceMemoryID string         `json:"source_memory_id,omitempty"` // 关系来源记忆ID / Source memory ID for the relation
+	Metadata       map[string]any `json:"metadata,omitempty"`
 }
 
 // CreateMemoryEntityRequest 创建记忆-实体关联请求 / Create memory-entity association request DTO

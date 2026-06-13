@@ -22,6 +22,7 @@ const rrfScoreEpsilon = 1e-12
 const (
 	MergeStrategyRRF        = "rrf"
 	MergeStrategyGraphAware = "graph_aware"
+	MergeStrategyFTSPrimary = "fts_primary" // FTS 结果优先，graph/vector 作为补充 / FTS results ranked first, graph/vector as supplements
 )
 
 // defaultAccessAlpha 默认访问频率阻尼系数 / Default access frequency damping coefficient
@@ -212,6 +213,8 @@ func (s *MergeStage) Execute(ctx context.Context, state *pipeline.PipelineState)
 	switch s.strategy {
 	case MergeStrategyGraphAware:
 		merged = s.mergeGraphAware(groups)
+	case MergeStrategyFTSPrimary:
+		merged = s.mergeFTSPrimary(groups)
 	default: // MergeStrategyRRF
 		merged = s.mergeRRF(groups)
 	}
@@ -278,13 +281,13 @@ func (s *MergeStage) mergeRRF(groups map[string][]*model.SearchResult) []*model.
 }
 
 // trustFactorCrossValidated 交叉验证信任因子（graph + 其他源）/ Cross-validated trust factor
-const trustFactorCrossValidated = 1.5
+const trustFactorCrossValidated = 1.2
 
 // trustFactorGraphOrVector graph/vector 单源信任因子 / Single-source trust for graph or vector
 const trustFactorGraphOrVector = 1.0
 
 // trustFactorFTSOrTemporal fts/temporal 单源信任因子 / Single-source trust for fts or temporal
-const trustFactorFTSOrTemporal = 0.8
+const trustFactorFTSOrTemporal = 1.0
 
 // mergeGraphAware 图感知 RRF 融合，按源信任加权 / Graph-aware RRF merge with source trust weighting
 func (s *MergeStage) mergeGraphAware(groups map[string][]*model.SearchResult) []*model.SearchResult {
@@ -376,6 +379,54 @@ func computeTrustFactor(sources map[string]bool) float64 {
 
 	// 仅出现在 fts 或 temporal → 降低信任 / Only in fts or temporal → reduced trust
 	return trustFactorFTSOrTemporal
+}
+
+// mergeFTSPrimary FTS 结果优先融合：FTS 候选按分数排序置顶，其他源的非重复结果追加末尾
+// FTS-primary merge: FTS candidates ranked first by score, non-duplicate results from other sources appended as supplements.
+// Guarantees that strong text-match results are never displaced by graph/vector noise.
+func (s *MergeStage) mergeFTSPrimary(groups map[string][]*model.SearchResult) []*model.SearchResult {
+	ftsGroup := groups[SourceFTS]
+	sort.Slice(ftsGroup, func(i, j int) bool {
+		if math.Abs(ftsGroup[i].Score-ftsGroup[j].Score) > rrfScoreEpsilon {
+			return ftsGroup[i].Score > ftsGroup[j].Score
+		}
+		if ftsGroup[i].Memory != nil && ftsGroup[j].Memory != nil {
+			return ftsGroup[i].Memory.ID < ftsGroup[j].Memory.ID
+		}
+		return false
+	})
+
+	seen := make(map[string]bool, len(ftsGroup))
+	merged := make([]*model.SearchResult, 0, len(ftsGroup)*2)
+
+	for _, r := range ftsGroup {
+		if r.Memory == nil {
+			continue
+		}
+		seen[r.Memory.ID] = true
+		merged = append(merged, r)
+	}
+
+	// 收集其他源的候选，RRF 排序后补充 / Collect non-FTS candidates via RRF, append as supplements
+	supplementGroups := make(map[string][]*model.SearchResult, len(groups))
+	for src, grp := range groups {
+		if src == SourceFTS {
+			continue
+		}
+		supplementGroups[src] = grp
+	}
+	if len(supplementGroups) > 0 {
+		supplements := s.mergeRRF(supplementGroups)
+		for _, r := range supplements {
+			if r.Memory == nil || seen[r.Memory.ID] {
+				continue
+			}
+			seen[r.Memory.ID] = true
+			merged = append(merged, r)
+		}
+	}
+
+	return merged
 }
 
 // dedup 按 Memory.ID 去重，保留最完整的对象 / Deduplicate by Memory.ID, keep most complete object

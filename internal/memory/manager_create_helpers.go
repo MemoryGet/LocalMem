@@ -165,6 +165,11 @@ func (m *Manager) handleAutoExtract(ctx context.Context, mem *model.Memory, auto
 		return
 	}
 
+	// 操作日志记忆（source_type=hook）不触发语义抽取 / Hook observations are operational logs — skip LLM enrichment
+	if mem.SourceType == "hook" {
+		return
+	}
+
 	// 优先使用向量解析器 / Prefer vector resolver over LLM extractor
 	if m.resolver != nil {
 		go func() {
@@ -224,6 +229,23 @@ func (m *Manager) asyncExtract(req *model.ExtractRequest) {
 				zap.String("memory_id", req.MemoryID),
 				zap.Error(err),
 			)
+		}
+
+		// 抽取完成后，用 Summary 重新 embed，提升向量语义密度 / After extraction, re-embed using Summary for better semantic density
+		if m.embedder != nil && m.vecStore != nil {
+			fresh, freshErr := m.memStore.Get(ctx, req.MemoryID)
+			if freshErr == nil && fresh.Summary != "" {
+				if emb, embErr := m.embedder.Embed(ctx, fresh.Summary); embErr == nil {
+					payload := buildVectorPayload(fresh)
+					if upsertErr := m.vecStore.Upsert(ctx, fresh.ID, emb, payload); upsertErr != nil {
+						logger.Warn("asyncExtract: failed to re-embed summary",
+							zap.String("memory_id", fresh.ID), zap.Error(upsertErr))
+					}
+				} else {
+					logger.Warn("asyncExtract: failed to embed summary",
+						zap.String("memory_id", fresh.ID), zap.Error(embErr))
+				}
+			}
 		}
 	}()
 }

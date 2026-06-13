@@ -180,6 +180,16 @@ func (s *Session) HandleRequest(ctx context.Context, req *JSONRPCRequest) *JSONR
 	}
 }
 
+// memoryProtocolInstructions MCP initialize 时注入的记忆协议说明 / Memory protocol instructions injected at MCP initialize
+const memoryProtocolInstructions = `You have access to a persistent memory system (iclude).
+
+Memory Protocol:
+- ALWAYS call iclude_recall before iclude_retain to find related prior memories
+- Retain semantic units (a complete fact, decision, or topic exchange) — not every turn
+- Include 'summary': 2-3 sentence self-contained summary (third person, no pronouns, all entities named)
+- Include 'derived_from': IDs of related memories found via recall
+- Skip retention for: confirmations, transient steps, unresolved questions`
+
 func (s *Session) handleInitialize(req *JSONRPCRequest) *JSONRPCResponse {
 	return okResponse(req.ID, map[string]any{
 		"protocolVersion": MCPProtocolVersion,
@@ -188,7 +198,8 @@ func (s *Session) handleInitialize(req *JSONRPCRequest) *JSONRPCResponse {
 			"resources": map[string]any{"subscribe": false, "listChanged": false},
 			"prompts":   map[string]any{"listChanged": false},
 		},
-		"serverInfo": map[string]any{"name": "iclude-mcp", "version": "1.0.0"},
+		"serverInfo":   map[string]any{"name": "iclude-mcp", "version": "1.0.0"},
+		"instructions": memoryProtocolInstructions,
 	})
 }
 

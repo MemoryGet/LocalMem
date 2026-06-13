@@ -46,6 +46,7 @@ type QueryPlan struct {
 	Intent         QueryIntent
 	Weights        ChannelWeights
 	Temporal       bool
+	TemporalAnchor bool          // 是否有明确时间锚点 / Whether query has an explicit temporal anchor
 	TemporalCenter *time.Time    // 时间查询的中心点 / Center point for temporal queries
 	TemporalRange  time.Duration // 时间查询的范围 / Duration range for temporal queries
 	HyDEDoc        string        // LLM 生成的假设性回答文档 / Hypothetical Document for HyDE retrieval
@@ -137,6 +138,9 @@ func NewPreprocessor(tok tokenizer.Tokenizer, graphStore store.GraphStore, llm l
 	}
 }
 
+// Tokenizer 返回分词器（供管线注入内容词提取使用）/ Return the tokenizer for pipeline injection
+func (p *Preprocessor) Tokenizer() tokenizer.Tokenizer { return p.tokenizer }
+
 // Process 执行查询预处理 / Execute query preprocessing
 func (p *Preprocessor) Process(ctx context.Context, query string, scope string) (*QueryPlan, error) {
 	plan := &QueryPlan{
@@ -180,8 +184,15 @@ func (p *Preprocessor) Process(ctx context.Context, query string, scope string) 
 	}
 
 	// 步骤 5: LLM 增强（可选）/ Step 5: Optional LLM enhancement
+	// Temporal intent is locked before LLM runs so LLM cannot override to a non-temporal intent
+	// and break pipeline routing (temporal queries must reach exploration with TemporalFilterStage).
+	wasTemporalRule := plan.Temporal
 	if p.cfg.Preprocess.UseLLM && p.llm != nil {
 		p.llmEnhance(ctx, plan)
+	}
+	if wasTemporalRule && plan.Intent != IntentTemporal {
+		plan.Intent = IntentTemporal
+		plan.Weights = p.computeWeights(IntentTemporal)
 	}
 
 	return plan, nil
@@ -378,14 +389,17 @@ Respond ONLY with valid JSON, no markdown.`,
 		}
 	}
 
-	// HyDE 仅对语义意图且长度达标的查询触发，避免短查询浪费 LLM 调用
-	// HyDE triggers only for semantic intent queries that meet the min-rune threshold
+	// HyDE 仅对语义意图且长度达标的非 temporal 查询触发
+	// HyDE triggers only for semantic, non-temporal queries that meet the min-rune threshold.
+	// Excluded from temporal queries: a hypothetical document about a time-sensitive query
+	// would use hallucinated dates, producing a misleading embedding that breaks temporal retrieval.
 	hydeMinRunes := p.cfg.Preprocess.HyDEMinRunes
 	if hydeMinRunes <= 0 {
 		hydeMinRunes = 25
 	}
 	if p.cfg.Preprocess.HyDEEnabled &&
 		plan.Intent == IntentSemantic &&
+		!plan.Temporal &&
 		len([]rune(plan.OriginalQuery)) >= hydeMinRunes {
 		p.generateHyDE(ctx, plan)
 	}
@@ -403,7 +417,7 @@ func (p *Preprocessor) generateHyDE(ctx context.Context, plan *QueryPlan) {
 	temp := preprocessLLMTemperature
 	hydeResp, hydeErr := p.llm.Chat(hydeCtx, &llm.ChatRequest{
 		Messages: []llm.ChatMessage{
-			{Role: "system", Content: "你是一个记忆系统。根据用户的问题，写出一段可能存在于记忆库中的文档片段（50-100字）。直接输出内容，不加前缀。用中文回答。"},
+			{Role: "system", Content: "You are a memory retrieval assistant. Given a question, write a short passage (50-100 words) that would directly answer it, as if it were a memory fragment. Write in the SAME LANGUAGE as the question. Output only the passage, no prefix or explanation."},
 			{Role: "user", Content: plan.OriginalQuery},
 		},
 		Temperature: &temp,

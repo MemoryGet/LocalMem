@@ -201,6 +201,8 @@ type ExtractConfig struct {
 	FastModelID            string        `mapstructure:"fast_model_id"`            // 快速模型 ID / Fast model ID
 	RelationExtractEnabled bool          `mapstructure:"relation_extract_enabled"` // 启用异步关系抽取 / Enable async relation extraction
 	Resolver               ResolverConfig `mapstructure:"resolver"`                // 向量解析器 / Vector resolver config
+	PromptHints            string        `mapstructure:"prompt_hints"`              // 追加到抽取提示词末尾的额外指令 / Extra instructions appended to extraction prompts
+	PromptHintsFile        string        `mapstructure:"prompt_hints_file"`         // 指向独立 .md 文件的路径，内容追加在 prompt_hints 之前 / Path to a .md file; content prepended before prompt_hints
 }
 
 // RetrievalConfig 检索配置 / Retrieval config
@@ -212,14 +214,18 @@ type RetrievalConfig struct {
 	QdrantWeight         float64                      `mapstructure:"qdrant_weight"`
 	GraphFTSTop          int                          `mapstructure:"graph_fts_top"`
 	GraphEntityLimit     int                          `mapstructure:"graph_entity_limit"`
-	GraphMaxVisited      int                          `mapstructure:"graph_max_visited"`
-	DefaultLimit         int                          `mapstructure:"default_limit"`          // 默认召回条数 / Default recall result count
+	GraphMaxVisited       int                         `mapstructure:"graph_max_visited"`
+	GraphSalienceMaxCount int                         `mapstructure:"graph_salience_max_count"` // hub 节点阈值，0=禁用 / Hub detection threshold, 0=disabled
+	GraphFTSFirstSeeds    bool                        `mapstructure:"graph_fts_first_seeds"`    // Option B: 以 FTS top-K 记忆的关联实体为 BFS 种子 / Use FTS top-K memories' entities as BFS seeds
+	VectorQueryInstruction string                      `mapstructure:"vector_query_instruction"` // 查询侧非对称检索指令前缀（仅 Qwen3-Embedding 等支持 instruction 的模型）/ Asymmetric retrieval instruction prefix for query side (Qwen3-Embedding and similar instruction-tuned models)
+	DefaultLimit          int                         `mapstructure:"default_limit"`          // 默认召回条数 / Default recall result count
 	ExperienceRecallLimit int                         `mapstructure:"experience_recall_limit"` // B7 经验召回条数 / B7 experience recall count
 	AccessAlpha          float64                      `mapstructure:"access_alpha"`           // 访问频率阻尼系数 / Access frequency damping coefficient
 	RelationDecayLambda  float64                      `mapstructure:"relation_decay_lambda"`  // 关系时间衰减系数 λ / Relation time decay lambda
 	Rerank               RerankConfig                 `mapstructure:"rerank"`
 	MMR                  MMRConfig                    `mapstructure:"mmr"`
 	Preprocess           PreprocessConfig             `mapstructure:"preprocess"`
+	FTSRewrite           FTSRewriteConfig             `mapstructure:"fts_rewrite"`
 	Disclosure           DisclosureConfig             `mapstructure:"disclosure"`
 	Strategy             StrategyConfig               `mapstructure:"strategy"`
 	Pipelines            map[string]PipelineOverrides `mapstructure:"pipelines"`
@@ -348,6 +354,21 @@ func (p PreprocessConfig) ResolvedHyDEWeight() float64 {
 	return 0.8
 }
 
+// FTSRetryTierConfig FTS 渐进式充足性阶梯配置 / Single tier config for progressive FTS sufficiency cascade
+type FTSRetryTierConfig struct {
+	MinCount  int     `mapstructure:"min_count"`  // FTS 候选数门槛 / Minimum candidate count
+	MinScore  float64 `mapstructure:"min_score"`  // top score 门槛 / Minimum top score
+	Expansion string  `mapstructure:"expansion"`  // "synonyms" | "graph" | "hyde" | "none"
+}
+
+// FTSRewriteConfig FTS 渐进式重写重试配置 / Progressive FTS rewrite-retry configuration
+// 若 Tiers 为空，Stage 使用内置 4 阶梯默认值。Tiers 超过 4 个时截断到前 4 个。
+// If Tiers is empty, the stage uses built-in 4-tier defaults. If len > 4, only first 4 are used.
+type FTSRewriteConfig struct {
+	Tiers           []FTSRetryTierConfig `mapstructure:"tiers"`             // 阶梯列表，最多 4 个 / Tier list, max 4
+	IntentStartTier map[string]int       `mapstructure:"intent_start_tier"` // 意图→起始阶梯下标 / Intent → start tier index
+}
+
 // DisclosureConfig 渐进式披露配置 / Progressive disclosure configuration
 type DisclosureConfig struct {
 	Enabled        bool    `mapstructure:"enabled"`
@@ -373,7 +394,10 @@ func (d DisclosureConfig) WeightsForStrategy(strategy string) (core, context, en
 
 // IngestConfig 数据摄入配置 / Data ingestion configuration
 type IngestConfig struct {
-	NoiseFilter NoiseFilterConfig `mapstructure:"noise_filter"`
+	NoiseFilter       NoiseFilterConfig `mapstructure:"noise_filter"`
+	// ContextWindowSize 每条 turn memory 前追加的上下文轮次数（0 = 关闭）。
+	// Number of preceding turns prepended as context prefix per turn memory (0 = disabled).
+	ContextWindowSize int `mapstructure:"context_window_size"`
 }
 
 // NoiseFilterConfig 噪声过滤配置 / Noise filter configuration
@@ -547,6 +571,7 @@ func LoadConfig() error {
 	viper.SetDefault("document.chunking.keep_code_intact", true)
 	// Ingest 默认值 / Ingest defaults
 	viper.SetDefault("ingest.noise_filter.min_content_length", 10)
+	viper.SetDefault("ingest.context_window_size", 2)
 
 	// 从环境变量读取
 	viper.AutomaticEnv()

@@ -55,3 +55,28 @@ type TimelineSearcher interface {
 type CoreProvider interface {
 	GetCoreBlocksMultiScope(ctx context.Context, scopes []string, identity *model.Identity) ([]*model.Memory, error)
 }
+
+// SalienceChecker 实体显著性检查接口（用于识别 hub 节点）
+// Entity salience checker for detecting hub nodes that would cause BFS explosion.
+type SalienceChecker interface {
+	// GetHighFrequencyEntities 返回出现在 >= minMemoryCount 条记忆中的实体 ID 集合
+	// Returns entity IDs that appear in >= minMemoryCount memories.
+	GetHighFrequencyEntities(ctx context.Context, minMemoryCount int) (map[string]struct{}, error)
+}
+
+// GraphTermExpander 图引导扩词接口（可选）
+// 从实体 ID 集合查询 1-hop 邻居的实体名，用于 FTS 重试扩词。
+// Graph-guided term expansion interface (optional):
+// returns neighbor entity names for one-hop expansion in FTS retry.
+type GraphTermExpander interface {
+	GetEntityNeighborNames(ctx context.Context, entityIDs []string, limit int) ([]string, error)
+}
+
+// HyDEGenerator 按需假设文档生成接口（可选）
+// 仅在 FTSRewriteRetryStage 判定 FTS 结果不足时调用，避免对每条查询都触发 LLM。
+// On-demand hypothetical document generator (optional):
+// called only when FTSRewriteRetryStage detects insufficient FTS results,
+// so LLM is never invoked for queries where FTS already returns good results.
+type HyDEGenerator interface {
+	GenerateHyDE(ctx context.Context, query string) (string, error)
+}

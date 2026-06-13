@@ -19,10 +19,11 @@ const defaultVectorLimit = 30
 
 // VectorStage 向量检索阶段 / Vector search pipeline stage
 type VectorStage struct {
-	searcher VectorSearcher
-	embedder Embedder
-	limit    int
-	minScore float64
+	searcher         VectorSearcher
+	embedder         Embedder
+	limit            int
+	minScore         float64
+	queryInstruction string // optional asymmetric retrieval instruction / 可选的非对称检索指令前缀
 }
 
 // NewVectorStage 创建向量检索阶段 / Create a new vector search stage
@@ -39,6 +40,16 @@ func NewVectorStage(searcher VectorSearcher, embedder Embedder, limit int, minSc
 		limit:    limit,
 		minScore: minScore,
 	}
+}
+
+// WithQueryInstruction 设置查询侧指令前缀（非对称检索）/ Set the query-side instruction prefix for asymmetric retrieval.
+// The instruction is prepended only when generating query embeddings on-the-fly.
+// Pre-set state.Embedding (e.g. HyDE blend) bypasses this and is used as-is.
+// Document embeddings stored in Qdrant are indexed without any instruction prefix —
+// no re-indexing is required when this field is added or changed.
+func (s *VectorStage) WithQueryInstruction(inst string) *VectorStage {
+	s.queryInstruction = inst
+	return s
 }
 
 // Name 返回阶段名称 / Return stage name
@@ -116,6 +127,12 @@ func (s *VectorStage) resolveEmbedding(ctx context.Context, state *pipeline.Pipe
 	query := state.Query
 	if state.Plan != nil && state.Plan.SemanticQuery != "" {
 		query = state.Plan.SemanticQuery
+	}
+
+	// 非对称检索指令前缀：仅加在查询侧，文档侧 Qdrant 无需重新索引
+	// Asymmetric retrieval: instruction prepended to query only; document embeddings in Qdrant are unaffected.
+	if s.queryInstruction != "" {
+		query = s.queryInstruction + "\n" + query
 	}
 
 	emb, err := s.embedder.Embed(ctx, query)

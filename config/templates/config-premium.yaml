@@ -175,7 +175,24 @@ mcp:
 hooks:
   enabled: false
   mcp_url: "http://localhost:8081"
-  skip_tools: [Glob, Grep, ToolSearch, TaskCreate, TaskUpdate, TaskList, TaskGet, TodoWrite]
+  skip_tools:
+    - Glob
+    - Grep
+    - ToolSearch
+    - TaskCreate
+    - TaskUpdate
+    - TaskList
+    - TaskGet
+    - TodoWrite
+    - iclude_retain
+    - iclude_recall
+    - iclude_scan
+    - iclude_fetch
+    - iclude_reflect
+    - iclude_timeline
+    - iclude_create_session
+    - iclude_finalize_session
+    - Read
   max_input_chars: 1000
   max_output_chars: 500
   inject_limit: 20

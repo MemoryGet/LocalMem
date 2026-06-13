@@ -63,6 +63,37 @@ func TestSession_Dispatch_initialize(t *testing.T) {
 	assert.Equal(t, mcp.MCPProtocolVersion, resultMap["protocolVersion"])
 }
 
+// TestSession_Dispatch_initialize_instructions 验证 initialize 响应包含记忆协议 instructions / Verify instructions field carries the memory protocol
+func TestSession_Dispatch_initialize_instructions(t *testing.T) {
+	reg := mcp.NewRegistry()
+	sess := mcp.NewSession("s-instr", reg, &model.Identity{TeamID: "t", OwnerID: "u"})
+	defer sess.Close()
+
+	raw := mustMarshal(t, map[string]any{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  mcp.MethodInitialize,
+	})
+	sess.Dispatch(context.Background(), raw)
+
+	data := <-sess.Out()
+	var resp mcp.JSONRPCResponse
+	require.NoError(t, json.Unmarshal(data, &resp))
+	require.Nil(t, resp.Error)
+	require.NotNil(t, resp.Result)
+
+	resultMap, ok := resp.Result.(map[string]any)
+	require.True(t, ok)
+
+	instructions, ok := resultMap["instructions"].(string)
+	require.True(t, ok, "instructions field must be present and a string")
+	assert.NotEmpty(t, instructions)
+	assert.Contains(t, instructions, "iclude_recall")
+	assert.Contains(t, instructions, "iclude_retain")
+	assert.Contains(t, instructions, "derived_from")
+	assert.Contains(t, instructions, "summary")
+}
+
 // TestSession_Dispatch_ping 验证 ping 返回空结果 / Verify ping returns empty result
 func TestSession_Dispatch_ping(t *testing.T) {
 	reg := mcp.NewRegistry()

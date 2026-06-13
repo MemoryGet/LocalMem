@@ -63,6 +63,56 @@ func TestRuleClassifier_Select(t *testing.T) {
 	}
 }
 
+// TestRuleClassifier_DocumentKB 验证文档知识库场景下 fallback=semantic 的路由行为
+// Verifies routing with fallback=semantic (document KB production config).
+// Expectation: document queries reach semantic pipeline (vector+FTS RRF);
+// temporal/relational/aggregation routes are unaffected.
+func TestRuleClassifier_DocumentKB(t *testing.T) {
+	rc := strategy.NewRuleClassifier("semantic") // 生产文档 KB 配置 / production doc KB config
+
+	tests := []struct {
+		name     string
+		query    string
+		intent   string
+		want     string
+	}{
+		// ── 文档查询应走 semantic（vector+FTS）──────────────────────────────────
+		{"doc: what is X", "What is the capital of France?", "", "semantic"},
+		{"doc: how does X", "How does the caching mechanism work?", "", "semantic"},
+		{"doc: explain", "Explain the authentication flow", "", "semantic"},
+		{"doc: where is", "Where is the configuration file located?", "", "semantic"},
+		{"doc: describe", "Describe the system architecture", "", "semantic"},
+		{"doc: zh what", "什么是向量数据库", "", "semantic"},
+		{"doc: zh how", "如何配置 Qdrant", "", "semantic"},
+		{"doc: zh 哪些", "哪些参数影响检索精度", "", "semantic"},
+		{"doc: no keyword", "database connection pool settings", "", "semantic"},  // 无探索性词 → fallback
+		{"doc: medium length", "authentication middleware configuration options", "", "semantic"},
+
+		// ── 保持不变：temporal 仍走 exploration（temporal filter 需要时序 stage）──
+		{"temporal: recent", "recent changes to the API", "", "exploration"},
+		{"temporal: last week", "last week deployment", "", "exploration"},
+
+		// ── 保持不变：relational 走 association ───────────────────────────────
+		{"relational: related to", "features related to auth module", "", "association"},
+
+		// ── 保持不变：aggregation 走 aggregation ──────────────────────────────
+		{"aggregation: total", "total memory usage across all nodes", "", "aggregation"},
+
+		// ── 保持不变：显式 intent 优先 ─────────────────────────────────────────
+		{"intent keyword: exact lookup", "ConnectionPool", "keyword", "precision"},
+		{"intent semantic: explicit", "some semantic query", "semantic", "semantic"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := rc.Select(tt.query, tt.intent)
+			if got != tt.want {
+				t.Errorf("Select(%q, %q) = %q, want %q", tt.query, tt.intent, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRuleClassifier_CustomFallback(t *testing.T) {
 	tests := []struct {
 		name             string

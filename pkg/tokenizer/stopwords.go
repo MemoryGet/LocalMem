@@ -82,6 +82,16 @@ func (sf *StopFilter) IsStopWord(word string) bool {
 	return sf.words[strings.ToLower(word)]
 }
 
+// AddWords 追加额外停用词（调用方扩展，不影响文件加载）
+// Append extra stop words provided by the caller without touching file paths.
+func (sf *StopFilter) AddWords(words ...string) {
+	for _, w := range words {
+		if w != "" {
+			sf.words[strings.ToLower(w)] = true
+		}
+	}
+}
+
 // Count 返回停用词数量 / Return stop word count
 func (sf *StopFilter) Count() int {
 	return len(sf.words)

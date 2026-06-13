@@ -260,6 +260,24 @@ with open('${settings_file}', 'w') as f:
     fi
 }
 
+# ── 安装 iclude-memory skill / Install iclude-memory skill for Claude Code ──
+install_skill() {
+    local skill_dir="$HOME/.claude/skills/iclude-memory"
+    local skill_file="$skill_dir/SKILL.md"
+
+    if [ -f "$skill_file" ]; then
+        info "iclude-memory skill already installed, updating..."
+    fi
+
+    mkdir -p "$skill_dir"
+    local skill_url="https://raw.githubusercontent.com/${REPO}/main/integrations/claude/skills/iclude-memory/SKILL.md"
+    if curl -fsSL -o "$skill_file" "$skill_url"; then
+        info "iclude-memory skill installed to ${skill_file}"
+    else
+        warn "Could not download skill file. Install manually from: ${skill_url}"
+    fi
+}
+
 # ── 卸载 / Uninstall ──
 uninstall() {
     info "Uninstalling LocalMem (Claude Code integration)..."
@@ -291,6 +309,7 @@ main() {
     generate_config
     configure_claude
     configure_hooks
+    install_skill
 
     echo ""
     info "Installation complete!"

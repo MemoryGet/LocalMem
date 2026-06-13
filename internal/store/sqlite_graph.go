@@ -207,12 +207,13 @@ func (s *SQLiteGraphStore) CreateRelation(ctx context.Context, rel *model.Entity
 		return fmt.Errorf("failed to marshal relation metadata: %w", err)
 	}
 
-	query := `INSERT INTO entity_relations (id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO entity_relations (id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at, source_memory_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = s.db.ExecContext(ctx, query,
 		rel.ID, rel.SourceID, rel.TargetID, rel.RelationType, rel.Weight,
 		rel.MentionCount, rel.LastSeenAt, metadataJSON, rel.CreatedAt, rel.UpdatedAt,
+		sql.NullString{String: rel.SourceMemoryID, Valid: rel.SourceMemoryID != ""},
 	)
 	if err != nil {
 		if IsUniqueConstraintError(err) {
@@ -244,7 +245,7 @@ func (s *SQLiteGraphStore) DeleteRelation(ctx context.Context, id string) error 
 
 // GetRelation 获取单条关系 / Get a single entity relation by ID
 func (s *SQLiteGraphStore) GetRelation(ctx context.Context, id string) (*model.EntityRelation, error) {
-	query := `SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at
+	query := `SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at, source_memory_id
 		FROM entity_relations WHERE id = ?`
 
 	var d relationScanDest
@@ -259,7 +260,7 @@ func (s *SQLiteGraphStore) GetRelation(ctx context.Context, id string) (*model.E
 
 // GetEntityRelations 获取实体的所有关系 / Get all relations for an entity
 func (s *SQLiteGraphStore) GetEntityRelations(ctx context.Context, entityID string) ([]*model.EntityRelation, error) {
-	query := `SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at
+	query := `SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at, source_memory_id
 		FROM entity_relations WHERE source_id = ? OR target_id = ?`
 
 	rows, err := s.db.QueryContext(ctx, query, entityID, entityID)
@@ -318,7 +319,7 @@ func (s *SQLiteGraphStore) ListAllRelations(ctx context.Context, limit int) ([]*
 		limit = 5000
 	}
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at
+		`SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at, source_memory_id
 		 FROM entity_relations ORDER BY mention_count DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list all relations: %w", err)
@@ -544,7 +545,7 @@ func (s *SQLiteGraphStore) UpdateRelationStats(ctx context.Context, sourceID, ta
 
 	if rows > 0 {
 		var d relationScanDest
-		query := `SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at
+		query := `SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at, source_memory_id
 			FROM entity_relations WHERE source_id = ? AND target_id = ? AND relation_type = ?`
 		if err := s.db.QueryRowContext(ctx, query, sourceID, targetID, relationType).Scan(d.scanFields()...); err != nil {
 			return nil, fmt.Errorf("failed to read updated relation: %w", err)
@@ -563,6 +564,49 @@ func (s *SQLiteGraphStore) UpdateRelationStats(ctx context.Context, sourceID, ta
 		return nil, fmt.Errorf("failed to create relation via stats: %w", err)
 	}
 	return rel, nil
+}
+
+// UpsertRelation 原子创建或累加关系。冲突于 UNIQUE(source_id,target_id,relation_type) 时
+// mention_count+1 并刷新 last_seen_at/updated_at；id/created_at/source_memory_id/weight 保持首次值。
+// 返回累加后的最新行。
+// Atomically create or accumulate a relation. On UNIQUE conflict, increments mention_count
+// and refreshes timestamps while preserving the first-seen id/created_at/source_memory_id/weight.
+func (s *SQLiteGraphStore) UpsertRelation(ctx context.Context, rel *model.EntityRelation) (*model.EntityRelation, error) {
+	now := time.Now().UTC()
+	weight := rel.Weight
+	if weight == 0 {
+		weight = 1.0
+	}
+	metadataJSON, err := marshalMetadata(rel.Metadata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal relation metadata: %w", err)
+	}
+
+	query := `INSERT INTO entity_relations
+		(id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at, source_memory_id)
+		VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
+		ON CONFLICT(source_id, target_id, relation_type) DO UPDATE SET
+			mention_count = mention_count + 1,
+			last_seen_at  = excluded.last_seen_at,
+			updated_at    = excluded.updated_at`
+
+	_, err = s.db.ExecContext(ctx, query,
+		uuid.New().String(), rel.SourceID, rel.TargetID, rel.RelationType, weight,
+		now, metadataJSON, now, now,
+		sql.NullString{String: rel.SourceMemoryID, Valid: rel.SourceMemoryID != ""},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upsert relation: %w", err)
+	}
+
+	// 回读累加后的行 / Read back the resulting row
+	var d relationScanDest
+	readQuery := `SELECT id, source_id, target_id, relation_type, weight, mention_count, last_seen_at, metadata, created_at, updated_at, source_memory_id
+		FROM entity_relations WHERE source_id = ? AND target_id = ? AND relation_type = ?`
+	if err := s.db.QueryRowContext(ctx, readQuery, rel.SourceID, rel.TargetID, rel.RelationType).Scan(d.scanFields()...); err != nil {
+		return nil, fmt.Errorf("failed to read upserted relation: %w", err)
+	}
+	return d.toRelation()
 }
 
 // CleanupStaleRelations 清理过期弱关系 / Cleanup stale weak relations
@@ -655,12 +699,13 @@ func scanEntityFromRows(rows *sql.Rows) (*model.Entity, error) {
 	return d.toEntity()
 }
 
-// relationScanDest EntityRelation 扫描目标（10列）/ EntityRelation scan destination (10 columns)
+// relationScanDest EntityRelation 扫描目标（11列）/ EntityRelation scan destination (11 columns)
 type relationScanDest struct {
-	rel        model.EntityRelation
-	metaStr    sql.NullString
-	lastSeenAt sql.NullTime
-	updatedAt  sql.NullTime
+	rel            model.EntityRelation
+	metaStr        sql.NullString
+	lastSeenAt     sql.NullTime
+	updatedAt      sql.NullTime
+	sourceMemoryID sql.NullString
 }
 
 // scanFields 返回扫描目标字段列表 / Returns scan destination fields
@@ -668,7 +713,7 @@ func (d *relationScanDest) scanFields() []any {
 	return []any{
 		&d.rel.ID, &d.rel.SourceID, &d.rel.TargetID, &d.rel.RelationType,
 		&d.rel.Weight, &d.rel.MentionCount, &d.lastSeenAt, &d.metaStr,
-		&d.rel.CreatedAt, &d.updatedAt,
+		&d.rel.CreatedAt, &d.updatedAt, &d.sourceMemoryID,
 	}
 }
 
@@ -685,6 +730,9 @@ func (d *relationScanDest) toRelation() (*model.EntityRelation, error) {
 	if d.updatedAt.Valid {
 		d.rel.UpdatedAt = d.updatedAt.Time
 	}
+	if d.sourceMemoryID.Valid {
+		d.rel.SourceMemoryID = d.sourceMemoryID.String
+	}
 	return &d.rel, nil
 }
 
@@ -695,6 +743,31 @@ func scanRelation(rows *sql.Rows) (*model.EntityRelation, error) {
 		return nil, err
 	}
 	return d.toRelation()
+}
+
+// GetHighFrequencyEntities 返回出现在 >= minMemoryCount 条非删除记忆中的实体 ID 集合
+// Returns entity IDs appearing in at least minMemoryCount non-deleted memories (hub detection).
+func (s *SQLiteGraphStore) GetHighFrequencyEntities(ctx context.Context, minMemoryCount int) (map[string]struct{}, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT me.entity_id
+		FROM memory_entities me
+		JOIN memories m ON me.memory_id = m.id
+		WHERE m.deleted_at IS NULL
+		GROUP BY me.entity_id
+		HAVING COUNT(DISTINCT me.memory_id) >= ?`, minMemoryCount)
+	if err != nil {
+		return nil, fmt.Errorf("get high-frequency entities: %w", err)
+	}
+	defer rows.Close()
+	hubs := make(map[string]struct{})
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan entity id: %w", err)
+		}
+		hubs[id] = struct{}{}
+	}
+	return hubs, rows.Err()
 }
 
 // FindEntitiesByName 按名称匹配实体（大小写不敏感）/ Find entities by name (case-insensitive)
@@ -736,4 +809,61 @@ func (s *SQLiteGraphStore) FindEntitiesByName(ctx context.Context, name string, 
 	}
 
 	return entities, nil
+}
+
+// GetEntityNeighborNames 查询实体 1-hop 邻居名称（双向边，排除种子实体自身）
+// Query one-hop neighbor entity names for the given entity IDs (both directions,
+// seed entities excluded). Used for FTS query expansion in FTSRewriteRetryStage.
+func (s *SQLiteGraphStore) GetEntityNeighborNames(ctx context.Context, entityIDs []string, limit int) ([]string, error) {
+	if len(entityIDs) == 0 || limit <= 0 {
+		return nil, nil
+	}
+
+	ph := make([]string, len(entityIDs))
+	for i := range entityIDs {
+		ph[i] = "?"
+	}
+	inList := strings.Join(ph, ",")
+
+	// SQL 含 3 个 IN 子句：source_id IN, target_id IN, NOT IN（排除种子）
+	// 对应 args 需要 entityIDs × 3，最后一个参数是 limit
+	// SQL has 3 IN clauses: source_id IN, target_id IN, NOT IN (exclude seeds)
+	// args = entityIDs × 3 + limit
+	args := make([]any, 0, len(entityIDs)*3+1)
+	for range 3 {
+		for _, id := range entityIDs {
+			args = append(args, id)
+		}
+	}
+	args = append(args, limit)
+
+	query := fmt.Sprintf(`
+		SELECT DISTINCT e.name
+		FROM entities e
+		WHERE e.id IN (
+			SELECT target_id FROM entity_relations WHERE source_id IN (%s)
+			UNION
+			SELECT source_id FROM entity_relations WHERE target_id IN (%s)
+		)
+		AND e.id NOT IN (%s)
+		AND e.deleted_at IS NULL
+		LIMIT ?`,
+		inList, inList, inList,
+	)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query neighbor names: %w", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("failed to scan neighbor name row: %w", err)
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
 }

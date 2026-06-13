@@ -54,6 +54,8 @@ func (a *memoryCreatorAdapter) Create(ctx context.Context, mem *model.Memory) (*
 		MemoryClass:   mem.MemoryClass,
 		DerivedFrom:   mem.DerivedFrom,
 		Embedding:     mem.Embedding,
+		// Hook 捕获的工具观测不触发实体抽取；AI 主动记忆触发 / Skip extraction for hook-captured tool observations; trigger for AI-retained memories
+		AutoExtract: mem.SourceType != "hook",
 	}
 	return a.manager.Create(ctx, req)
 }
@@ -122,7 +124,7 @@ func main() {
 	reg := mcp.NewRegistry()
 
 	// 注册工具 / Register tools
-	reg.RegisterTool(tools.NewRetainTool(creatorAdapter, deps.Stores.ScopePolicyStore))
+	reg.RegisterTool(tools.NewRetainTool(creatorAdapter, deps.Stores.ScopePolicyStore, deps.Stores.MemoryStore))
 	reg.RegisterTool(tools.NewRecallTool(retrieverAdapter))
 	if deps.ReflectEngine != nil {
 		reg.RegisterTool(tools.NewReflectTool(deps.ReflectEngine))

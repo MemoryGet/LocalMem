@@ -251,6 +251,42 @@ python .claude/skills/daily-ai-report/scripts/generate_report.py   # 生成 PPT
 python .claude/skills/daily-ai-report/scripts/send_to_feishu.py    # 发送飞书
 ```
 
+## 记忆协议 / Memory Protocol
+
+本项目已集成 iclude MCP。此规则优先级高于 MCP instructions，**当一个有结论的交换完成时立即执行，不要等到会话结束。**
+
+**存入 / Retain when:**
+- 技术决策（架构选型、方案取舍、性能数据）
+- 用户偏好或约束条件
+- 重要事实（边界条件、已知问题、设计约定）
+- 未来会话需要延续的上下文
+
+**跳过 / Skip when:**
+- 纯确认回复（"好的"、"明白了"、"OK"）
+- 进行中的临时步骤，尚无结论
+- 可从代码或 git history 直接推断的技术细节（如具体函数实现）
+
+**执行序列（不可跳过）/ Mandatory sequence:**
+```
+1. iclude_recall(query="<本次话题关键词>", limit=5)   // 先查相关历史
+2. iclude_retain(
+     content     = "原始内容",
+     summary     = "...",          // 见下方规范
+     kind        = "...",          // 见下方映射
+     derived_from = [步骤1中相关记忆的ID]  // 无结果时传 []
+   )
+```
+
+**kind 映射 / Kind mapping:**
+- `decision`  — 技术决策、方案选型
+- `fact`      — 客观事实、性能数据、边界条件
+- `preference`— 用户偏好、风格约束
+- `episodic`  — 对话事件、过程记录
+
+**summary 规范：** 第三人称 · 无代词 · 所有实体显式命名 · 自包含 · 2-3句
+- ✓ `"团队决定将主数据库从 SQLite 迁移至 PostgreSQL，原因是 WAL 模式 500 wps 已达性能上限。"`
+- ✗ `"我们决定迁移，因为太慢了。"` — 有代词、不自包含
+
 ## Development Rules
 
 - Test files go in `testing/` directory, not alongside source. Name: `{module}_test.go`.

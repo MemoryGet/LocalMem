@@ -265,6 +265,31 @@ func resolveLLMProvider() llm.Provider {
 	return nil
 }
 
+// resolveEvalTokenizer 从 config.yaml 读取分词器配置，兜底 SimpleTokenizer
+// Create tokenizer from config: jieba/gse/simple/noop based on storage.sqlite.tokenizer.provider.
+func resolveEvalTokenizer() tokenizer.Tokenizer {
+	loadTestConfig()
+	tokCfg := config.AppConfig.Storage.SQLite.Tokenizer
+	switch tokCfg.Provider {
+	case "jieba":
+		url := tokCfg.JiebaURL
+		if url == "" {
+			url = "http://localhost:8866"
+		}
+		return tokenizer.NewJiebaTokenizer(url)
+	case "gse":
+		tok, err := tokenizer.NewGseTokenizer(tokCfg.DictPath, tokCfg.StopwordFiles)
+		if err != nil {
+			return tokenizer.NewSimpleTokenizer()
+		}
+		return tok
+	case "noop":
+		return tokenizer.NewNoopTokenizer()
+	default:
+		return tokenizer.NewSimpleTokenizer()
+	}
+}
+
 // HasLLMConfig 检查是否有可用的 LLM 配置 / Check if an LLM provider can be resolved.
 func HasLLMConfig() bool {
 	loadTestConfig()

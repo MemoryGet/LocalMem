@@ -118,22 +118,39 @@ func fuzzyCheckHit(results []*model.SearchResult, goldAnswer string) (bool, int,
 }
 
 // Tier 描述一个评测层级的检索能力配置 / Describes retrieval capabilities for one eval tier
+// locomoQueryInstruction Qwen3-Embedding 非对称检索指令，仅加在查询侧
+// Asymmetric retrieval instruction for Qwen3-Embedding; prepended to query embedding only.
+const locomoQueryInstruction = "Instruct: Given a question about personal memories, conversations, and life events, retrieve the most relevant memory passage that answers the question."
+
 type Tier struct {
-	Name        string  // 用于报告和基线命名 / Used for report and baseline naming
-	Pipeline    bool    // 启用 Cascade 意图分类器 / Enable cascade intent classifier
-	Graph       bool    // 启用实体抽取 + 图谱检索 / Enable entity extraction + graph stage
-	Vector      bool    // 启用 Qdrant 向量检索 / Enable Qdrant vector search
-	Rerank      bool    // 启用 LLM 精排 / Enable LLM reranking
-	GraphWeight float64 // 图谱检索权重（0 时使用默认值 0.8）/ Graph weight (0 = default 0.8)
+	Name                   string  // 用于报告和基线命名 / Used for report and baseline naming
+	Pipeline               bool    // 启用 Cascade 意图分类器 / Enable cascade intent classifier
+	Graph                  bool    // 启用实体抽取 + 图谱检索 / Enable entity extraction + graph stage
+	Vector                 bool    // 启用 Qdrant 向量检索 / Enable Qdrant vector search
+	Rerank                 bool    // 启用 LLM 精排 / Enable LLM reranking
+	GraphWeight            float64 // 图谱检索权重（0 时使用默认值 0.8）/ Graph weight (0 = default 0.8)
+	GraphVectorEvidence    bool    // 启用向量边证据过滤 / Enable vector edge evidence filtering
+	HyDE                   bool    // 启用 HyDE 假设文档嵌入 / Enable HyDE hypothetical document embedding
+	GraphSalienceRatio     float64 // hub 实体过滤阈值比例（0 = 禁用）/ Hub entity salience filter ratio (0 = disabled)
+	GraphFTSFirstSeeds     bool    // 启用 FTS 优先种子策略 / Enable FTS-first seed strategy
+	VectorQueryInstruction string  // 查询侧非对称检索指令前缀 / Asymmetric retrieval instruction for query-side embedding
+	DBPath          string  // 覆盖默认 DB 路径（用于替代粒度评测）/ Override default DB path (for alternative chunking evals)
+	QdrantCollection string // 覆盖默认 Qdrant collection（与 DBPath 配合使用）/ Override Qdrant collection (pair with DBPath)
 }
 
-// 五个预定义层级 / Five predefined tiers
+// 预定义层级 / Predefined tiers
 var (
-	TierFTS      = Tier{Name: "fts"}
-	TierPipeline = Tier{Name: "fts+pipeline", Pipeline: true}
-	TierGraph    = Tier{Name: "fts+pipeline+graph", Pipeline: true, Graph: true, GraphWeight: 0.5}
-	TierVector   = Tier{Name: "fts+pipeline+graph+vector", Pipeline: true, Graph: true, Vector: true}
-	TierFull     = Tier{Name: "full", Pipeline: true, Graph: true, Vector: true, Rerank: true}
+	TierFTS              = Tier{Name: "fts"}
+	TierPipeline         = Tier{Name: "fts+pipeline", Pipeline: true}
+	TierGraph            = Tier{Name: "fts+pipeline+graph", Pipeline: true, Graph: true, GraphWeight: 0.5}
+	TierVector           = Tier{Name: "fts+pipeline+graph+vector", Pipeline: true, Graph: true, Vector: true}
+	TierFull             = Tier{Name: "full", Pipeline: true, Graph: true, Vector: true, Rerank: true}
+	TierHyDE             = Tier{Name: "fts+vector+hyde", Pipeline: true, Vector: true, HyDE: true}
+	TierVectorInstruction = Tier{Name: "fts+pipeline+vector+instruct", Pipeline: true, Vector: true, VectorQueryInstruction: locomoQueryInstruction}
+	TierVector1Turn       = Tier{Name: "fts+pipeline+vector+1turn", Pipeline: true, Vector: true, VectorQueryInstruction: locomoQueryInstruction, QdrantCollection: LoCoMoCollection1Turn}
+	TierGraphVecEvidence = Tier{Name: "fts+pipeline+graph+vec-evidence", Pipeline: true, Graph: true, GraphVectorEvidence: true}
+	TierGraphSalience    = Tier{Name: "fts+pipeline+graph+salience", Pipeline: true, Graph: true, GraphWeight: 0.5, GraphSalienceRatio: 0.01}
+	TierGraphSalienceFTS = Tier{Name: "fts+pipeline+graph+salience+fts-seeds", Pipeline: true, Graph: true, GraphWeight: 0.5, GraphSalienceRatio: 0.01, GraphFTSFirstSeeds: true}
 )
 
 // SeedLongMemEvalDB 将所有 entry 的 seed 记忆写入共享库 / Seed all entry memories into shared DB
@@ -554,7 +571,7 @@ func ExtractEntitiesFromDB(ctx context.Context, dbPath string, maxItems int) (in
 
 // seedItem 单条待嵌入记忆 / Single memory item pending embedding
 type seedItem struct {
-	id, content, scope, kind, ownerID string
+	id, content, scope, kind, ownerID, visibility string
 }
 
 // SeedVectorsToQdrant 将 SQLite eval DB 中的记忆批量嵌入并写入 Qdrant
@@ -590,7 +607,7 @@ func SeedVectorsToQdrant(ctx context.Context, dbPath, qdrantURL, collection stri
 	}
 
 	// 1. 读取全部记忆到内存，避免边遍历边发网络请求 / Load all rows first to avoid holding cursor during parallel embed
-	q := `SELECT id, content, scope, kind, owner_id FROM memories
+	q := `SELECT id, content, scope, kind, owner_id, COALESCE(visibility,'private') FROM memories
           WHERE deleted_at IS NULL ORDER BY created_at`
 	if maxItems > 0 {
 		q += fmt.Sprintf(" LIMIT %d", maxItems)
@@ -602,7 +619,7 @@ func SeedVectorsToQdrant(ctx context.Context, dbPath, qdrantURL, collection stri
 	var items []seedItem
 	for rows.Next() {
 		var it seedItem
-		if err := rows.Scan(&it.id, &it.content, &it.scope, &it.kind, &it.ownerID); err != nil {
+		if err := rows.Scan(&it.id, &it.content, &it.scope, &it.kind, &it.ownerID, &it.visibility); err != nil {
 			rows.Close()
 			return 0, fmt.Errorf("scan row: %w", err)
 		}
@@ -668,7 +685,7 @@ func SeedVectorsToQdrant(ctx context.Context, dbPath, qdrantURL, collection stri
 					"scope":      it.scope,
 					"kind":       it.kind,
 					"owner_id":   it.ownerID,
-					"visibility": "private",
+					"visibility": it.visibility,
 					"team_id":    "",
 				}
 				if err := vecStore.Upsert(ctx, it.id, vecs[i], payload); err != nil {

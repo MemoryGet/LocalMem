@@ -22,9 +22,10 @@ type EntityRelation struct {
 	TargetID     string         `json:"target_id"`
 	RelationType string         `json:"relation_type"` // uses / knows / belongs_to / related_to
 	Weight       float64        `json:"weight"`
-	MentionCount int            `json:"mention_count"`             // 被提及次数 / Number of times mentioned
-	LastSeenAt   *time.Time     `json:"last_seen_at,omitempty"`    // 最近出现时间 / Last time this relation was observed
-	Metadata     map[string]any `json:"metadata,omitempty"`
+	MentionCount   int            `json:"mention_count"`              // 被提及次数 / Number of times mentioned
+	LastSeenAt     *time.Time     `json:"last_seen_at,omitempty"`     // 最近出现时间 / Last time this relation was observed
+	SourceMemoryID string         `json:"source_memory_id,omitempty"` // 来源记忆ID，用于向量证据过滤 / Source memory ID for vector evidence filtering
+	Metadata       map[string]any `json:"metadata,omitempty"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 }

@@ -40,6 +40,11 @@ func (s *QdrantVectorStore) Init(ctx context.Context) error {
 	return nil
 }
 
+// DropCollection 删除 Qdrant 集合（用于 eval 清理）/ Drop Qdrant collection (used for eval cleanup)
+func (s *QdrantVectorStore) DropCollection(ctx context.Context) error {
+	return s.client.DropCollection(ctx)
+}
+
 // Close 关闭连接（HTTP 客户端无需关闭）/ Close connection (no-op for HTTP client)
 func (s *QdrantVectorStore) Close() error {
 	return nil

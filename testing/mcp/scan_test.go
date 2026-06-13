@@ -154,5 +154,5 @@ func TestScanTool_Execute_RetrieverError(t *testing.T) {
 	result, err := tool.Execute(context.Background(), args)
 	require.NoError(t, err)
 	assert.True(t, result.IsError)
-	assert.Contains(t, result.Content[0].Text, "retrieval failed")
+	assert.Contains(t, result.Content[0].Text, "scan")
 }

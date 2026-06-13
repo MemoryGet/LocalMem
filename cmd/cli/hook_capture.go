@@ -26,6 +26,13 @@ type captureInput struct {
 
 // runCapture PostToolUse hook 捕获工具调用 / Capture tool calls via PostToolUse hook
 func runCapture() error {
+	// hook_capture 仅记录工具调用观察（kind=observation, source_type=hook）
+	// hook_capture records tool observations as operational logs (kind=observation, source_type=hook).
+	// 对话级语义记忆由 host AI 通过 iclude-memory skill 协议显式创建。
+	// Semantic memory creation is the host AI's responsibility via the iclude-memory skill.
+	// Extractor 不会处理 source_type=hook 的记忆（参见 manager_create_helpers.go）。
+	// Extractor is not triggered for source_type=hook memories (see manager_create_helpers.go).
+
 	// 1. 读 stdin JSON / Read stdin JSON
 	input, err := io.ReadAll(os.Stdin)
 	if err != nil {

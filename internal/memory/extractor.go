@@ -4,7 +4,9 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -44,6 +46,7 @@ var defaultRelationTypes = map[string]bool{
 
 // extractLLMOutput LLM实体抽取输出（内部使用）/ LLM entity extraction output (internal)
 type extractLLMOutput struct {
+	Summary   string              `json:"summary"`
 	Entities  []extractedEntity   `json:"entities"`
 	Relations []extractedRelation `json:"relations"`
 }
@@ -131,6 +134,22 @@ func NewExtractor(llmProvider llm.Provider, graphManager *GraphManager, memStore
 		relationTypes = defaultRelationTypes
 	}
 
+	// 加载外部 hints 文件，与内联 prompt_hints 合并（文件在前）
+	// Load external hints file and merge with inline prompt_hints (file first)
+	if cfg.PromptHintsFile != "" {
+		if raw, err := os.ReadFile(cfg.PromptHintsFile); err == nil {
+			fileHints := strings.TrimSpace(string(raw))
+			if cfg.PromptHints != "" {
+				cfg.PromptHints = fileHints + "\n\n" + cfg.PromptHints
+			} else {
+				cfg.PromptHints = fileHints
+			}
+		} else {
+			logger.Warn("extract: failed to read prompt_hints_file, falling back to inline prompt_hints",
+				zap.String("path", cfg.PromptHintsFile), zap.Error(err))
+		}
+	}
+
 	return &Extractor{
 		llm:            llmProvider,
 		graphManager:   graphManager,
@@ -161,59 +180,90 @@ func (e *Extractor) GetMemoryStore() store.MemoryStore {
 func (e *Extractor) buildExtractPrompt() string {
 	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
 	relationList := strings.Join(mapKeys(e.relationTypes), ", ")
-	return fmt.Sprintf(`You are a knowledge extraction engine. Extract entities and relationships from the given text. The text may be in Chinese or English.
+	prompt := fmt.Sprintf(`You are a knowledge extraction engine for a personal memory system. Extract entities and relationships that are personally significant to the author/speaker. Text may be in Chinese or English.
 
-Entity type rules (MUST use exactly one of: %s):
-- person  : any human name, including Chinese names (e.g. 张明, 李华, 王芳)
-- org     : companies, organizations, institutions (e.g. 阿里巴巴, Google)
-- location: places, cities, countries (e.g. 北京, 上海, 中国)
-- tool    : software, frameworks, products, technologies
-- concept : abstract ideas — use ONLY when none of the above apply
+Entity types (MUST use exactly one of: %s):
+- person  : people the author knows — family, friends, colleagues, contacts (NOT celebrities or public figures the author has no personal relationship with)
+- org     : organizations the author belongs to, works at, studies at, or actively engages with (NOT brands merely mentioned)
+- location: places the author lives, works, or regularly visits (NOT locations only referenced in passing)
+- tool    : software, devices, or technologies the author personally uses (NOT products discussed abstractly)
+- concept : recurring personal themes only — a condition the author has, a skill being built, a long-term goal (NOT general ideas or topics)
+
+Ask for each candidate entity: "Is this part of the author's personal world?" — if NO or UNSURE, skip it.
+Also skip anything appearing only in: quotes, hypothetical scenarios, third-party stories.
 
 Relation type MUST be exactly one of: %s
 
 Output strict JSON: {"entities":[{"name":"...","entity_type":"...","description":"..."}],"relations":[{"source":"...","target":"...","relation_type":"..."}]}
 - entity_type and relation_type MUST be in English
 - entity names use the original language from the text
-- Deduplicate entities
-- Only extract what is clearly stated in the text`, entityList, relationList)
+- Deduplicate; only extract what is clearly stated`, entityList, relationList)
+	if e.cfg.PromptHints != "" {
+		prompt += "\n\n" + e.cfg.PromptHints
+	}
+	return prompt
 }
 
 // buildEntityOnlyPrompt 构建仅实体抽取的提示词（不含关系）/ Build entity-only extraction prompt (no relations)
 func (e *Extractor) buildEntityOnlyPrompt() string {
 	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
-	return fmt.Sprintf(`You are a knowledge extraction engine. Extract named entities from the given text. The text may be in Chinese or English.
+	prompt := fmt.Sprintf(`First, write a self-contained 2-3 sentence summary of the key facts in this memory.
+Use third person. Name all entities explicitly — no pronouns.
 
-Entity type rules (MUST use exactly one of: %s):
-- person  : any human name, including Chinese names (e.g. 张明, 李华, 王芳)
-- org     : companies, organizations, institutions (e.g. 阿里巴巴, Google, 北京大学)
-- location: places, cities, countries, addresses (e.g. 北京, 杭州, 中国)
-- tool    : software, frameworks, products, technologies (e.g. Python, ChatGPT, iPhone)
-- concept : abstract ideas, topics, events — use ONLY when none of the above apply
+Then extract entities and relations as usual.
 
-Output strict JSON: {"entities":[{"name":"...","entity_type":"...","description":"..."}],"relations":[]}
-Rules:
-- entity_type MUST be exactly one of the types listed above, in English
-- Use the original language for entity names
-- Deduplicate: same entity appears only once
-- Only extract entities clearly stated in the text`, entityList)
+Respond ONLY with valid JSON: {"summary": "...", "entities": [...], "relations": [...]}
+
+You are a knowledge extraction engine for a personal memory system. Extract named entities that are personally significant to the author/speaker. Text may be in Chinese or English.
+
+Entity types (MUST use exactly one of: %s):
+- person  : people the author knows — family, friends, colleagues, contacts (NOT celebrities or public figures the author has no personal relationship with)
+- org     : organizations the author belongs to, works at, studies at, or actively engages with (NOT brands merely mentioned)
+- location: places the author lives, works, or regularly visits (NOT locations only referenced in passing)
+- tool    : software, devices, or technologies the author personally uses (NOT products discussed abstractly)
+- concept : recurring personal themes only — a condition the author has, a skill being built, a long-term goal (NOT general ideas or topics)
+
+Ask for each candidate entity: "Is this part of the author's personal world?" — if NO or UNSURE, skip it.
+Also skip anything appearing only in: quotes, hypothetical scenarios, third-party stories.
+
+Output strict JSON: {"summary":"...","entities":[{"name":"...","entity_type":"...","description":"..."}],"relations":[]}
+- entity_type MUST be in English; entity names use the original language
+- Deduplicate; only extract what is clearly stated`, entityList)
+	if e.cfg.PromptHints != "" {
+		prompt += "\n\n" + e.cfg.PromptHints
+	}
+	return prompt
 }
 
 // buildBatchExtractPrompt 构建批量抽取提示词（按 index 独立处理）/ Build batch extraction prompt (process each item independently by index)
 func (e *Extractor) buildBatchExtractPrompt() string {
 	entityList := strings.Join(mapKeys(e.entityTypes), ", ")
 	relationList := strings.Join(mapKeys(e.relationTypes), ", ")
-	return fmt.Sprintf(`You are a knowledge extraction engine. The input is a JSON object with a "memories" array. Each element has an "index" and "content".
+	prompt := fmt.Sprintf(`You are a knowledge extraction engine for a personal memory system. The input is a JSON object with a "memories" array. Each element has an "index" and "content".
 
-Rules:
-- Entity types: %s
-- Relation types: %s
-- Process each memory item independently by its index
-- Only extract entities clearly stated in that item's text; do not infer across items
-- Return a JSON object with a "results" array; each element must have: index (integer matching input), entities (array), relations (array)
-- Each entity: name, entity_type, description
-- Each relation: source (entity name), target (entity name), relation_type
-- Include an entry for every input index, even if entities and relations are empty arrays`, entityList, relationList)
+Entity types (MUST use exactly one of: %s):
+- person  : people the author knows — family, friends, colleagues, contacts (NOT celebrities or public figures the author has no personal relationship with)
+- org     : organizations the author belongs to, works at, studies at, or actively engages with (NOT brands merely mentioned)
+- location: places the author lives, works, or regularly visits (NOT locations only referenced in passing)
+- tool    : software, devices, or technologies the author personally uses (NOT products discussed abstractly)
+- concept : recurring personal themes only — a condition the author has, a skill being built, a long-term goal (NOT general ideas or topics)
+
+Ask for each candidate entity: "Is this part of the author's personal world?" — if NO or UNSURE, skip it.
+Also skip anything appearing only in: quotes, hypothetical scenarios, third-party stories.
+
+Relation types (MUST use exactly one of): %s
+
+Output a JSON object with a "results" array. Each element must have:
+- index: integer matching the input index
+- entities: array of {name, entity_type, description}
+- relations: array of {source, target, relation_type}
+Include an entry for every input index even if both arrays are empty.
+Process each item independently — do not infer entities across items.
+entity_type and relation_type in English; entity names in original language; deduplicate.`, entityList, relationList)
+	if e.cfg.PromptHints != "" {
+		prompt += "\n\n" + e.cfg.PromptHints
+	}
+	return prompt
 }
 
 // entityLLM 返回用于实体抽取的 LLM 提供者（优先 fastLLM）/ Return LLM provider for entity extraction (prefer fastLLM)
@@ -264,6 +314,31 @@ func (e *Extractor) Extract(ctx context.Context, req *model.ExtractRequest) (*mo
 	// 校验并截断（实体部分）/ Validate and truncate (entities only in this phase)
 	e.validateAndTruncate(output)
 
+	// 将 LLM 生成的摘要写回存储（仅当原记忆摘要为空时）。
+	// 必须经 memStore.Get + Update（而非裸 SQL），以保证 FTS5 索引在同一事务内一致更新。
+	// 放在实体处理之前，确保即便实体抽取失败摘要也已落库。
+	// Write the LLM-generated summary back to the store (only when the memory's summary is empty).
+	// Must go through memStore.Get + Update (not bare SQL) so the FTS5 index stays consistent in the same transaction.
+	// Placed before entity processing so the summary is persisted even if entity extraction fails.
+	if output.Summary != "" && req.MemoryID != "" {
+		fresh, getErr := e.memStore.Get(ctx, req.MemoryID)
+		if getErr != nil {
+			if !errors.Is(getErr, model.ErrMemoryNotFound) {
+				logger.Warn("extractor: failed to fetch memory for summary write-back",
+					zap.String("memory_id", req.MemoryID), zap.Error(getErr))
+			}
+		} else if fresh.Summary == "" {
+			updated := *fresh // 不可变拷贝 / immutable copy
+			updated.Summary = output.Summary
+			if updateErr := e.memStore.Update(ctx, &updated); updateErr != nil {
+				logger.Warn("extractor: failed to write generated summary",
+					zap.String("memory_id", req.MemoryID), zap.Error(updateErr))
+			}
+		}
+	}
+
+	// Summary 已在上方写回存储；不通过 ExtractResponse 暴露，调用方只需实体/关系结果。
+	// Summary is persisted above; not surfaced through ExtractResponse since callers only need entity/relation results.
 	resp := &model.ExtractResponse{}
 
 	// 2) 实体规范化 + 创建 / Entity normalization + creation
@@ -305,7 +380,7 @@ func (e *Extractor) Extract(ctx context.Context, req *model.ExtractRequest) (*mo
 			e.enqueueRelationExtract(req, entityIDMap)
 		} else {
 			// 队列不可用时同步执行关系抽取 / Queue unavailable — extract relations synchronously
-			relations := e.extractAndWriteRelations(ctx, req.Content, entityIDMap)
+			relations := e.extractAndWriteRelations(ctx, req.Content, entityIDMap, req.MemoryID)
 			resp.Relations = relations
 		}
 	}
@@ -349,12 +424,12 @@ func (e *Extractor) ExtractRelations(ctx context.Context, req *model.RelationExt
 		defer cancel()
 	}
 
-	e.extractAndWriteRelations(ctx, req.Content, req.EntityContext)
+	e.extractAndWriteRelations(ctx, req.Content, req.EntityContext, req.MemoryID)
 	return nil
 }
 
 // extractAndWriteRelations 调用 LLM 抽取关系并写入图数据库 / Call LLM to extract relations and persist to graph
-func (e *Extractor) extractAndWriteRelations(ctx context.Context, content string, entityIDMap map[string]string) []model.ExtractedRelationResult {
+func (e *Extractor) extractAndWriteRelations(ctx context.Context, content string, entityIDMap map[string]string, memoryID string) []model.ExtractedRelationResult {
 	output, err := e.callRelationLLM(ctx, content, entityIDMap)
 	if err != nil || output == nil {
 		if err != nil {
@@ -366,7 +441,8 @@ func (e *Extractor) extractAndWriteRelations(ctx context.Context, content string
 	// 仅保留类型合法的关系 / Keep only relations with valid types
 	filtered := output.Relations[:0]
 	for _, rel := range output.Relations {
-		if e.relationTypes[strings.ToLower(rel.RelationType)] {
+		rel.RelationType = canonicalRelationType(rel.RelationType)
+		if e.relationTypes[rel.RelationType] {
 			filtered = append(filtered, rel)
 		}
 	}
@@ -378,7 +454,7 @@ func (e *Extractor) extractAndWriteRelations(ctx context.Context, content string
 		if !sok || !tok {
 			continue
 		}
-		result := e.resolveRelation(ctx, sourceID, targetID, rel.RelationType)
+		result := e.resolveRelation(ctx, sourceID, targetID, rel.RelationType, memoryID)
 		results = append(results, *result)
 	}
 	return results
@@ -442,45 +518,22 @@ func (e *Extractor) callRelationLLM(ctx context.Context, content string, entityI
 	return output, nil
 }
 
-// callLLM 调用LLM抽取实体和关系 / Call LLM to extract entities and relations
-func (e *Extractor) callLLM(ctx context.Context, content string) (*extractLLMOutput, error) {
-	temp := 0.1
-	messages := []llm.ChatMessage{
-		{Role: "system", Content: e.buildExtractPrompt()},
-		{Role: "user", Content: content},
-	}
-
-	req := &llm.ChatRequest{
-		Messages:       messages,
-		ResponseFormat: &llm.ResponseFormat{Type: "json_object"},
-		Temperature:    &temp,
-	}
-
-	resp, err := e.llm.Chat(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	output, _ := parseExtractOutput(ctx, resp.Content, messages, e.llm)
-	return output, nil
-}
-
 // parseExtractOutput 解析LLM输出（三级fallback）/ Parse LLM output with 3-level fallback
 func parseExtractOutput(ctx context.Context, raw string, prevMessages []llm.ChatMessage, provider llm.Provider) (*extractLLMOutput, string) {
 	// L1: 直接 JSON 解析 / Direct JSON unmarshal
 	var output extractLLMOutput
 	if err := json.Unmarshal([]byte(raw), &output); err == nil {
-		if len(output.Entities) > 0 || len(output.Relations) > 0 {
+		if output.Summary != "" || len(output.Entities) > 0 || len(output.Relations) > 0 {
 			return &output, ExtractParseJSON
 		}
 	}
 
 	// L2: 正则提取 JSON 对象 / Regex extract JSON object
-	re := regexp.MustCompile(`\{(?:[^{}]|\{[^{}]*\})*"entities"(?:[^{}]|\{[^{}]*\})*\}`)
+	re := regexp.MustCompile(`\{(?:[^{}]|\{[^{}]*\})*(?:"summary"|"entities")(?:[^{}]|\{[^{}]*\})*\}`)
 	if match := re.FindString(raw); match != "" {
 		var extracted extractLLMOutput
 		if err := json.Unmarshal([]byte(match), &extracted); err == nil {
-			if len(extracted.Entities) > 0 || len(extracted.Relations) > 0 {
+			if extracted.Summary != "" || len(extracted.Entities) > 0 || len(extracted.Relations) > 0 {
 				return &extracted, ExtractParseExtract
 			}
 		}
@@ -491,7 +544,7 @@ func parseExtractOutput(ctx context.Context, raw string, prevMessages []llm.Chat
 	copy(retryMessages, prevMessages)
 	retryMessages = append(retryMessages,
 		llm.ChatMessage{Role: "assistant", Content: raw},
-		llm.ChatMessage{Role: "user", Content: "Your previous response was not valid JSON. Please respond with ONLY a valid JSON object containing 'entities' and 'relations' arrays."},
+		llm.ChatMessage{Role: "user", Content: "Your previous response was not valid JSON. Please respond with ONLY a valid JSON object containing 'summary' (string), 'entities' (array), and 'relations' (array)."},
 	)
 
 	temp := 0.1
@@ -505,7 +558,7 @@ func parseExtractOutput(ctx context.Context, raw string, prevMessages []llm.Chat
 	if err == nil {
 		var retryOutput extractLLMOutput
 		if err := json.Unmarshal([]byte(retryResp.Content), &retryOutput); err == nil {
-			if len(retryOutput.Entities) > 0 || len(retryOutput.Relations) > 0 {
+			if retryOutput.Summary != "" || len(retryOutput.Entities) > 0 || len(retryOutput.Relations) > 0 {
 				return &retryOutput, ExtractParseRetry
 			}
 		}
@@ -533,11 +586,17 @@ func (e *Extractor) filterEntities(entities []extractedEntity) []extractedEntity
 	return valid
 }
 
+// canonicalRelationType 规范化关系类型：小写 + 去首尾空白，保证等价关系塌缩到同一三元组键。
+// Canonicalize a relation type (lowercase + trim) so equivalent relations share one triple key.
+func canonicalRelationType(t string) string {
+	return strings.ToLower(strings.TrimSpace(t))
+}
+
 // filterRelations 过滤并截断关系列表 / Filter invalid relation types and truncate to limit
 func (e *Extractor) filterRelations(relations []extractedRelation) []extractedRelation {
 	valid := make([]extractedRelation, 0, len(relations))
 	for _, rel := range relations {
-		rel.RelationType = strings.ToLower(strings.TrimSpace(rel.RelationType))
+		rel.RelationType = canonicalRelationType(rel.RelationType)
 		if e.relationTypes[rel.RelationType] && rel.Source != "" && rel.Target != "" {
 			valid = append(valid, rel)
 		}
@@ -672,32 +731,17 @@ func (e *Extractor) llmNormalize(ctx context.Context, name string, candidates []
 	return output.Match, output.MatchedEntity
 }
 
-// resolveRelation 创建关系（去重）/ Create relation with dedup
-func (e *Extractor) resolveRelation(ctx context.Context, sourceID, targetID, relationType string) *model.ExtractedRelationResult {
-	// 去重检查 / Dedup check
-	existing, err := e.graphManager.GetEntityRelations(ctx, sourceID)
-	if err == nil {
-		for _, rel := range existing {
-			if rel.TargetID == targetID && rel.RelationType == relationType {
-				return &model.ExtractedRelationResult{
-					RelationID:   rel.ID,
-					SourceID:     sourceID,
-					TargetID:     targetID,
-					RelationType: relationType,
-					Skipped:      true,
-				}
-			}
-		}
-	}
-
-	// 创建新关系 / Create new relation
-	relation, err := e.graphManager.CreateRelation(ctx, &model.CreateEntityRelationRequest{
-		SourceID:     sourceID,
-		TargetID:     targetID,
-		RelationType: relationType,
+// resolveRelation 创建或累加关系（原子 upsert，重复共现累加 mention_count）
+// Create or accumulate a relation via atomic upsert; repeated co-occurrence increments mention_count.
+func (e *Extractor) resolveRelation(ctx context.Context, sourceID, targetID, relationType, memoryID string) *model.ExtractedRelationResult {
+	relation, err := e.graphManager.UpsertRelation(ctx, &model.CreateEntityRelationRequest{
+		SourceID:       sourceID,
+		TargetID:       targetID,
+		RelationType:   relationType,
+		SourceMemoryID: memoryID,
 	})
 	if err != nil {
-		logger.Warn("create relation failed",
+		logger.Warn("upsert relation failed",
 			zap.String("source_id", sourceID),
 			zap.String("target_id", targetID),
 			zap.Error(err))
@@ -854,7 +898,7 @@ func (e *Extractor) ExtractBatch(ctx context.Context, req *model.BatchExtractReq
 				if !sok || !tok {
 					continue
 				}
-				e.resolveRelation(ctx, sourceID, targetID, rel.RelationType)
+				e.resolveRelation(ctx, sourceID, targetID, rel.RelationType, memID)
 			}
 		}
 	}

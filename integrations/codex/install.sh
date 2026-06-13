@@ -279,6 +279,56 @@ TOML
     info "Codex CLI MCP config written to ${config_file}"
 }
 
+# ── 安装 iclude-memory skill（兼容 Claude Code）/ Install iclude-memory skill for Claude Code users ──
+install_skill() {
+    local skill_url="https://raw.githubusercontent.com/${REPO}/main/integrations/claude/skills/iclude-memory/SKILL.md"
+
+    # 若用户同时安装了 Claude Code，写入 ~/.claude/skills/
+    # If user also has Claude Code installed, write to ~/.claude/skills/
+    if [ -d "$HOME/.claude" ]; then
+        local skill_dir="$HOME/.claude/skills/iclude-memory"
+        mkdir -p "$skill_dir"
+        if curl -fsSL -o "$skill_dir/SKILL.md" "$skill_url"; then
+            info "iclude-memory skill installed to ${skill_dir}/SKILL.md (Claude Code)"
+        else
+            warn "Could not download Claude Code skill file"
+        fi
+    fi
+
+    # 将 skill 核心内容注入 ~/.codex/AGENTS.md（标记隔离）
+    # Also inject skill content into ~/.codex/AGENTS.md with markers
+    local codex_agents="$HOME/.codex/AGENTS.md"
+    local begin_marker="<!-- ICLUDE-SKILL:BEGIN -->"
+    local end_marker="<!-- ICLUDE-SKILL:END -->"
+
+    # 移除旧区间 / Remove old block if exists
+    if [ -f "$codex_agents" ] && grep -q "$begin_marker" "$codex_agents" 2>/dev/null; then
+        sed -i.bak "/$begin_marker/,/$end_marker/d" "$codex_agents"
+    fi
+
+    # 追加 skill 内容 / Append skill content
+    cat >> "$codex_agents" << 'SKILL_BLOCK'
+
+<!-- ICLUDE-SKILL:BEGIN -->
+## iclude Memory Protocol (Retain Quality)
+
+TRIGGER when: user asks to save/remember/store something; about to call iclude_retain; a decision or important fact emerges.
+
+### Mandatory Retain Sequence
+1. `iclude_recall(query="<topic keywords>", limit=5)` — find related prior memories
+2. Evaluate: are any results topically related?
+3. `iclude_retain(content=..., summary=..., derived_from=[related IDs])`
+
+### Summary Rules
+- Third person ("Caroline was promoted", NOT "She was promoted")
+- No pronouns — name every entity explicitly
+- Self-contained, 2-3 sentences max
+<!-- ICLUDE-SKILL:END -->
+SKILL_BLOCK
+
+    info "iclude-memory skill content injected into ${codex_agents}"
+}
+
 # ── 卸载 / Uninstall ──
 uninstall() {
     info "Uninstalling LocalMem (Codex CLI integration)..."
@@ -312,6 +362,7 @@ main() {
     configure_codex
     inject_agents_md
     inject_developer_instructions
+    install_skill
 
     echo ""
     info "Installation complete!"

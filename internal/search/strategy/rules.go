@@ -106,9 +106,12 @@ func (c *RuleClassifier) Select(query string, intent string) string {
 		return pipeline.PipelineFast
 	}
 
-	// 规则 5: 探索性模式 → exploration / Rule 5: exploratory patterns → exploration
+	// 规则 5: 探索性模式 → fallback（文档 KB 配 semantic，对话配 exploration）
+	// Rule 5: exploratory patterns (how/why/what) → fallbackPipeline.
+	// Hardcoding exploration here prevented vector from participating for document KB queries.
+	// Set strategy.fallback_pipeline=semantic in config to route these to vector+FTS.
 	if exploratoryPatterns.MatchString(query) {
-		return pipeline.PipelineExploration
+		return c.fallbackPipeline
 	}
 
 	// 规则 6: 默认回退 / Rule 6: default fallback

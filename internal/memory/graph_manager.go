@@ -98,11 +98,12 @@ func (m *GraphManager) CreateRelation(ctx context.Context, req *model.CreateEnti
 		return nil, fmt.Errorf("source_id, target_id, and relation_type are required: %w", model.ErrInvalidInput)
 	}
 	rel := &model.EntityRelation{
-		SourceID:     req.SourceID,
-		TargetID:     req.TargetID,
-		RelationType: req.RelationType,
-		Weight:       req.Weight,
-		Metadata:     req.Metadata,
+		SourceID:       req.SourceID,
+		TargetID:       req.TargetID,
+		RelationType:   req.RelationType,
+		Weight:         req.Weight,
+		Metadata:       req.Metadata,
+		SourceMemoryID: req.SourceMemoryID,
 	}
 	if rel.Weight == 0 {
 		rel.Weight = 1.0
@@ -111,6 +112,30 @@ func (m *GraphManager) CreateRelation(ctx context.Context, req *model.CreateEnti
 		return nil, fmt.Errorf("failed to create relation: %w", err)
 	}
 	return rel, nil
+}
+
+// UpsertRelation 创建或累加关系：校验必填后委托 store 原子 upsert（冲突 mention_count+1）。
+// Create or accumulate a relation: validate required fields, then delegate to the store's atomic upsert.
+func (m *GraphManager) UpsertRelation(ctx context.Context, req *model.CreateEntityRelationRequest) (*model.EntityRelation, error) {
+	if req.SourceID == "" || req.TargetID == "" || req.RelationType == "" {
+		return nil, fmt.Errorf("source_id, target_id, and relation_type are required: %w", model.ErrInvalidInput)
+	}
+	rel := &model.EntityRelation{
+		SourceID:       req.SourceID,
+		TargetID:       req.TargetID,
+		RelationType:   req.RelationType,
+		Weight:         req.Weight,
+		Metadata:       req.Metadata,
+		SourceMemoryID: req.SourceMemoryID,
+	}
+	if rel.Weight == 0 {
+		rel.Weight = 1.0
+	}
+	result, err := m.graphStore.UpsertRelation(ctx, rel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upsert relation: %w", err)
+	}
+	return result, nil
 }
 
 // GetRelation 获取关系 / Get relation by ID

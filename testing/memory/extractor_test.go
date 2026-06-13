@@ -352,7 +352,13 @@ func TestExtract_RelationDedup(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, resp.Relations, 1)
-	assert.True(t, resp.Relations[0].Skipped)
+	// 重复共现不再 skip，而是累加 mention_count / Repeat co-occurrence now accumulates instead of skipping
+	assert.False(t, resp.Relations[0].Skipped)
+
+	rels, err := graphManager.GetEntityRelations(context.Background(), alice.ID)
+	require.NoError(t, err)
+	require.Len(t, rels, 1, "still a single relation row after accumulation")
+	assert.Equal(t, 2, rels[0].MentionCount)
 }
 
 func TestExtract_EmptyContent(t *testing.T) {
@@ -466,4 +472,111 @@ func TestParseExtractOutput_ExtractFromText(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, resp.Entities, 1)
 	assert.Equal(t, "Bob", resp.Entities[0].Name)
+}
+
+func TestGraphManagerUpsertRelation_AccumulatesAndValidates(t *testing.T) {
+	mock := &mockLLMProvider{}
+	_, gm, _, _ := setupExtractor(t, mock, nil)
+	ctx := context.Background()
+
+	a, err := gm.CreateEntity(ctx, &model.CreateEntityRequest{Name: "MgrA", EntityType: "concept", Scope: "test"})
+	require.NoError(t, err)
+	b, err := gm.CreateEntity(ctx, &model.CreateEntityRequest{Name: "MgrB", EntityType: "concept", Scope: "test"})
+	require.NoError(t, err)
+
+	// 校验：缺字段 / Validation: missing fields
+	_, err = gm.UpsertRelation(ctx, &model.CreateEntityRelationRequest{SourceID: a.ID, TargetID: b.ID})
+	assert.ErrorIs(t, err, model.ErrInvalidInput)
+
+	// 首次 + 累加 / First + accumulate
+	r1, err := gm.UpsertRelation(ctx, &model.CreateEntityRelationRequest{
+		SourceID: a.ID, TargetID: b.ID, RelationType: "uses",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, r1.MentionCount)
+	assert.Equal(t, 1.0, r1.Weight, "weight defaults to 1.0")
+
+	r2, err := gm.UpsertRelation(ctx, &model.CreateEntityRelationRequest{
+		SourceID: a.ID, TargetID: b.ID, RelationType: "uses",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, r2.MentionCount)
+}
+
+// 同一关系跨两次抽取 → mention_count 累加，第二次非 skipped
+func TestExtract_RelationAccumulates(t *testing.T) {
+	entResp := entitiesJSON(
+		[]map[string]string{
+			{"name": "Alice", "entity_type": "person", "description": "x"},
+			{"name": "Go", "entity_type": "tool", "description": "y"},
+		},
+		nil,
+	)
+	relResp := entitiesJSON(nil, []map[string]string{
+		{"source": "Alice", "target": "Go", "relation_type": "uses"},
+	})
+	mock := &mockLLMProvider{responses: []*llm.ChatResponse{
+		{Content: entResp}, {Content: relResp}, // first Extract
+		{Content: entResp}, {Content: relResp}, // second Extract
+	}}
+	cfg := &config.ExtractConfig{
+		MaxEntities: 20, MaxRelations: 30,
+		NormalizeEnabled: true, NormalizeCandidates: 20,
+		Timeout: 30 * time.Second, RelationExtractEnabled: true,
+	}
+	ext, gm, _, _ := setupExtractor(t, mock, cfg)
+	ctx := context.Background()
+
+	_, err := ext.Extract(ctx, &model.ExtractRequest{Content: "Alice uses Go", Scope: "test"})
+	require.NoError(t, err)
+	resp2, err := ext.Extract(ctx, &model.ExtractRequest{Content: "Alice uses Go again", Scope: "test"})
+	require.NoError(t, err)
+	require.Len(t, resp2.Relations, 1)
+	assert.False(t, resp2.Relations[0].Skipped, "repeat relation now accumulates, not skipped")
+
+	alice, err := gm.FindEntitiesByName(ctx, "Alice", "test", 1)
+	require.NoError(t, err)
+	require.Len(t, alice, 1)
+	rels, err := gm.GetEntityRelations(ctx, alice[0].ID)
+	require.NoError(t, err)
+	require.Len(t, rels, 1, "one accumulated relation row")
+	assert.Equal(t, 2, rels[0].MentionCount)
+}
+
+// relation_type 大小写/空白差异经一致化塌缩为同一三元组
+func TestExtract_RelationTypeCanonicalCollapse(t *testing.T) {
+	entResp := entitiesJSON(
+		[]map[string]string{
+			{"name": "Alice", "entity_type": "person", "description": "x"},
+			{"name": "Go", "entity_type": "tool", "description": "y"},
+		},
+		nil,
+	)
+	relResp1 := entitiesJSON(nil, []map[string]string{{"source": "Alice", "target": "Go", "relation_type": "uses"}})
+	relResp2 := entitiesJSON(nil, []map[string]string{{"source": "Alice", "target": "Go", "relation_type": "USES "}})
+	mock := &mockLLMProvider{responses: []*llm.ChatResponse{
+		{Content: entResp}, {Content: relResp1},
+		{Content: entResp}, {Content: relResp2},
+	}}
+	cfg := &config.ExtractConfig{
+		MaxEntities: 20, MaxRelations: 30,
+		NormalizeEnabled: true, NormalizeCandidates: 20,
+		Timeout: 30 * time.Second, RelationExtractEnabled: true,
+	}
+	ext, gm, _, _ := setupExtractor(t, mock, cfg)
+	ctx := context.Background()
+
+	_, err := ext.Extract(ctx, &model.ExtractRequest{Content: "Alice uses Go", Scope: "test"})
+	require.NoError(t, err)
+	_, err = ext.Extract(ctx, &model.ExtractRequest{Content: "Alice USES Go", Scope: "test"})
+	require.NoError(t, err)
+
+	alice, err := gm.FindEntitiesByName(ctx, "Alice", "test", 1)
+	require.NoError(t, err)
+	require.Len(t, alice, 1)
+	rels, err := gm.GetEntityRelations(ctx, alice[0].ID)
+	require.NoError(t, err)
+	require.Len(t, rels, 1, "USES/uses/whitespace must collapse to one triple")
+	assert.Equal(t, "uses", rels[0].RelationType)
+	assert.Equal(t, 2, rels[0].MentionCount)
 }

@@ -16,6 +16,7 @@ type QueryPlan struct {
 	Entities       []string
 	Intent         string
 	Temporal       bool
+	TemporalAnchor bool       // 是否有明确时间锚点 / Whether query has an explicit temporal anchor
 	TemporalCenter *time.Time
 	TemporalRange  time.Duration
 	HyDEDoc        string
